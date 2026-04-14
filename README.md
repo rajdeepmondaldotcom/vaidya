@@ -152,16 +152,17 @@ python -m eval --scenarios all      # full 64-scenario suite
 
 ## Cost per call
 
-Assuming a 3-minute call with 4 LLM calls, 2K chars translation, 1.5K chars TTS:
+Assuming a 3-minute call with 4 LLM calls, 2K chars translation, 1.5K chars TTS. Pricing from [Sarvam API docs](https://docs.sarvam.ai):
 
-| Component | Cost (₹) |
-|-----------|----------|
-| STT (Saaras v3) | 1.50 |
-| LLM (sarvam-105b/30b) | 0.00 |
-| Translation (Mayura) | 0.40 |
-| TTS (Bulbul v3) | 0.45 |
-| Telephony (Exotel) | 3.00 |
-| **Total** | **~₹5.85** |
+| Component | Rate | Per Call (₹) |
+|-----------|------|-------------|
+| STT (Saaras v3) | ₹30/hour | 1.50 |
+| LLM (sarvam-105b/30b) | **Free** | 0.00 |
+| Translation (Mayura v1) | ₹20/10K chars | 0.40 |
+| TTS (Bulbul v3) | ₹30/10K chars | 0.45 |
+| Language ID | ₹3.5/10K chars | 0.04 |
+| Telephony (Exotel) | ~₹1/min | 3.00 |
+| **Total** | | **~₹5.39** |
 
 At 10,000 calls/day, that's ~₹17.5L/month. At a million calls/day, ~₹17.5 crore/month. The LLM being free is what makes the unit economics work at scale.
 
