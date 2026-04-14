@@ -17,13 +17,14 @@ class Settings(BaseSettings):
     environment: str = "development"
 
     # Model routing (see docs.sarvam.ai/api-reference-docs/getting-started/models)
-    # sarvam-105b: flagship 128K context, best accuracy (free tier)
-    # sarvam-30b: efficient 64K context, good for simple tasks (free tier)
-    orchestrator_model: str = "sarvam-30b"  # Simple routing classification
-    intake_model: str = "sarvam-30b"  # Structured Q&A, low complexity
-    eligibility_model: str = "sarvam-105b"  # Complex reasoning + RAG matching
-    reviewer_model: str = "sarvam-105b"  # Independent validation, must match eligibility
-    guidance_model: str = "sarvam-30b"  # Template-based output generation
+    # Both sarvam-105b and sarvam-30b are FREE. Use 105b everywhere for
+    # maximum accuracy and JSON compliance. Switch to 30b only if latency
+    # becomes a bottleneck in production (30b is ~3x faster).
+    orchestrator_model: str = "sarvam-105b"
+    intake_model: str = "sarvam-105b"
+    eligibility_model: str = "sarvam-105b"
+    reviewer_model: str = "sarvam-105b"
+    guidance_model: str = "sarvam-105b"
 
     # Session
     session_ttl_seconds: int = 1800  # 30 minutes

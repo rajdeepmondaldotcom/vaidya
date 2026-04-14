@@ -14,11 +14,15 @@ logger = logging.getLogger(__name__)
 
 
 class SarvamClient:
-    """Thin async facade over the synchronous sarvamai SDK."""
+    """Thin async facade over the synchronous sarvamai SDK with cost tracking."""
 
     def __init__(self, api_key: str) -> None:
         self._api_key = api_key
         self._client = SarvamAI(api_subscription_key=api_key)
+
+        from vaidya.sarvam.cost import CostTracker
+
+        self.costs = CostTracker()
 
     async def chat(
         self,
@@ -49,8 +53,15 @@ class SarvamClient:
                 **kwargs,
             )
             elapsed = (time.perf_counter() - start) * 1000
-            content = response.choices[0].message.content
-            logger.info("LLM call", extra={"model": model, "latency_ms": f"{elapsed:.0f}"})
+            msg = response.choices[0].message
+            # sarvam-105b may return content=None when reasoning_content is used
+            content = msg.content or getattr(msg, "reasoning_content", None) or ""
+            tokens = getattr(response.usage, "total_tokens", 0) if response.usage else 0
+            self.costs.record_llm(tokens)
+            logger.info(
+                "LLM call",
+                extra={"model": model, "tokens": tokens, "latency_ms": f"{elapsed:.0f}"},
+            )
             return content
         except Exception as e:
             elapsed = (time.perf_counter() - start) * 1000
@@ -111,12 +122,14 @@ class SarvamClient:
                 numerals_format=numerals_format,
             )
             elapsed = (time.perf_counter() - start) * 1000
+            self.costs.record_translate(len(text))
             logger.info(
                 "Translation",
                 extra={
                     "model": model,
                     "src": source_lang,
                     "tgt": target_lang,
+                    "chars": len(text),
                     "latency_ms": f"{elapsed:.0f}",
                 },
             )
@@ -161,6 +174,7 @@ class SarvamClient:
                 output_audio_codec=output_audio_codec,
             )
             elapsed = (time.perf_counter() - start) * 1000
+            self.costs.record_tts(len(truncated))
             logger.info(
                 "TTS",
                 extra={
@@ -349,8 +363,11 @@ class SarvamClient:
             raise
 
 
-def parse_llm_json(raw: str) -> dict[str, Any]:
+def parse_llm_json(raw: str | None) -> dict[str, Any]:
     """Parse JSON from LLM output, stripping markdown code fences."""
+    if not raw:
+        logger.warning("LLM returned empty/None content")
+        return {"_raw": "", "_parse_error": True}
     cleaned = raw.strip()
     if cleaned.startswith("```"):
         lines = cleaned.split("\n")

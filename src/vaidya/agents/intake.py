@@ -108,6 +108,19 @@ _COVERAGE_MAP: dict[str, CoverageType] = {
 # Maximum questions before we move on even with gaps
 _MAX_QUESTIONS = 5
 
+# Per-question expected JSON field examples for the prompt template.
+# These replace the static JSON example so the LLM returns the right fields
+# for each question instead of always returning Q1 fields (state/district).
+_FIELD_EXAMPLES: dict[int | str, str] = {
+    0: '{"state": "value_or_null", "district": "value_or_null", "family_size": "integer_or_null", "occupation_type": "value_or_null", "income_bracket": "value_or_null", "existing_coverage": "value_or_null", "health_need": "value_or_null"}',
+    1: '{"state": "value_or_null", "district": "value_or_null"}',
+    2: '{"family_size": "integer_or_null"}',
+    3: '{"occupation_type": "daily_wage|salaried_govt|salaried_pvt|self_employed|farmer|null", "income_bracket": "below_1l|1l_to_2.5l|2.5l_to_5l|above_5l|null"}',
+    4: '{"existing_coverage": "none|employer|govt_scheme|private|null"}',
+    5: '{"health_need": "description_or_null"}',
+    "confirmation": '{"confirmed": "true_or_false", "correction_field": "field_name_or_null"}',
+}
+
 # Map profile field names back to the question that collects them,
 # used when the user wants to correct a specific part during confirmation.
 _FIELD_TO_QUESTION: dict[str, int] = {
@@ -352,6 +365,7 @@ class IntakeAgent(BaseAgent):
             current_question="Confirmation of intake summary — user should say yes or no.",
             profile_summary="(confirming previously collected data)",
             language=language,
+            expected_fields_json=_FIELD_EXAMPLES["confirmation"],
         )
         try:
             result = await self._call_llm_json(
@@ -386,6 +400,7 @@ class IntakeAgent(BaseAgent):
             ),
             profile_summary="No information yet.",
             language=language,
+            expected_fields_json=_FIELD_EXAMPLES[0],
         )
         try:
             return await self._call_llm_json(
@@ -417,6 +432,7 @@ class IntakeAgent(BaseAgent):
             current_question=current_question,
             profile_summary=profile_summary,
             language=language,
+            expected_fields_json=_FIELD_EXAMPLES.get(question_number, _FIELD_EXAMPLES[1]),
         )
         try:
             return await self._call_llm_json(
@@ -429,6 +445,7 @@ class IntakeAgent(BaseAgent):
             logger.warning(
                 "Answer extraction failed",
                 extra={"error": str(exc), "question": question_number},
+                exc_info=True,
             )
             return {
                 "extracted_fields": {},
