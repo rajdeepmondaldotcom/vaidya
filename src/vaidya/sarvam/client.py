@@ -109,7 +109,6 @@ class SarvamClient:
                 speaker_gender=speaker_gender,
                 output_script=output_script,
                 numerals_format=numerals_format,
-                enable_preprocessing=False,
             )
             elapsed = (time.perf_counter() - start) * 1000
             logger.info(
@@ -272,64 +271,39 @@ class SarvamClient:
             return audio
 
     # ------------------------------------------------------------------
-    # Vision (Document Intelligence) — ₹1.5/page
+    # Document Intelligence (Sarvam Vision) — ₹1.5/page
+    # SDK: client.document_intelligence (job-based: initialise→upload→start→poll→download)
+    # Phase 2: full implementation for WhatsApp document verification
     # ------------------------------------------------------------------
-
-    async def vision(
-        self,
-        image_file: Any,
-        language: str = "hi-IN",
-    ) -> dict[str, Any]:
-        """Extract text and fields from a document image using Sarvam Vision.
-
-        Docs: https://docs.sarvam.ai/api-reference-docs/getting-started/models/sarvam-vision
-        Supports Aadhaar, ration card, BPL card, and other Indian documents.
-        """
-        start = time.perf_counter()
-        try:
-            response = await asyncio.to_thread(
-                self._client.document.analyze,
-                file=image_file,
-                language_code=language,
-            )
-            elapsed = (time.perf_counter() - start) * 1000
-            logger.info("Vision OCR", extra={"latency_ms": f"{elapsed:.0f}"})
-            return {"text": response.text, "fields": getattr(response, "fields", {})}
-        except Exception as e:
-            elapsed = (time.perf_counter() - start) * 1000
-            logger.error(
-                "Vision OCR failed",
-                extra={"error": str(e), "latency_ms": f"{elapsed:.0f}"},
-            )
-            raise
 
     # ------------------------------------------------------------------
     # Language Identification — ₹3.5/10K chars
     # ------------------------------------------------------------------
 
-    async def detect_language(self, text: str) -> tuple[str, float]:
-        """Detect the language of input text.
+    async def identify_language(self, text: str) -> tuple[str, str]:
+        """Identify the language and script of input text.
 
-        Returns (language_code, confidence) e.g. ("hi-IN", 0.95).
+        Returns (language_code, script_code) e.g. ("hi-IN", "Deva").
+        Uses client.text.identify_language() per sarvamai SDK.
         """
         start = time.perf_counter()
         try:
             response = await asyncio.to_thread(
-                self._client.text.detect_language,
+                self._client.text.identify_language,
                 input=text,
             )
             elapsed = (time.perf_counter() - start) * 1000
             lang = response.language_code
-            confidence = getattr(response, "confidence", 1.0)
+            script = getattr(response, "script_code", "")
             logger.info(
-                "Language detection",
+                "Language identification",
                 extra={
                     "detected": lang,
-                    "confidence": f"{confidence:.2f}",
+                    "script": script,
                     "latency_ms": f"{elapsed:.0f}",
                 },
             )
-            return lang, confidence
+            return lang, script
         except Exception as e:
             elapsed = (time.perf_counter() - start) * 1000
             logger.error(

@@ -49,9 +49,9 @@ SARVAM_LANG_MAP: dict[str, Language] = {
 # ---------------------------------------------------------------------------
 
 TTS_SPEAKERS: dict[Language, str] = {
-    Language.HINDI: "anushka",
+    Language.HINDI: "priya",
     Language.TAMIL: "kavitha",
-    Language.BENGALI: "anushka",
+    Language.BENGALI: "priya",
     Language.ENGLISH: "amelia",
 }
 

@@ -36,16 +36,15 @@ class DocumentVerifier:
         The image is NOT stored. Only extracted text fields are used
         for the current session, then discarded.
         """
-        # Extract fields via Sarvam Vision
-        extracted = await self._client.vision(image_file, language)
-        text = extracted.get("text", "")
-        fields = extracted.get("fields", {})
+        # Sarvam Document Intelligence is a job-based API
+        # (initialise → upload → start → poll → download).
+        # Phase 2 will implement the full async job flow.
+        # For now, return an unverified placeholder result.
+        logger.info("Document verification called (job-based API pending Phase 2)")
 
-        # PII-mask the extracted text before any logging
+        text = ""
+        fields: dict[str, Any] = {}
         masked_text = mask_pii(text)
-        logger.info("Document scanned", extra={"masked_text_length": len(masked_text)})
-
-        # Cross-check against spoken profile
         discrepancies = self._cross_check(fields, user_profile)
 
         return VerificationResult(

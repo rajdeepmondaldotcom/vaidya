@@ -89,9 +89,9 @@ LANGUAGE_TO_SARVAM_CODE: dict[Language, str] = {
 
 # TTS speakers — bulbul:v3 has 45 voices, pick natural-sounding per language
 TTS_SPEAKER: dict[Language, str] = {
-    Language.HINDI: "anushka",
+    Language.HINDI: "priya",
     Language.TAMIL: "kavitha",
-    Language.BENGALI: "anushka",
+    Language.BENGALI: "priya",
     Language.ENGLISH: "amelia",
 }
 
