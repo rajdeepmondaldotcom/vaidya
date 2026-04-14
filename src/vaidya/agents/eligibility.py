@@ -358,7 +358,9 @@ class EligibilityAgent(BaseAgent):
         schemes_evaluated: int,
     ) -> EligibilityResult:
         """Parse LLM JSON into a validated EligibilityResult."""
-        if raw.get("_parse_error"):
+        if isinstance(raw, list):
+            raw = {"matches": raw}
+        if not isinstance(raw, dict) or raw.get("_parse_error"):
             logger.warning("LLM returned unparseable JSON for eligibility")
             return EligibilityResult(
                 matches=[],

@@ -54,8 +54,11 @@ class SarvamClient:
             )
             elapsed = (time.perf_counter() - start) * 1000
             msg = response.choices[0].message
-            # sarvam-105b may return content=None when reasoning_content is used
-            content = msg.content or getattr(msg, "reasoning_content", None) or ""
+            content = msg.content or ""
+            # If content is empty but reasoning exists, the model reasoned
+            # but didn't produce a final answer. Log and return empty.
+            if not content and getattr(msg, "reasoning_content", None):
+                logger.warning("LLM returned reasoning_content but no content")
             tokens = getattr(response.usage, "total_tokens", 0) if response.usage else 0
             self.costs.record_llm(tokens)
             logger.info(

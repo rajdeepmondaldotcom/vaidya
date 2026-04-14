@@ -201,7 +201,10 @@ class ReviewerAgent(BaseAgent):
         candidate_schemes: list[SchemeRecord],
     ) -> ReviewerResult:
         """Parse LLM JSON into a validated ReviewerResult."""
-        if raw.get("_parse_error"):
+        # Handle cases where LLM returns a list instead of dict
+        if isinstance(raw, list):
+            raw = {"matches": raw}
+        if not isinstance(raw, dict) or raw.get("_parse_error"):
             logger.warning("LLM returned unparseable JSON for reviewer")
             return ReviewerResult(
                 matches=[],
