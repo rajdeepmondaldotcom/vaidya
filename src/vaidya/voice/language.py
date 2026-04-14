@@ -45,14 +45,14 @@ SARVAM_LANG_MAP: dict[str, Language] = {
 }
 
 # ---------------------------------------------------------------------------
-# TTS speaker per language (Bulbul v2 speaker names)
+# TTS speaker per language (Bulbul v3 — 45 speakers available)
 # ---------------------------------------------------------------------------
 
 TTS_SPEAKERS: dict[Language, str] = {
-    Language.HINDI: "meera",
-    Language.TAMIL: "meera",
-    Language.BENGALI: "meera",
-    Language.ENGLISH: "meera",
+    Language.HINDI: "anushka",
+    Language.TAMIL: "kavitha",
+    Language.BENGALI: "anushka",
+    Language.ENGLISH: "amelia",
 }
 
 # ---------------------------------------------------------------------------
