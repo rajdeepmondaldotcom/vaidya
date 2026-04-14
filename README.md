@@ -1,123 +1,97 @@
 # Vaidya
 
-**Voice-first multi-agent healthcare scheme navigator for 55 crore Indians.**
+**One phone call. Any Indian language. Find out which government healthcare schemes you qualify for.**
 
-One phone call. Any Indian language. Vaidya listens, asks 5 questions, and tells you — in your language, in a human voice — which government healthcare schemes you qualify for, what documents you need, and where to go.
+India has 50+ healthcare schemes. PM-JAY alone has 30+ state variants. 55 crore people are eligible. 18 crore haven't enrolled. The barrier isn't policy. It's discovery. The target population doesn't have literacy, internet access, or free time to navigate English PDFs on government websites.
 
-No app. No signup. No screen.
+Vaidya solves this with a phone call. The user speaks in their language, answers 5 questions, and hears back which schemes they qualify for, what documents to bring, and where to go. No app. No signup. No screen.
 
----
+## How it works
 
-## The Problem
-
-India runs 50+ government healthcare schemes across central and state levels. PM-JAY alone has 30+ state variants. **55 crore people are eligible. Only 37 crore have enrolled.** The barrier is not policy — it is discovery. The current path requires literacy, internet access, English comprehension, and free time. The target population has none of these.
-
-## How Vaidya Works
+A 5-agent system with a deterministic state machine at the center.
 
 ```
-User calls a phone number
-         │
-         ▼
-┌─────────────────────────┐
-│  Saaras V3 (STT)        │  Auto-detects language from speech
-│  23 Indian languages     │  Handles code-mixed input
-└────────────┬────────────┘
-             │
-             ▼
-┌─────────────────────────┐
-│  ORCHESTRATOR            │  Deterministic state machine
-│  7 conversation phases   │  Routes to specialized agents
-│  LLM-free routing        │  <10ms per decision
-└────────────┬────────────┘
-             │
-     ┌───────┼───────┬──────────────┐
-     │       │       │              │
-     ▼       ▼       ▼              ▼
-  INTAKE  ELIGIBILITY  REVIEWER   GUIDANCE
-  Agent    Agent       Agent      Agent
-     │       │          │           │
-     │  field-by-field  │   next steps
-     │  matching + RAG  │   documents
-  5 questions            │   nearest CSC
-     │   ┌───────────┐  │
-     │   │CONVERGENCE│◄─┘
-     │   │  CHECKER   │  Both agents must agree
-     │   └─────┬─────┘  Disagreement → conservative + caveat
-     │         │
-     └─────────┼─────────────────────┘
-               │
-               ▼
-┌─────────────────────────┐
-│  Bulbul V3 (TTS)        │  Natural voice in user's language
-│  11 Indian languages     │  <3 second voice-to-voice
-└─────────────────────────┘
+User speaks → Saaras v3 (STT, 23 languages) → ORCHESTRATOR (state machine, not LLM)
+                                                      │
+                          ┌───────────────────────────┼──────────────┐
+                          ▼                           ▼              ▼
+                       INTAKE                    ELIGIBILITY     REVIEWER
+                    (5 questions)               (LLM + RAG)   (full transcript)
+                          │                           │              │
+                          │                           └──────┬───────┘
+                          │                          CONVERGENCE CHECK
+                          │                       (both must agree to output)
+                          └───────────────────────────┬──────────────┘
+                                                      ▼
+                                                   GUIDANCE
+                                              (results + next steps)
+                                                      │
+                                                      ▼
+                                        Bulbul v3 (TTS, 11 languages)
+                                                      │
+                                                      ▼
+                                          User hears the answer
 ```
 
-## The Reviewer Pattern
+The orchestrator is pure Python. No LLM in the routing loop. Match/case state machine with 7 phases. Under 10ms per routing decision.
 
-The core innovation. At 55 crore beneficiary scale, a 2% false-positive rate = **1.1 crore people sent to CSC centers where they'll be turned away.**
+The agents do the thinking. The orchestrator does the traffic.
 
-The Eligibility Agent does structured field-by-field matching. The Reviewer Agent independently processes the **full conversation transcript** — catching exclusion criteria mentioned in passing (e.g., employer insurance in a code-mixed aside 3 turns ago). When agents disagree, the system resolves conservatively and logs immutable reasoning traces.
+## The constraint that shaped the architecture
 
-This is what makes Vaidya deployable at government scale, not demo scale.
+At 55 crore beneficiary scale, a 2% false-positive rate means 1.1 crore people get sent to a CSC center and turned away. That's the number that drove the reviewer pattern.
 
-## Phase 1 Schemes (8)
+The **Eligibility Agent** does structured field-by-field matching against the scheme corpus. The **Reviewer Agent** independently reads the full conversation transcript and catches what the structured matching missed: an employer insurance mention in a code-mixed aside three turns ago, a contradiction between early and late answers, a government job disclosed in passing.
 
-| Scheme | Coverage | Key Eligibility |
-|--------|----------|-----------------|
-| PM-JAY | ₹5L/family/year | SECC 2011, income <₹2.5L |
-| PM-JAY 70+ | Additional ₹5L | Age 70+, any income |
-| Chiranjeevi (Rajasthan) | ₹25L/family/year | NFSA free / ₹850/yr premium |
-| Swasthya Sathi (West Bengal) | ₹5L/family | Universal — all WB residents |
+Both agents run in parallel. When they agree, the result goes out. When they disagree, the system resolves conservatively: "mil sakti hai, lekin Jan Seva Kendra mein final confirm hoga."
+
+Every disagreement is logged with both reasoning traces. This is what makes it deployable at government scale, not demo scale.
+
+## Schemes covered (Phase 1)
+
+| Scheme | Coverage | Who qualifies |
+|--------|----------|---------------|
+| PM-JAY | ₹5L/family/year | SECC 2011 families, income below ₹2.5L |
+| PM-JAY 70+ | Additional ₹5L | Anyone aged 70+, regardless of income |
+| Chiranjeevi (Rajasthan) | ₹25L/family/year | NFSA families free, others ₹850/year |
+| Swasthya Sathi (West Bengal) | ₹5L/family | All WB residents, no income criteria |
 | MJPJAY (Maharashtra) | ₹5L/family/year | Ration card holders |
-| PMSBY | ₹2L accidental | Age 18-70, bank account, ₹20/yr |
-| ESIC | Comprehensive | Salaried <₹21K/month |
-| Arogya Karnataka | ₹5L/family/year | NFSA household |
+| PMSBY | ₹2L accidental | Ages 18-70 with a bank account, ₹20/year |
+| ESIC | Comprehensive | Salaried workers under ₹21K/month |
+| Arogya Karnataka | ₹5L/family/year | NFSA/BPL households |
 
-## Tech Stack
+8 schemes. Real eligibility rules, real exclusion logic, real enrollment steps. Each stored as a validated JSON file with field-level data.
+
+## What's under the hood
 
 ```
-Runtime:        Python 3.11+ / FastAPI
-AI:             Sarvam AI (sarvamai SDK) — zero external AI dependencies
-Models:         Sarvam-105B (eligibility/reviewer), Sarvam-30B (intake/guidance)
-Knowledge:      ChromaDB (hybrid dense + sparse retrieval)
-Session:        Redis (30-min TTL, dropped-call recovery)
-Compliance:     PII masking, consent tracking, immutable audit trail
-Container:      Docker + docker-compose
+Python 3.11 / FastAPI
+Sarvam AI: sarvam-105b (eligibility/reviewer), sarvam-30b (intake/guidance)
+           saaras:v3 (STT), bulbul:v3 (TTS), mayura:v1 (translation)
+ChromaDB for state-filtered scheme retrieval
+Redis for session state (30-min TTL, dropped-call recovery)
+PII masking (Aadhaar, phone, PAN), consent tracking, immutable audit trail
+Docker + docker-compose for local dev
 ```
 
-## Quickstart
+Zero dependencies outside the Sarvam SDK and FastAPI ecosystem. No LangChain. No CrewAI. The orchestration is custom because the routing decisions are deterministic and the failure modes are specific to this domain.
 
-### Prerequisites
-- Python 3.11+
-- Docker (for Redis + ChromaDB)
-- [Sarvam AI API key](https://docs.sarvam.ai) (free tier available)
-
-### Setup
+## Run it
 
 ```bash
-# Clone
 git clone https://github.com/rajdeepmondaldotcom/vaidya.git
 cd vaidya
 
-# Install
 pip install -e ".[dev]"
-
-# Configure
-cp .env.example .env
-# Edit .env and add your SARVAM_API_KEY
-
-# Start infrastructure
+cp .env.example .env        # add your SARVAM_API_KEY
 docker compose up -d redis chromadb
-
-# Run
+python scripts/seed_knowledge.py
 make run
 ```
 
-### Try it
+Then test with a simulated conversation:
 
 ```bash
-# Text-based conversation simulation
 curl -X POST http://localhost:8000/simulate/text \
   -H "Content-Type: application/json" \
   -d '{
@@ -128,99 +102,73 @@ curl -X POST http://localhost:8000/simulate/text \
       "Ghar mein 5 log hain",
       "Daily mazdoori karta hoon",
       "Nahi, koi insurance nahi hai",
-      "Haan, bachche ke liye ilaaj chahiye"
+      "Bachche ke liye ilaaj chahiye"
     ]
   }'
 ```
 
-### API Endpoints
+API key: sign up at [dashboard.sarvam.ai](https://dashboard.sarvam.ai). Free tier gives ₹1,000 in credits. The LLM endpoints (sarvam-105b, sarvam-30b) are free. Text simulation mode uses only the LLM. Total cost for the demo: ₹0.
 
-| Method | Path | Description |
+## API
+
+| Method | Path | What it does |
 |--------|------|-------------|
 | GET | `/health` | Liveness check |
-| GET | `/ready` | Readiness check |
 | POST | `/conversation/start` | Start a session |
-| POST | `/conversation/{id}/turn` | Send a message |
-| GET | `/conversation/{id}` | Get conversation state |
-| POST | `/simulate/text` | Full text conversation |
-| GET | `/schemes` | List all schemes |
-| GET | `/schemes/{id}` | Get scheme details |
+| POST | `/conversation/{id}/turn` | Send a user message, get a response |
+| GET | `/conversation/{id}` | Current conversation state |
+| POST | `/simulate/text` | Full multi-turn text conversation |
+| GET | `/schemes` | List all 8 schemes |
+| GET | `/schemes/{id}` | Single scheme detail |
+| DELETE | `/compliance/data/{phone_hash}` | Delete all user data (DPDP Act) |
 
-## Architecture
-
-### 5-Layer Design
-
-1. **Telephony Gateway** — SIP trunk (Exotel) or WhatsApp (Samvaad)
-2. **Voice Pipeline** — Saaras V3 (STT) + Bulbul V3 (TTS), streaming WebSocket
-3. **Agent Orchestration** — FastAPI, deterministic state machine, 5 specialized agents
-4. **Knowledge Layer** — 8 schemes in ChromaDB, hybrid RAG, state-filtered retrieval
-5. **Data & Compliance** — PII masking, consent ledger, immutable audit trail
-
-### 7 Conversation Phases
-
-```
-WELCOME → OPEN_ELICITATION → INTAKE (5 Qs) → PROCESSING → RESULTS → GUIDANCE → CLOSURE
-                                                  ↑                              │
-                                                  └──────── (user has more Qs) ──┘
-```
-
-### Latency Budget
-
-| Step | Target | Technique |
-|------|--------|-----------|
-| Orchestrator routing | <10ms | Pure Python match/case |
-| Intake/Guidance agent | 800ms | Sarvam LLM, shorter prompts |
-| Eligibility + Reviewer | 1200ms | Parallel execution via asyncio.gather |
-| Translation | 400ms | Skip if same language |
-| **Total** | **~2.5s** | Under 3s voice-to-voice target |
-
-## Development
+## Testing
 
 ```bash
-make dev          # Install with dev dependencies
-make lint         # Ruff lint + format check
-make type-check   # mypy --strict
-make test         # Run all tests
-make test-unit    # Run unit tests only
+make test              # 216 tests, runs in under a second
+make lint              # ruff check + format
 ```
 
-## Evaluation
+64 evaluation scenarios covering: per-scheme eligibility, exclusion rules, cross-language parity, adversarial inputs (prompt injection, Aadhaar probing), emotional distress handling, and the reviewer-catches-what-eligibility-missed scenario.
 
 ```bash
-# Run full evaluation suite (requires running server + API key)
-python -m eval --base-url http://localhost:8000
-
-# Quick smoke test (3 scenarios)
-python -m eval --scenarios quick
-
-# Specific scenarios
-python -m eval --scenarios SC-V001,SC-V002,SC-V006
+python -m eval --scenarios quick    # 5-scenario smoke test
+python -m eval --scenarios all      # full 64-scenario suite
 ```
 
-## Deployment Phases
+## Latency budget
 
-| Phase | Scale | Infrastructure |
-|-------|-------|---------------|
-| **Demo** (now) | 10-50 calls | Single container, Railway/Render |
-| **Pilot** | 1,000 calls | K8s cluster, PostgreSQL, all 11 languages |
-| **National** | 10,000+ | Chanakya on-premises per state |
+| Step | Target |
+|------|--------|
+| Orchestrator routing | <10ms (pure Python, no LLM) |
+| Intake/Guidance agent | ~800ms (sarvam-30b) |
+| Eligibility + Reviewer | ~1200ms (parallel via asyncio.gather) |
+| Translation | ~400ms (skipped if same language) |
+| **Total per turn** | **Under 3 seconds** |
 
-## Cost Model
+## Cost per call
 
-| Component | Per Call (₹) |
-|-----------|-------------|
-| STT (Saaras V3) | 1.50 |
-| LLM (free tier) | 0.00 |
-| Translation | 0.40 |
-| TTS (Bulbul V3) | 0.45 |
-| Telephony | 3.00 |
+Assuming a 3-minute call with 4 LLM calls, 2K chars translation, 1.5K chars TTS:
+
+| Component | Cost (₹) |
+|-----------|----------|
+| STT (Saaras v3) | 1.50 |
+| LLM (sarvam-105b/30b) | 0.00 |
+| Translation (Mayura) | 0.40 |
+| TTS (Bulbul v3) | 0.45 |
+| Telephony (Exotel) | 3.00 |
 | **Total** | **~₹5.85** |
+
+At 10,000 calls/day, that's ~₹17.5L/month. At a million calls/day, ~₹17.5 crore/month. The LLM being free is what makes the unit economics work at scale.
+
+## What's next
+
+**Phase 1 (now):** 8 schemes, 3 languages (Hindi, Tamil, Bengali), text simulation mode.
+
+**Phase 2 (at Sarvam):** 50+ schemes across all states, all 11 Bulbul languages, WhatsApp via Samvaad, CSC integration, NHA API verification.
+
+**Phase 3 (national):** Chanakya on-premises per state health department. Air-gapped. Full pipeline runs locally. Generalizes beyond healthcare to pensions, agriculture subsidies, education scholarships.
 
 ## License
 
 MIT
-
-## Author
-
-**Rajdeep Mondal** — Senior Data Scientist, multi-agent systems specialist.
-Built production multi-agent systems with 20+ specialized agents curating 260K biomedical records at 93% recall (first-author bioRxiv publication). The reviewer pattern in Vaidya is a direct evolution of the architectural innovation that lifted accuracy from 78% to 93%.
