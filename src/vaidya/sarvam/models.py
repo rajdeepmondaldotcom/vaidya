@@ -57,6 +57,15 @@ TRANSLATE_MODEL_SARVAM = "sarvam-translate:v1"
 DEFAULT_TRANSLATE_MODEL = TRANSLATE_MODEL_MAYURA
 
 # ---------------------------------------------------------------------------
+# Vision (Document Intelligence)
+# Endpoint: POST https://api.sarvam.ai/v1/document/analyze
+# Docs: https://docs.sarvam.ai/api-reference-docs/getting-started/models/sarvam-vision
+# Pricing: ₹1.5 per page
+# ---------------------------------------------------------------------------
+
+VISION_MODEL = "sarvam-vision"
+
+# ---------------------------------------------------------------------------
 # Language support
 # ---------------------------------------------------------------------------
 

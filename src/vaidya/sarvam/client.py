@@ -271,6 +271,109 @@ class SarvamClient:
             audio = await ws.recv()
             return audio
 
+    # ------------------------------------------------------------------
+    # Vision (Document Intelligence) — ₹1.5/page
+    # ------------------------------------------------------------------
+
+    async def vision(
+        self,
+        image_file: Any,
+        language: str = "hi-IN",
+    ) -> dict[str, Any]:
+        """Extract text and fields from a document image using Sarvam Vision.
+
+        Docs: https://docs.sarvam.ai/api-reference-docs/getting-started/models/sarvam-vision
+        Supports Aadhaar, ration card, BPL card, and other Indian documents.
+        """
+        start = time.perf_counter()
+        try:
+            response = await asyncio.to_thread(
+                self._client.document.analyze,
+                file=image_file,
+                language_code=language,
+            )
+            elapsed = (time.perf_counter() - start) * 1000
+            logger.info("Vision OCR", extra={"latency_ms": f"{elapsed:.0f}"})
+            return {"text": response.text, "fields": getattr(response, "fields", {})}
+        except Exception as e:
+            elapsed = (time.perf_counter() - start) * 1000
+            logger.error(
+                "Vision OCR failed",
+                extra={"error": str(e), "latency_ms": f"{elapsed:.0f}"},
+            )
+            raise
+
+    # ------------------------------------------------------------------
+    # Language Identification — ₹3.5/10K chars
+    # ------------------------------------------------------------------
+
+    async def detect_language(self, text: str) -> tuple[str, float]:
+        """Detect the language of input text.
+
+        Returns (language_code, confidence) e.g. ("hi-IN", 0.95).
+        """
+        start = time.perf_counter()
+        try:
+            response = await asyncio.to_thread(
+                self._client.text.detect_language,
+                input=text,
+            )
+            elapsed = (time.perf_counter() - start) * 1000
+            lang = response.language_code
+            confidence = getattr(response, "confidence", 1.0)
+            logger.info(
+                "Language detection",
+                extra={
+                    "detected": lang,
+                    "confidence": f"{confidence:.2f}",
+                    "latency_ms": f"{elapsed:.0f}",
+                },
+            )
+            return lang, confidence
+        except Exception as e:
+            elapsed = (time.perf_counter() - start) * 1000
+            logger.error(
+                "Language detection failed",
+                extra={"error": str(e), "latency_ms": f"{elapsed:.0f}"},
+            )
+            raise
+
+    # ------------------------------------------------------------------
+    # Transliteration — ₹20/10K chars
+    # ------------------------------------------------------------------
+
+    async def transliterate(
+        self,
+        text: str,
+        source_lang: str,
+        target_lang: str,
+    ) -> str:
+        """Transliterate text between scripts (e.g. Devanagari to Roman).
+
+        Useful for logging romanized versions of Indic-script text.
+        """
+        start = time.perf_counter()
+        try:
+            response = await asyncio.to_thread(
+                self._client.text.transliterate,
+                input=text,
+                source_language_code=source_lang,
+                target_language_code=target_lang,
+            )
+            elapsed = (time.perf_counter() - start) * 1000
+            logger.info(
+                "Transliteration",
+                extra={"src": source_lang, "tgt": target_lang, "latency_ms": f"{elapsed:.0f}"},
+            )
+            return response.transliterated_text
+        except Exception as e:
+            elapsed = (time.perf_counter() - start) * 1000
+            logger.error(
+                "Transliteration failed",
+                extra={"error": str(e), "latency_ms": f"{elapsed:.0f}"},
+            )
+            raise
+
 
 def parse_llm_json(raw: str) -> dict[str, Any]:
     """Parse JSON from LLM output, stripping markdown code fences."""
