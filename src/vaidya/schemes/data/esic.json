@@ -1,0 +1,215 @@
+{
+  "scheme_id": "ESIC-2024-v2",
+  "canonical_name": "Employees' State Insurance Scheme",
+  "aliases": [
+    "ESIC",
+    "ESI",
+    "ESI Scheme",
+    "Employees State Insurance",
+    "ESI Hospital Scheme",
+    "ESIS"
+  ],
+  "local_names": {
+    "hi": "कर्मचारी राज्य बीमा योजना",
+    "bn": "কর্মচারী রাজ্য বীমা প্রকল্প",
+    "ta": "தொழிலாளர் அரசு காப்பீட்டுத் திட்டம்",
+    "te": "ఉద్యోగుల రాష్ట్ర బీమా పథకం",
+    "mr": "कर्मचारी राज्य विमा योजना",
+    "gu": "કર્મચારી રાજ્ય વીમા યોજના",
+    "kn": "ನೌಕರರ ರಾಜ್ಯ ವಿಮಾ ಯೋಜನೆ",
+    "ml": "എംപ്ലോയീസ് സ്റ്റേറ്റ് ഇൻഷുറൻസ് സ്കീം",
+    "pa": "ਕਰਮਚਾਰੀ ਰਾਜ ਬੀਮਾ ਯੋਜਨਾ",
+    "or": "କର୍ମଚାରୀ ରାଜ୍ୟ ବୀମା ଯୋଜନା"
+  },
+  "state_variant_of": null,
+  "jurisdiction": "central",
+  "state_code": null,
+  "income_thresholds": [
+    {
+      "max_income_inr": 21000,
+      "unit": "per_month",
+      "applies_to": "individual",
+      "description": "Employees earning up to Rs 21,000 per month (gross salary) are covered under ESI. For disabled employees, the threshold is Rs 25,000 per month.",
+      "source": "ESI Act 1948, amended 2016 / ESIC notification"
+    }
+  ],
+  "secc_categories": [],
+  "occupation_included": [
+    "salaried_pvt",
+    "factory_worker",
+    "shop_employee",
+    "hotel_restaurant_worker",
+    "cinema_worker",
+    "newspaper_establishment_worker",
+    "road_transport_worker",
+    "contractual_worker_in_covered_establishment"
+  ],
+  "occupation_excluded": [
+    "self_employed",
+    "farmer",
+    "government_employee",
+    "daily_wage_unorganized",
+    "domestic_worker",
+    "member_of_armed_forces"
+  ],
+  "exclusion_rules": [
+    {
+      "rule_id": "ESIC-EX-001",
+      "exclusion_type": "hard",
+      "field": "salary",
+      "condition": "gross_monthly_salary > 21000",
+      "description": "Employees earning more than Rs 21,000/month gross salary are not covered (Rs 25,000 for disabled employees)",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "ESIC-EX-002",
+      "exclusion_type": "hard",
+      "field": "employer_size",
+      "condition": "employer_employee_count < 10",
+      "description": "ESI applies only to establishments with 10 or more employees (20 or more in some states like Maharashtra and Chandigarh). Below this threshold, the employer is not required to register.",
+      "override_by_state": true
+    },
+    {
+      "rule_id": "ESIC-EX-003",
+      "exclusion_type": "hard",
+      "field": "employer_registration",
+      "condition": "employer_esic_registered == false",
+      "description": "The employer MUST be registered with ESIC. If the employer is not registered (violation of law), the employee cannot access ESI benefits directly.",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "ESIC-EX-004",
+      "exclusion_type": "hard",
+      "field": "occupation_type",
+      "condition": "occupation_type == 'self_employed'",
+      "description": "Self-employed individuals, freelancers, and gig workers are not covered under ESI",
+      "override_by_state": false
+    }
+  ],
+  "age_criteria": {
+    "min_age": 15,
+    "max_age": null,
+    "applies_to": "beneficiary"
+  },
+  "family_criteria": {
+    "max_family_size": null,
+    "family_definition": "Employee plus dependents: spouse, children (all ages), dependent parents. All dependents are covered for medical benefits at ESI hospitals and dispensaries.",
+    "head_of_family_required": false
+  },
+  "geographic_restrictions": [],
+  "coverage_amount_inr": 0,
+  "coverage_type": "per_person_per_year",
+  "covered_procedures": [
+    "COMPREHENSIVE medical care at ESI hospitals and dispensaries",
+    "OPD (Out-Patient) consultation and treatment",
+    "Hospitalization (full inpatient care)",
+    "Specialist consultation and referral",
+    "Surgical procedures",
+    "Maternity benefits: 26 weeks paid leave + medical expenses",
+    "Sickness benefit: 70% of wages for up to 91 days per year",
+    "Extended sickness benefit: for 34 specified long-term diseases (up to 2 years at 80% wages)",
+    "Temporary disability benefit: 90% of wages during work injury period",
+    "Permanent disability benefit: monthly pension proportional to disability %",
+    "Dependent benefit: 90% of wages as pension to dependents if worker dies from work injury",
+    "Funeral expenses: Rs 15,000 lump sum",
+    "Confinement expenses: if delivery at non-ESI hospital",
+    "Vocational rehabilitation for disabled workers",
+    "Preventive care and health check-ups",
+    "Super specialty referral through tie-up hospitals",
+    "Diagnostic services (X-ray, lab tests, etc.)",
+    "Medicines and consumables"
+  ],
+  "excluded_procedures": [
+    "Cosmetic surgery",
+    "Fertility treatment and IVF (not standard coverage)",
+    "Treatment at non-empanelled private hospitals (except emergencies)",
+    "Ayurveda, Homeopathy (available at select ESI centers only)"
+  ],
+  "required_documents": [
+    {
+      "name": "ESI Registration Number (from employer)",
+      "category": "enrollment",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "ESI पंजीकरण संख्या (नियोक्ता से)",
+      "notes": "Employer registers the establishment and all eligible employees with ESIC. Employee receives an ESI number."
+    },
+    {
+      "name": "Salary Slip / Wage Certificate",
+      "category": "eligibility_proof",
+      "mandatory": true,
+      "alternatives": ["Appointment Letter with salary details"],
+      "local_name_hi": "वेतन पर्ची",
+      "notes": "To verify that gross monthly salary is within the Rs 21,000 threshold"
+    },
+    {
+      "name": "Aadhaar Card",
+      "category": "identity",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "आधार कार्ड",
+      "notes": "For e-KYC and biometric authentication at ESI hospitals"
+    },
+    {
+      "name": "Passport-size Photographs",
+      "category": "identity",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "पासपोर्ट साइज फोटो",
+      "notes": "2 photos each for employee and each dependent for ESI card"
+    },
+    {
+      "name": "Family Details and Dependent Proof",
+      "category": "family",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "परिवार विवरण और आश्रित प्रमाण",
+      "notes": "Marriage certificate, children birth certificates, parent dependency declaration"
+    },
+    {
+      "name": "Bank Account Details",
+      "category": "financial",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "बैंक खाता विवरण",
+      "notes": "For cash benefit disbursement (sickness benefit, maternity benefit, disability pension)"
+    }
+  ],
+  "enrollment_channels": [
+    "Employer (mandatory enrollment by employer for eligible employees)",
+    "ESIC portal (esic.gov.in) for self-registration by employer",
+    "ESI hospital or dispensary (for Pehchan card issuance)",
+    "ESIC Regional/Sub-Regional Office"
+  ],
+  "enrollment_steps": [
+    "Step 1: Employer registers the establishment on ESIC portal (esic.gov.in) using the Employer Registration Form",
+    "Step 2: Employer adds all eligible employees (salary up to Rs 21,000/month) in the ESIC system",
+    "Step 3: Each employee is assigned a unique ESI Insurance Number (17-digit)",
+    "Step 4: Employee submits Aadhaar, photographs, and family/dependent details to employer",
+    "Step 5: Employer uploads employee and dependent details on ESIC portal",
+    "Step 6: ESI Pehchan Card (biometric smart card) is issued to employee and dependents",
+    "Step 7: Monthly contribution is deducted: 0.75% from employee salary + 3.25% by employer",
+    "Step 8: Employee and dependents can visit any ESI hospital or dispensary with Pehchan Card for treatment",
+    "Step 9: For super-specialty treatment, ESI hospital refers to empanelled tertiary hospitals"
+  ],
+  "processing_time_days": 15,
+  "helpline_number": "1800-11-2526",
+  "portal_url": "https://www.esic.gov.in",
+  "version": "2.0",
+  "effective_date": "1952-02-24",
+  "expiry_date": null,
+  "last_verified": "2024-10-20",
+  "source_url": "https://www.esic.gov.in/about-us",
+  "confidence_level": "verified",
+  "description_for_embedding": "Employees' State Insurance Corporation (ESIC) provides COMPREHENSIVE social security to organized sector employees earning up to Rs 21,000/month. Unlike pure health insurance schemes, ESI covers medical care, sickness benefit (70% wages for 91 days), maternity benefit (26 weeks paid leave), temporary and permanent disability pension, dependent pension on work-related death, and funeral expenses. Employer contributes 3.25% and employee 0.75% of salary. Coverage extends to employee and all dependents (spouse, children, parents). Applies to establishments with 10+ employees (20+ in some states). Treatment at dedicated ESI hospitals and dispensaries network. Enrollment is done by the employer, not the individual.",
+  "keywords": [
+    "ESIC", "ESI", "employee insurance", "salaried worker",
+    "21000 salary", "employer contribution", "3.25 percent", "0.75 percent",
+    "ESI hospital", "Pehchan card", "sickness benefit", "maternity benefit",
+    "disability pension", "organized sector", "factory worker",
+    "कर्मचारी बीमा", "ESI अस्पताल", "वेतन", "नियोक्ता",
+    "employees state insurance", "social security", "work injury",
+    "dependent benefit", "funeral expense", "esic.gov.in",
+    "10 employees", "salary deduction"
+  ]
+}

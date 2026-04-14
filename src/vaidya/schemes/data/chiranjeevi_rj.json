@@ -1,0 +1,170 @@
+{
+  "scheme_id": "CHIR-RJ-2024-v2",
+  "canonical_name": "Mukhyamantri Chiranjeevi Swasthya Bima Yojana",
+  "aliases": [
+    "Chiranjeevi Yojana",
+    "Chiranjeevi Health Insurance",
+    "MCSBY",
+    "Rajasthan Chiranjeevi",
+    "CM Chiranjeevi Scheme"
+  ],
+  "local_names": {
+    "hi": "मुख्यमंत्री चिरंजीवी स्वास्थ्य बीमा योजना",
+    "en": "Chief Minister Chiranjeevi Health Insurance Scheme"
+  },
+  "state_variant_of": null,
+  "jurisdiction": "state",
+  "state_code": "RJ",
+  "income_thresholds": [
+    {
+      "max_income_inr": 0,
+      "unit": "per_annum",
+      "applies_to": "family",
+      "description": "NFSA/BPL families: completely free, no premium. Non-NFSA families: Rs 850/year premium for same coverage.",
+      "source": "Rajasthan State Government GO 2021 / revised 2023"
+    }
+  ],
+  "secc_categories": [],
+  "occupation_included": [
+    "all_rajasthan_residents",
+    "NFSA_cardholder",
+    "small_marginal_farmer",
+    "contractual_worker",
+    "annapurna_beneficiary",
+    "covid_affected_family"
+  ],
+  "occupation_excluded": [],
+  "exclusion_rules": [
+    {
+      "rule_id": "CHIR-EX-001",
+      "exclusion_type": "hard",
+      "field": "state",
+      "condition": "state != 'RJ'",
+      "description": "Only residents of Rajasthan with a valid Jan Aadhaar card are eligible",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "CHIR-EX-002",
+      "exclusion_type": "hard",
+      "field": "jan_aadhaar",
+      "condition": "jan_aadhaar_card == false",
+      "description": "Jan Aadhaar card (Rajasthan family ID) is mandatory. Without it, enrollment is not possible.",
+      "override_by_state": false
+    }
+  ],
+  "age_criteria": null,
+  "family_criteria": {
+    "max_family_size": null,
+    "family_definition": "Family as defined in Jan Aadhaar card. All members listed on the Jan Aadhaar card are covered. No cap on family size. Coverage is floater across all members.",
+    "head_of_family_required": false
+  },
+  "geographic_restrictions": [],
+  "coverage_amount_inr": 2500000,
+  "coverage_type": "per_family_per_year",
+  "covered_procedures": [
+    "1,597 medical packages across multiple specialties",
+    "Hospitalization (room, board, nursing, ICU)",
+    "Pre-hospitalization (up to 5 days)",
+    "Post-hospitalization (up to 15 days)",
+    "Cardiology (bypass, angioplasty, valve replacement, pacemaker)",
+    "Orthopedic (knee replacement, hip replacement, spine surgery)",
+    "Oncology (chemotherapy, radiation therapy, surgical oncology)",
+    "Neurosurgery (brain tumor, spinal cord surgery)",
+    "Organ transplant (kidney, liver, heart, bone marrow)",
+    "Burns treatment",
+    "Dialysis",
+    "Cataract and eye surgery",
+    "Cochlear implant",
+    "Maternity and newborn care",
+    "Emergency care and accident treatment",
+    "Mental health treatment",
+    "Day-care procedures (no overnight stay required)",
+    "Diagnostics and lab tests during hospitalization",
+    "Medicines and consumables"
+  ],
+  "excluded_procedures": [
+    "OPD (Out-Patient Department) consultation",
+    "Cosmetic and aesthetic surgery",
+    "Fertility treatment and IVF",
+    "Drug rehabilitation",
+    "Experimental and unproven treatments"
+  ],
+  "required_documents": [
+    {
+      "name": "Jan Aadhaar Card",
+      "category": "identity",
+      "mandatory": true,
+      "alternatives": ["Jan Aadhaar Enrollment Receipt"],
+      "local_name_hi": "जन आधार कार्ड",
+      "notes": "Rajasthan-specific family identity card. This is MANDATORY — Aadhaar alone is not sufficient. Apply at E-Mitra if you don't have one."
+    },
+    {
+      "name": "Aadhaar Card",
+      "category": "identity",
+      "mandatory": true,
+      "alternatives": ["Aadhaar Enrollment ID"],
+      "local_name_hi": "आधार कार्ड",
+      "notes": "Required for e-KYC and linking with Jan Aadhaar"
+    },
+    {
+      "name": "Ration Card (NFSA) — for free tier",
+      "category": "eligibility_proof",
+      "mandatory": false,
+      "alternatives": ["BPL Certificate", "NFSA Inclusion Letter"],
+      "local_name_hi": "राशन कार्ड (NFSA)",
+      "notes": "Only required to avail the free (no premium) tier. Non-NFSA families can pay Rs 850/year premium."
+    },
+    {
+      "name": "Mobile Number",
+      "category": "contact",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "मोबाइल नंबर",
+      "notes": "Linked to Jan Aadhaar for OTP verification"
+    },
+    {
+      "name": "Bank Account Details — for premium tier",
+      "category": "payment",
+      "mandatory": false,
+      "alternatives": [],
+      "local_name_hi": "बैंक खाता विवरण",
+      "notes": "Required only for non-NFSA families paying the Rs 850/year premium via online payment"
+    }
+  ],
+  "enrollment_channels": [
+    "SSO Portal (sso.rajasthan.gov.in)",
+    "E-Mitra Kiosk",
+    "Common Service Centre (CSC)",
+    "Chiranjeevi Yojana official portal (chiranjeevi.rajasthan.gov.in)",
+    "Empanelled hospital registration desk",
+    "Gram Panchayat camp during enrollment drives"
+  ],
+  "enrollment_steps": [
+    "Step 1: Ensure you have a Jan Aadhaar card. If not, apply at the nearest E-Mitra kiosk first.",
+    "Step 2: For NFSA families: Registration is automatic if Jan Aadhaar is linked to NFSA ration card. Verify at chiranjeevi.rajasthan.gov.in.",
+    "Step 3: For non-NFSA families: Login to SSO Portal (sso.rajasthan.gov.in) or visit E-Mitra kiosk",
+    "Step 4: Select 'Chiranjeevi Yojana' and enter Jan Aadhaar number",
+    "Step 5: Complete e-KYC with Aadhaar biometric or OTP",
+    "Step 6: For non-NFSA families: Pay Rs 850/year premium online or at E-Mitra",
+    "Step 7: Digital policy card generated instantly. Print at E-Mitra if needed.",
+    "Step 8: Present Jan Aadhaar card at any empanelled hospital for cashless treatment up to Rs 25 lakh"
+  ],
+  "processing_time_days": 1,
+  "helpline_number": "181",
+  "portal_url": "https://chiranjeevi.rajasthan.gov.in",
+  "version": "2.0",
+  "effective_date": "2021-05-01",
+  "expiry_date": null,
+  "last_verified": "2024-10-20",
+  "source_url": "https://chiranjeevi.rajasthan.gov.in",
+  "confidence_level": "verified",
+  "description_for_embedding": "Mukhyamantri Chiranjeevi Swasthya Bima Yojana is Rajasthan's state health insurance scheme providing Rs 25 lakh per family per year. It is NOT a PM-JAY variant — Rajasthan runs this independently with higher coverage. Two enrollment paths: NFSA/BPL families get completely free coverage, while non-NFSA families pay just Rs 850 per year premium for the same Rs 25 lakh coverage. Covers 1,597 medical packages including organ transplants. Jan Aadhaar card (Rajasthan family ID) is mandatory. Enrollment via SSO Portal or E-Mitra kiosks. Helpline 181.",
+  "keywords": [
+    "chiranjeevi", "rajasthan", "25 lakh", "state scheme", "jan aadhaar",
+    "850 rupees", "free health insurance", "NFSA", "E-Mitra", "SSO portal",
+    "चिरंजीवी योजना", "राजस्थान", "25 लाख", "जन आधार", "मुफ्त बीमा",
+    "mukhyamantri", "chief minister", "chiranjeevi swasthya bima",
+    "rajasthan health scheme", "state insurance", "RJ scheme",
+    "sso.rajasthan.gov.in", "181 helpline"
+  ]
+}

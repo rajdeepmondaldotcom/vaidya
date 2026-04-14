@@ -1,0 +1,188 @@
+{
+  "scheme_id": "MJPJAY-MH-2024-v2",
+  "canonical_name": "Mahatma Jyotiba Phule Jan Arogya Yojana",
+  "aliases": [
+    "MJPJAY",
+    "Jyotiba Phule Yojana",
+    "Maharashtra Jan Arogya Yojana",
+    "Maharashtra Health Scheme",
+    "Rajiv Gandhi Jeevandayee Arogya Yojana"
+  ],
+  "local_names": {
+    "hi": "महात्मा ज्योतिबा फुले जन आरोग्य योजना",
+    "mr": "महात्मा ज्योतिबा फुले जन आरोग्य योजना",
+    "en": "Mahatma Jyotiba Phule People's Health Scheme"
+  },
+  "state_variant_of": null,
+  "jurisdiction": "state",
+  "state_code": "MH",
+  "income_thresholds": [
+    {
+      "max_income_inr": 100000,
+      "unit": "per_annum",
+      "applies_to": "family",
+      "description": "Yellow ration card holders (Antyodaya Anna Yojana / AAY): income below Rs 1 lakh. Fully eligible.",
+      "source": "Maharashtra State Health Assurance Society"
+    },
+    {
+      "max_income_inr": 150000,
+      "unit": "per_annum",
+      "applies_to": "family",
+      "description": "Orange ration card holders: income between Rs 1-1.5 lakh. Fully eligible.",
+      "source": "Maharashtra State Health Assurance Society"
+    }
+  ],
+  "secc_categories": [],
+  "occupation_included": [
+    "yellow_ration_card_holder",
+    "aay_beneficiary",
+    "orange_ration_card_holder",
+    "white_ration_card_holder",
+    "farmer_in_drought_district",
+    "NFSA_beneficiary",
+    "BPL_family"
+  ],
+  "occupation_excluded": [],
+  "exclusion_rules": [
+    {
+      "rule_id": "MJP-EX-001",
+      "exclusion_type": "hard",
+      "field": "state",
+      "condition": "state != 'MH'",
+      "description": "Only residents of Maharashtra are eligible",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "MJP-EX-002",
+      "exclusion_type": "hard",
+      "field": "ration_card",
+      "condition": "ration_card_color not in ['yellow', 'aay', 'orange', 'white']",
+      "description": "Must hold a Yellow (AAY), Orange, or White ration card issued by Maharashtra government. Saffron (APL above limit) card holders are not covered.",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "MJP-EX-003",
+      "exclusion_type": "soft",
+      "field": "farmer_district",
+      "condition": "occupation == 'farmer' and district not in drought_districts_14",
+      "description": "Farmers are eligible in 14 designated drought-prone districts. Farmers in other districts must qualify through ration card path.",
+      "override_by_state": false
+    }
+  ],
+  "age_criteria": null,
+  "family_criteria": {
+    "max_family_size": null,
+    "family_definition": "Family as listed on the ration card. All members on the ration card are covered. Coverage is floater. For farmer families in drought districts, all household members are covered.",
+    "head_of_family_required": false
+  },
+  "geographic_restrictions": [],
+  "coverage_amount_inr": 500000,
+  "coverage_type": "per_family_per_year",
+  "covered_procedures": [
+    "1,100+ surgical and medical procedures",
+    "General surgery (hernia, appendectomy, gallbladder)",
+    "Cardiology (bypass surgery, angioplasty, pacemaker implantation)",
+    "Cardiothoracic surgery",
+    "Orthopedic (joint replacement, fracture surgery, spine surgery)",
+    "Oncology (chemotherapy, radiation, surgical oncology)",
+    "Neurosurgery (brain tumor, spinal cord surgery)",
+    "Nephrology (dialysis, renal procedures)",
+    "Urology",
+    "Eye surgery (cataract, retinal detachment)",
+    "ENT surgery",
+    "Pediatric surgery",
+    "Burns and plastic surgery (reconstructive only)",
+    "Maternity and obstetric care",
+    "Neonatal care",
+    "Emergency and trauma care",
+    "Diagnostics and medicines during hospitalization"
+  ],
+  "excluded_procedures": [
+    "OPD (Out-Patient Department) consultation",
+    "Cosmetic surgery",
+    "Fertility treatment and IVF",
+    "Dental procedures (except trauma-related)",
+    "Organ transplantation (select types under separate scheme)",
+    "Drug rehabilitation",
+    "Congenital anomalies correction (select types only)"
+  ],
+  "required_documents": [
+    {
+      "name": "Ration Card (Yellow / AAY / Orange / White)",
+      "category": "eligibility_proof",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "राशन कार्ड (पीला / AAY / नारंगी / सफेद)",
+      "notes": "Primary eligibility document. The specific color/type determines the coverage tier. Yellow and Orange cards are most common for this scheme."
+    },
+    {
+      "name": "Aadhaar Card",
+      "category": "identity",
+      "mandatory": true,
+      "alternatives": ["Voter ID"],
+      "local_name_hi": "आधार कार्ड",
+      "notes": "For identity verification and e-KYC"
+    },
+    {
+      "name": "Income Certificate",
+      "category": "eligibility_proof",
+      "mandatory": false,
+      "alternatives": ["Ration Card serves as income proxy"],
+      "local_name_hi": "आय प्रमाण पत्र",
+      "notes": "May be required for white ration card holders or contested cases. Ration card color generally sufficient."
+    },
+    {
+      "name": "Farmer Certificate (for drought district farmers)",
+      "category": "eligibility_proof",
+      "mandatory": false,
+      "alternatives": ["7/12 Extract (Saat-Baara)", "8A Extract"],
+      "local_name_hi": "किसान प्रमाणपत्र",
+      "notes": "Required only for farmers in 14 drought-prone districts. 7/12 land record extract from Talathi office."
+    },
+    {
+      "name": "Mobile Number",
+      "category": "contact",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "मोबाइल नंबर",
+      "notes": "For OTP verification and claim status updates"
+    }
+  ],
+  "enrollment_channels": [
+    "Government hospitals in Maharashtra",
+    "Empanelled private hospitals",
+    "Aaple Sarkar portal (aaplesarkar.mahaonline.gov.in)",
+    "District Civil Hospital (Zilla Parishad Hospital)",
+    "Taluka Health Office",
+    "Common Service Centre (CSC)"
+  ],
+  "enrollment_steps": [
+    "Step 1: Go to any government or empanelled hospital in Maharashtra with ration card and Aadhaar",
+    "Step 2: Visit the MJPJAY registration desk (Arogya Mitra counter) at the hospital",
+    "Step 3: Submit ration card for color/type verification in the system",
+    "Step 4: Complete Aadhaar e-KYC (biometric or OTP)",
+    "Step 5: If you are a farmer in a drought district, submit 7/12 extract or farmer certificate",
+    "Step 6: Registration is verified against Maharashtra ration card database",
+    "Step 7: Health card issued digitally. Can also apply online via Aaple Sarkar portal.",
+    "Step 8: Present card at any empanelled hospital for cashless treatment up to Rs 5 lakh (Rs 1.5 lakh for select procedures)"
+  ],
+  "processing_time_days": 7,
+  "helpline_number": "155388",
+  "portal_url": "https://www.jeevandayee.gov.in",
+  "version": "2.0",
+  "effective_date": "2012-07-02",
+  "expiry_date": null,
+  "last_verified": "2024-10-20",
+  "source_url": "https://www.jeevandayee.gov.in",
+  "confidence_level": "verified",
+  "description_for_embedding": "Mahatma Jyotiba Phule Jan Arogya Yojana (MJPJAY) is Maharashtra's state health insurance scheme providing Rs 5 lakh per family per year (Rs 1.5 lakh for some procedures). Eligibility is primarily through ration card color: Yellow (AAY), Orange, and White card holders qualify. Additionally, farmers in 14 designated drought-prone districts are covered regardless of ration card type. The scheme covers 1,100+ surgical and medical procedures at empanelled government and private hospitals across Maharashtra. Enrollment via government hospitals, Aaple Sarkar portal, or empanelled hospital Arogya Mitra desks.",
+  "keywords": [
+    "MJPJAY", "jyotiba phule", "maharashtra", "ration card", "yellow card",
+    "orange card", "farmer", "drought district", "5 lakh", "1.5 lakh",
+    "aaple sarkar", "arogya mitra", "state scheme",
+    "महात्मा ज्योतिबा फुले", "जन आरोग्य योजना", "महाराष्ट्र",
+    "राशन कार्ड", "पीला कार्ड", "किसान", "सूखा जिला",
+    "jeevandayee", "155388", "health insurance maharashtra",
+    "MH scheme", "government hospital"
+  ]
+}

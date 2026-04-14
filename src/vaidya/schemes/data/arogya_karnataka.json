@@ -1,0 +1,175 @@
+{
+  "scheme_id": "AK-KA-2024-v2",
+  "canonical_name": "Arogya Karnataka",
+  "aliases": [
+    "Arogya Karnataka Scheme",
+    "Karnataka Health Scheme",
+    "Suvarna Arogya Suraksha Trust Scheme",
+    "Karnataka Universal Health Coverage"
+  ],
+  "local_names": {
+    "hi": "आरोग्य कर्नाटक योजना",
+    "kn": "ಆರೋಗ್ಯ ಕರ್ನಾಟಕ ಯೋಜನೆ",
+    "en": "Arogya Karnataka Health Scheme"
+  },
+  "state_variant_of": null,
+  "jurisdiction": "state",
+  "state_code": "KA",
+  "income_thresholds": [
+    {
+      "max_income_inr": 0,
+      "unit": "per_annum",
+      "applies_to": "family",
+      "description": "BPL / NFSA families: completely free treatment (no co-pay). No income ceiling for free tier — BPL status is the qualifier.",
+      "source": "Karnataka State Government / Suvarna Arogya Suraksha Trust"
+    },
+    {
+      "max_income_inr": 9999999,
+      "unit": "per_annum",
+      "applies_to": "family",
+      "description": "APL (Above Poverty Line) families: eligible with 30% co-payment by patient. No upper income limit for APL tier, but co-pay applies.",
+      "source": "Karnataka State Government / Suvarna Arogya Suraksha Trust"
+    }
+  ],
+  "secc_categories": [],
+  "occupation_included": [
+    "all_karnataka_residents",
+    "BPL_cardholder",
+    "NFSA_beneficiary",
+    "APL_family"
+  ],
+  "occupation_excluded": [],
+  "exclusion_rules": [
+    {
+      "rule_id": "AK-EX-001",
+      "exclusion_type": "hard",
+      "field": "state",
+      "condition": "state != 'KA'",
+      "description": "Only residents of Karnataka are eligible for Arogya Karnataka",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "AK-EX-002",
+      "exclusion_type": "soft",
+      "field": "bpl_status",
+      "condition": "bpl_card == false and ration_card_type != 'NFSA'",
+      "description": "Non-BPL/non-NFSA families are still eligible but must pay 30% co-pay for treatment. This is a soft exclusion — they get coverage but with cost-sharing.",
+      "override_by_state": false
+    }
+  ],
+  "age_criteria": null,
+  "family_criteria": {
+    "max_family_size": null,
+    "family_definition": "Family as per ration card or BPL list. All members are covered. Coverage is floater across all family members. Both BPL and APL families can enroll.",
+    "head_of_family_required": false
+  },
+  "geographic_restrictions": [],
+  "coverage_amount_inr": 500000,
+  "coverage_type": "per_family_per_year",
+  "covered_procedures": [
+    "Hospitalization at government and empanelled private hospitals",
+    "Pre-hospitalization expenses (up to 3 days)",
+    "Post-hospitalization expenses (up to 15 days)",
+    "General surgery",
+    "Cardiology (bypass surgery, angioplasty, valve replacement)",
+    "Orthopedic (joint replacement, fracture surgery, spine surgery)",
+    "Oncology (chemotherapy, radiation, surgical oncology)",
+    "Neurosurgery",
+    "Nephrology (dialysis, renal procedures)",
+    "Urology",
+    "Eye surgery (cataract, retinal procedures)",
+    "ENT surgery",
+    "Burns and plastic surgery (reconstructive)",
+    "Maternity and obstetric care",
+    "Neonatal and pediatric care",
+    "Emergency and trauma care",
+    "Day-care procedures",
+    "Diagnostics and medicines during hospitalization"
+  ],
+  "excluded_procedures": [
+    "OPD (Out-Patient Department) consultation",
+    "Cosmetic and aesthetic surgery",
+    "Fertility treatment and IVF",
+    "Drug rehabilitation",
+    "Experimental and unproven treatments",
+    "Dental procedures (except emergency/trauma)"
+  ],
+  "required_documents": [
+    {
+      "name": "BPL Card / NFSA Ration Card (for free tier)",
+      "category": "eligibility_proof",
+      "mandatory": false,
+      "alternatives": ["Antyodaya Anna Yojana card", "SECC Inclusion Letter"],
+      "local_name_hi": "BPL कार्ड / NFSA राशन कार्ड",
+      "notes": "Required for free (zero co-pay) tier. Without BPL/NFSA proof, you are enrolled in the 30% co-pay APL tier."
+    },
+    {
+      "name": "Aadhaar Card",
+      "category": "identity",
+      "mandatory": true,
+      "alternatives": ["Voter ID"],
+      "local_name_hi": "आधार कार्ड",
+      "notes": "Primary identity document for all family members. Required for e-KYC at enrollment and hospital admission."
+    },
+    {
+      "name": "Ration Card (any type)",
+      "category": "identity",
+      "mandatory": false,
+      "alternatives": ["Family certificate from Gram Panchayat"],
+      "local_name_hi": "राशन कार्ड",
+      "notes": "Used to identify family members for enrollment. BPL ration card also serves as eligibility proof for free tier."
+    },
+    {
+      "name": "Address Proof (Karnataka residence)",
+      "category": "address",
+      "mandatory": true,
+      "alternatives": ["Voter ID with KA address", "Electricity Bill", "Ration Card"],
+      "local_name_hi": "पता प्रमाण (कर्नाटक निवास)",
+      "notes": "Must prove current residence in Karnataka"
+    },
+    {
+      "name": "Mobile Number",
+      "category": "contact",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "मोबाइल नंबर",
+      "notes": "For OTP verification and claim status communications"
+    }
+  ],
+  "enrollment_channels": [
+    "Government hospitals in Karnataka",
+    "Empanelled private hospitals",
+    "Suvarna Arogya Suraksha Trust (SAST) office",
+    "Taluk hospital Arogya Mitra desk",
+    "District hospital registration desk",
+    "Karnataka government online portal"
+  ],
+  "enrollment_steps": [
+    "Step 1: Visit any government hospital or empanelled private hospital in Karnataka",
+    "Step 2: Go to the Arogya Mitra desk (available at major hospitals)",
+    "Step 3: Submit Aadhaar card and ration card (BPL/NFSA for free tier, any for APL tier)",
+    "Step 4: Complete Aadhaar e-KYC (biometric or OTP verification)",
+    "Step 5: System verifies BPL/NFSA status against state database for tier determination",
+    "Step 6: Family members' details are entered and verified",
+    "Step 7: Arogya Karnataka health card is issued (BPL: free tier, APL: 30% co-pay tier)",
+    "Step 8: For BPL families: cashless treatment up to Rs 5 lakh. For APL families: treatment with 30% co-pay up to Rs 5 lakh."
+  ],
+  "processing_time_days": 7,
+  "helpline_number": "104",
+  "portal_url": "https://arogya.karnataka.gov.in",
+  "version": "2.0",
+  "effective_date": "2018-03-01",
+  "expiry_date": null,
+  "last_verified": "2024-10-20",
+  "source_url": "https://arogya.karnataka.gov.in",
+  "confidence_level": "verified",
+  "description_for_embedding": "Arogya Karnataka is Karnataka's state health insurance scheme providing Rs 5 lakh per family per year. It has a two-tier structure: BPL/NFSA families receive completely free cashless treatment, while APL (above poverty line) families can access the same treatment with a 30% co-payment. This makes it semi-universal — all Karnataka residents are eligible, but cost-sharing differs by economic status. Covers hospitalization across government and empanelled private hospitals. Managed by the Suvarna Arogya Suraksha Trust. Enrollment via government hospitals and Arogya Mitra desks. Helpline 104.",
+  "keywords": [
+    "arogya karnataka", "karnataka", "BPL", "APL", "co-pay", "30 percent",
+    "5 lakh", "state scheme", "suvarna arogya suraksha trust", "SAST",
+    "ಆರೋಗ್ಯ ಕರ್ನಾಟಕ", "ಕರ್ನಾಟಕ", "ಬಡತನ ರೇಖೆಗಿಂತ ಕೆಳಗೆ",
+    "आरोग्य कर्नाटक", "कर्नाटक", "BPL मुफ्त", "APL सह-भुगतान",
+    "government hospital", "cashless", "health card",
+    "KA scheme", "104 helpline", "two tier"
+  ]
+}

@@ -1,0 +1,145 @@
+{
+  "scheme_id": "SS-WB-2024-v2",
+  "canonical_name": "Swasthya Sathi (West Bengal Health Scheme)",
+  "aliases": [
+    "Swasthya Sathi",
+    "WB Health Scheme",
+    "West Bengal Health Card",
+    "Mamata Health Scheme"
+  ],
+  "local_names": {
+    "hi": "स्वास्थ्य साथी योजना",
+    "bn": "স্বাস্থ্য সাথী প্রকল্প",
+    "en": "Swasthya Sathi Health Scheme"
+  },
+  "state_variant_of": null,
+  "jurisdiction": "state",
+  "state_code": "WB",
+  "income_thresholds": [],
+  "secc_categories": [],
+  "occupation_included": [
+    "all_west_bengal_residents"
+  ],
+  "occupation_excluded": [],
+  "exclusion_rules": [
+    {
+      "rule_id": "SS-EX-001",
+      "exclusion_type": "hard",
+      "field": "state",
+      "condition": "state != 'WB'",
+      "description": "Only residents of West Bengal are eligible. West Bengal has opted out of PM-JAY entirely.",
+      "override_by_state": false
+    }
+  ],
+  "age_criteria": null,
+  "family_criteria": {
+    "max_family_size": null,
+    "family_definition": "All members of a family residing in West Bengal. The Swasthya Sathi smart card is issued in the name of the woman head of the household. No cap on family size. Coverage is floater across all family members.",
+    "head_of_family_required": true
+  },
+  "geographic_restrictions": [],
+  "coverage_amount_inr": 500000,
+  "coverage_type": "per_family_per_year",
+  "covered_procedures": [
+    "Hospitalization (room, board, nursing, ICU)",
+    "Pre-hospitalization diagnostics (up to 5 days before admission)",
+    "Post-hospitalization care (up to 10 days after discharge)",
+    "Cardiology (bypass surgery, angioplasty, valve replacement)",
+    "Orthopedic (joint replacement, fracture surgery, spine surgery)",
+    "Oncology (chemotherapy, radiation, surgical oncology)",
+    "Neurosurgery",
+    "Nephrology and dialysis",
+    "Cataract and eye surgery",
+    "Burns treatment",
+    "Emergency and trauma care",
+    "Maternity care and cesarean delivery",
+    "Neonatal and pediatric care",
+    "Day-care procedures",
+    "Diagnostics and lab tests during hospitalization"
+  ],
+  "excluded_procedures": [
+    "OPD (Out-Patient Department) consultation",
+    "Cosmetic and aesthetic surgery",
+    "Fertility treatment and IVF",
+    "Organ transplantation (select types only)",
+    "Drug rehabilitation",
+    "Experimental treatments"
+  ],
+  "required_documents": [
+    {
+      "name": "Aadhaar Card",
+      "category": "identity",
+      "mandatory": true,
+      "alternatives": ["Voter ID", "Passport"],
+      "local_name_hi": "आधार कार्ड",
+      "notes": "Primary identity proof for all family members"
+    },
+    {
+      "name": "Address Proof (West Bengal residence)",
+      "category": "address",
+      "mandatory": true,
+      "alternatives": ["Voter ID with WB address", "Electricity Bill", "Ration Card"],
+      "local_name_hi": "पता प्रमाण (पश्चिम बंगाल निवास)",
+      "notes": "Must prove current residence in West Bengal"
+    },
+    {
+      "name": "Family Member Details",
+      "category": "family",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "परिवार के सदस्यों का विवरण",
+      "notes": "Names, ages, Aadhaar numbers of all family members for card issuance"
+    },
+    {
+      "name": "Photograph of Woman Head of Family",
+      "category": "identity",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "परिवार की महिला मुखिया का फोटो",
+      "notes": "Card is issued in the name of the woman head of household. Her photograph is required."
+    },
+    {
+      "name": "Mobile Number",
+      "category": "contact",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "मोबाइल नंबर",
+      "notes": "For OTP verification and scheme communications"
+    }
+  ],
+  "enrollment_channels": [
+    "Duare Sarkar (Government at Doorstep) camps",
+    "Block Development Officer (BDO) office",
+    "Sub-Divisional Officer (SDO) office",
+    "Online application portal (swasthyasathi.gov.in)",
+    "District Magistrate (DM) office",
+    "Government hospitals with Swasthya Sathi desk"
+  ],
+  "enrollment_steps": [
+    "Step 1: Attend a Duare Sarkar camp (announced in local newspapers/panchayat) OR visit BDO/SDO office",
+    "Step 2: Bring Aadhaar card, address proof, and family member details",
+    "Step 3: Complete biometric verification (fingerprint) of the woman head of household",
+    "Step 4: All family members' details are entered into the system",
+    "Step 5: Swasthya Sathi smart card is generated in the name of the woman head of household",
+    "Step 6: Card issued on the spot at camp, or collected from BDO office within 7-10 days",
+    "Step 7: Present the smart card at any empanelled hospital (government or private) for cashless treatment up to Rs 5 lakh"
+  ],
+  "processing_time_days": 10,
+  "helpline_number": "1800-345-1946",
+  "portal_url": "https://swasthyasathi.gov.in",
+  "version": "2.0",
+  "effective_date": "2016-12-30",
+  "expiry_date": null,
+  "last_verified": "2024-10-20",
+  "source_url": "https://swasthyasathi.gov.in",
+  "confidence_level": "verified",
+  "description_for_embedding": "Swasthya Sathi is West Bengal's UNIVERSAL state health insurance scheme providing Rs 5 lakh per family per year to ALL residents regardless of income. West Bengal opted out of PM-JAY entirely and runs this independently. Key feature: completely universal with no income criteria, no BPL requirement, and zero premium for all residents. The smart card is issued in the name of the woman head of the household, empowering women. Enrollment primarily through Duare Sarkar (Government at Doorstep) camps. Covers hospitalization at empanelled government and private hospitals. Toll-free helpline 1800-345-1946.",
+  "keywords": [
+    "swasthya sathi", "west bengal", "universal", "no income limit",
+    "free health insurance", "woman head", "smart card", "duare sarkar",
+    "স্বাস্থ্য সাথী", "পশ্চিমবঙ্গ", "বিনামূল্যে চিকিৎসা",
+    "स्वास्थ्य साथी", "पश्चिम बंगाल", "मुफ्त इलाज", "महिला मुखिया",
+    "WB health scheme", "state scheme", "5 lakh", "BDO office",
+    "1800-345-1946", "cashless treatment"
+  ]
+}

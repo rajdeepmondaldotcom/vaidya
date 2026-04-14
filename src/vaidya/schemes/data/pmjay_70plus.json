@@ -1,0 +1,135 @@
+{
+  "scheme_id": "PMJAY-70PLUS-2024-v1",
+  "canonical_name": "Ayushman Bharat PM-JAY 70+ Expansion",
+  "aliases": [
+    "PM-JAY for Senior Citizens",
+    "Ayushman Vay Vandana Card",
+    "PMJAY 70+",
+    "AB-PMJAY 70 Plus",
+    "Ayushman Bharat Senior Citizen Scheme"
+  ],
+  "local_names": {
+    "hi": "आयुष्मान भारत 70+ योजना",
+    "bn": "আয়ুষ্মান ভারত ৭০+ যোজনা",
+    "ta": "ஆயுஷ்மான் பாரத் 70+ திட்டம்",
+    "te": "ఆయుష్మాన్ భారత్ 70+ పథకం",
+    "mr": "आयुष्मान भारत 70+ योजना",
+    "gu": "આયુષ્માન ભારત 70+ યોજના",
+    "kn": "ಆಯುಷ್ಮಾನ್ ಭಾರತ್ 70+ ಯೋಜನೆ",
+    "ml": "ആയുഷ്മാൻ ഭാരത് 70+ യോജന",
+    "pa": "ਆਯੁਸ਼ਮਾਨ ਭਾਰਤ 70+ ਯੋਜਨਾ",
+    "or": "ଆୟୁଷ୍ମାନ ଭାରତ 70+ ଯୋଜନା"
+  },
+  "state_variant_of": "PMJAY-2024-v3",
+  "jurisdiction": "central",
+  "state_code": null,
+  "income_thresholds": [],
+  "secc_categories": [],
+  "occupation_included": [],
+  "occupation_excluded": [],
+  "exclusion_rules": [
+    {
+      "rule_id": "70P-EX-001",
+      "exclusion_type": "soft",
+      "field": "age",
+      "condition": "age < 70",
+      "description": "Only senior citizens aged 70 years and above are eligible for this expansion. Family members below 70 are not covered under this specific extension.",
+      "override_by_state": false
+    }
+  ],
+  "age_criteria": {
+    "min_age": 70,
+    "max_age": null,
+    "applies_to": "any_family_member"
+  },
+  "family_criteria": {
+    "max_family_size": null,
+    "family_definition": "Any family with a member aged 70 or above qualifies. The 70+ member gets an additional top-up card. Existing PM-JAY family coverage (if any) continues separately. Families already covered under PM-JAY get an additional Rs 5 lakh specifically for the 70+ member.",
+    "head_of_family_required": false
+  },
+  "geographic_restrictions": ["WB", "DL"],
+  "coverage_amount_inr": 500000,
+  "coverage_type": "per_person_per_year",
+  "covered_procedures": [
+    "All 1,393 packages covered under base PM-JAY",
+    "Hospitalization expenses (room, nursing, ICU)",
+    "Pre-hospitalization (up to 3 days)",
+    "Post-hospitalization (up to 15 days)",
+    "Cardiology (bypass surgery, valve replacement, angioplasty)",
+    "Orthopedic (knee replacement, hip replacement)",
+    "Oncology (chemotherapy, radiation)",
+    "Neurosurgery",
+    "Cataract surgery",
+    "Dialysis",
+    "Geriatric care",
+    "Palliative care",
+    "Day-care procedures"
+  ],
+  "excluded_procedures": [
+    "OPD (Out-Patient Department) consultation",
+    "Fertility treatment and IVF",
+    "Cosmetic surgery",
+    "Organ transplantation (except cornea and renal)",
+    "Drug rehabilitation"
+  ],
+  "required_documents": [
+    {
+      "name": "Aadhaar Card",
+      "category": "identity_and_age_proof",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "आधार कार्ड",
+      "notes": "Primary document for age verification and e-KYC. Date of birth on Aadhaar must show age 70 or above."
+    },
+    {
+      "name": "Mobile Number",
+      "category": "contact",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "मोबाइल नंबर",
+      "notes": "Linked to Aadhaar for OTP verification. Family member's number acceptable if senior citizen does not have one."
+    },
+    {
+      "name": "Existing Ayushman Card (if any)",
+      "category": "reference",
+      "mandatory": false,
+      "alternatives": [],
+      "local_name_hi": "मौजूदा आयुष्मान कार्ड",
+      "notes": "If the family already has a PM-JAY card, bring it for linkage. Not mandatory for new enrollees."
+    }
+  ],
+  "enrollment_channels": [
+    "Common Service Centre (CSC / Jan Seva Kendra)",
+    "Empanelled hospital Ayushman Mitra desk",
+    "PM-JAY official website (pmjay.gov.in)",
+    "Ayushman App (Android/iOS)",
+    "State Health Agency (SHA) office"
+  ],
+  "enrollment_steps": [
+    "Step 1: Visit nearest CSC or empanelled hospital with the senior citizen's Aadhaar card",
+    "Step 2: Inform the operator that you are applying under the PM-JAY 70+ expansion",
+    "Step 3: Complete Aadhaar e-KYC (biometric or OTP) to verify age is 70+",
+    "Step 4: System auto-verifies eligibility — no SECC check or income proof required",
+    "Step 5: New Ayushman Vay Vandana Card issued with Rs 5 lakh additional coverage",
+    "Step 6: If family already has PM-JAY card, the 70+ top-up is linked to existing family ID",
+    "Step 7: Card is valid immediately for cashless treatment at any empanelled hospital"
+  ],
+  "processing_time_days": 1,
+  "helpline_number": "14555",
+  "portal_url": "https://pmjay.gov.in",
+  "version": "1.0",
+  "effective_date": "2024-09-29",
+  "expiry_date": null,
+  "last_verified": "2024-11-15",
+  "source_url": "https://pmjay.gov.in/70plus",
+  "confidence_level": "verified",
+  "description_for_embedding": "PM-JAY 70+ is an expansion of Ayushman Bharat announced by PM Modi on September 29, 2024 that provides an additional Rs 5 lakh health cover per year to ALL senior citizens aged 70 and above, regardless of income, SECC status, or existing insurance. This is universal — no means test, no BPL requirement. The coverage is ON TOP of any existing PM-JAY family coverage. Approximately 6 crore senior citizens across 4.5 crore families benefit. Enrollment requires only Aadhaar card for age proof. A new Ayushman Vay Vandana Card is issued.",
+  "keywords": [
+    "70 plus", "senior citizen", "70 years", "elderly", "ayushman bharat",
+    "vay vandana", "old age", "additional cover", "universal",
+    "no income limit", "बुजुर्ग", "70 साल", "वय वंदना",
+    "senior citizen health", "geriatric", "pmjay expansion",
+    "70+ scheme", "ayushman 70", "all income", "no BPL required",
+    "बुजुर्ग स्वास्थ्य योजना", "आयुष्मान 70+", "वरिष्ठ नागरिक"
+  ]
+}
