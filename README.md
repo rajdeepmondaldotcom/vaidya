@@ -2,6 +2,10 @@
 
 **One phone call. Any Indian language. Find out which government healthcare schemes you qualify for.**
 
+*Vaidya* (वैद्य) is the Sanskrit word for healer. In rural India, the vaidya was the person you went to when you didn't know what was wrong or where to go. Not a specialist. A guide. Someone who listened, understood your situation, and told you what to do next in words you understood.
+
+That's what this system does. Not diagnosis. Not treatment. Discovery. Which government schemes exist for you, what documents you need, and where to go. The name is deliberate: Vaidya is a trusted first point of contact, not an authority. It says "mil sakti hai" (you may be eligible), never "you are eligible." Final verification happens at the Jan Seva Kendra. The system advises. The human decides.
+
 India has 50+ healthcare schemes. PM-JAY alone has 30+ state variants. 55 crore people are eligible. 18 crore haven't enrolled. The barrier isn't policy. It's discovery. The target population doesn't have literacy, internet access, or free time to navigate English PDFs on government websites.
 
 Vaidya solves this with a phone call. The user speaks in their language, answers 5 questions, and hears back which schemes they qualify for, what documents to bring, and where to go. No app. No signup. No screen.
