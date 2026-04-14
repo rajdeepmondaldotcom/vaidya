@@ -7,12 +7,12 @@ here rather than hard-coding BCP-47 tags.
 from __future__ import annotations
 
 import logging
-from enum import Enum
+from enum import StrEnum
 
 logger = logging.getLogger(__name__)
 
 
-class Language(str, Enum):
+class Language(StrEnum):
     """Languages supported by Vaidya in Phase 1."""
 
     HINDI = "hi-IN"

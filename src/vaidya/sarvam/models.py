@@ -6,7 +6,7 @@ Docs: https://docs.sarvam.ai/api-reference-docs/getting-started/models
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 
 # ---------------------------------------------------------------------------
 # LLM Models (Chat Completions)
@@ -61,7 +61,7 @@ DEFAULT_TRANSLATE_MODEL = TRANSLATE_MODEL_MAYURA
 # ---------------------------------------------------------------------------
 
 
-class Language(str, Enum):
+class Language(StrEnum):
     """Languages supported by Vaidya voice calls (Phase 1)."""
 
     HINDI = "hi"

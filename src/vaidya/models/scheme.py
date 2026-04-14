@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, computed_field
 
@@ -11,14 +11,14 @@ from pydantic import BaseModel, ConfigDict, computed_field
 # ---------------------------------------------------------------------------
 
 
-class Jurisdiction(str, Enum):
+class Jurisdiction(StrEnum):
     """Whether a scheme is run centrally or by a state government."""
 
     CENTRAL = "central"
     STATE = "state"
 
 
-class SchemeCoverageType(str, Enum):
+class SchemeCoverageType(StrEnum):
     """How the scheme's coverage amount applies."""
 
     PER_FAMILY_PER_YEAR = "per_family_per_year"
@@ -26,7 +26,7 @@ class SchemeCoverageType(str, Enum):
     PER_EVENT = "per_event"
 
 
-class ConfidenceLevel(str, Enum):
+class ConfidenceLevel(StrEnum):
     """Freshness / reliability of the scheme record."""
 
     VERIFIED = "verified"
@@ -34,14 +34,14 @@ class ConfidenceLevel(str, Enum):
     STALE = "stale"
 
 
-class ExclusionType(str, Enum):
+class ExclusionType(StrEnum):
     """Hard exclusions are absolute; soft exclusions may be overridden."""
 
     HARD = "hard"
     SOFT = "soft"
 
 
-class EligibilityVerdict(str, Enum):
+class EligibilityVerdict(StrEnum):
     """Outcome of eligibility evaluation for a single scheme."""
 
     ELIGIBLE = "eligible"

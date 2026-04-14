@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -16,7 +16,7 @@ from vaidya.models.scheme import (
 from vaidya.models.user_profile import UserProfile
 
 
-class ConversationPhase(str, Enum):
+class ConversationPhase(StrEnum):
     """Finite-state phases of a Vaidya voice call."""
 
     WELCOME = "welcome"

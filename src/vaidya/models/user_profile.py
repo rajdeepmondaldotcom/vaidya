@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, computed_field
 
 
-class IncomeCategory(str, Enum):
+class IncomeCategory(StrEnum):
     """Annual household income brackets aligned with BPL / scheme thresholds."""
 
     BELOW_1L = "below_1l"
@@ -17,7 +17,7 @@ class IncomeCategory(str, Enum):
     UNKNOWN = "unknown"
 
 
-class OccupationType(str, Enum):
+class OccupationType(StrEnum):
     """Occupation categories relevant to scheme eligibility."""
 
     DAILY_WAGE = "daily_wage"
@@ -28,7 +28,7 @@ class OccupationType(str, Enum):
     UNKNOWN = "unknown"
 
 
-class CoverageType(str, Enum):
+class CoverageType(StrEnum):
     """Existing health coverage status."""
 
     NONE = "none"
