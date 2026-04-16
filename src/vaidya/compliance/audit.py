@@ -37,10 +37,6 @@ class AuditTrail:
         self._dir.mkdir(parents=True, exist_ok=True)
         logger.info("AuditTrail initialised", extra={"audit_dir": str(self._dir)})
 
-    # ------------------------------------------------------------------
-    # Turn logging
-    # ------------------------------------------------------------------
-
     def log_turn(
         self,
         call_id: str,
@@ -50,23 +46,7 @@ class AuditTrail:
         output_text: str,
         latency_ms: float,
     ) -> None:
-        """Append a conversational turn to the audit log.
-
-        Parameters
-        ----------
-        call_id:
-            Unique call identifier.
-        phase:
-            Current conversation phase (e.g. ``"intake"``, ``"processing"``).
-        agent_name:
-            The agent that handled this turn.
-        input_text:
-            PII-masked user input.
-        output_text:
-            Agent response text.
-        latency_ms:
-            Processing time in milliseconds.
-        """
+        """Append a conversational turn to the audit log."""
         entry = {
             "event": "turn",
             "timestamp": _now_iso(),
@@ -79,9 +59,84 @@ class AuditTrail:
         }
         self._append(call_id, entry)
 
-    # ------------------------------------------------------------------
-    # Eligibility decision logging
-    # ------------------------------------------------------------------
+    @staticmethod
+    def _serialize_eligibility(result: EligibilityResult) -> dict[str, Any]:
+        """Serialize an eligibility result for audit logging."""
+        return {
+            "model_used": result.model_used,
+            "schemes_evaluated": result.schemes_evaluated,
+            "processing_time_ms": result.processing_time_ms,
+            "matches": [
+                {
+                    "scheme_id": m.scheme_id,
+                    "verdict": m.verdict.value,
+                    "confidence": m.confidence,
+                    "reasoning_trace": m.reasoning_trace,
+                    "matched_criteria": m.matched_criteria,
+                    "failed_criteria": m.failed_criteria,
+                }
+                for m in result.matches
+            ],
+        }
+
+    @staticmethod
+    def _serialize_reviewer(result: ReviewerResult) -> dict[str, Any]:
+        """Serialize a reviewer result for audit logging."""
+        return {
+            "model_used": result.model_used,
+            "processing_time_ms": result.processing_time_ms,
+            "transcript_evidence": result.transcript_evidence,
+            "matches": [
+                {
+                    "scheme_id": m.scheme_id,
+                    "verdict": m.verdict.value,
+                    "confidence": m.confidence,
+                    "reasoning_trace": m.reasoning_trace,
+                    "matched_criteria": m.matched_criteria,
+                    "failed_criteria": m.failed_criteria,
+                }
+                for m in result.matches
+            ],
+        }
+
+    @staticmethod
+    def _serialize_convergence(result: ConvergenceResult) -> dict[str, Any]:
+        """Serialize a convergence result for audit logging."""
+        return {
+            "agreed_eligible": [m.scheme_id for m in result.agreed_eligible],
+            "agreed_ineligible": result.agreed_ineligible,
+            "conservative_eligible": [m.scheme_id for m in result.conservative_eligible],
+            "disagreements": [
+                {
+                    "scheme_id": d.scheme_id,
+                    "eligibility_verdict": d.eligibility_verdict.value,
+                    "reviewer_verdict": d.reviewer_verdict.value,
+                    "disagreement_field": d.disagreement_field,
+                    "resolved_from_transcript": d.resolved_from_transcript,
+                    "final_verdict": d.final_verdict.value,
+                    "caveat": d.caveat,
+                }
+                for d in result.disagreements
+            ],
+        }
+
+    def _build_version_info(
+        self,
+        eligibility_result: EligibilityResult | None,
+        reviewer_result: ReviewerResult | None,
+    ) -> dict[str, Any]:
+        """Build version tracking metadata for an eligibility decision."""
+        return {
+            "pipeline": vaidya.__version__,
+            "model_eligibility": eligibility_result.model_used if eligibility_result else None,
+            "model_reviewer": reviewer_result.model_used if reviewer_result else None,
+            "scheme_data_version": self._get_scheme_version(),
+        }
+
+    @staticmethod
+    def _profile_hash(context: ConversationContext) -> str:
+        """Return a truncated SHA-256 hash of the user profile for audit re-verification."""
+        return hashlib.sha256(context.user_profile.model_dump_json().encode()).hexdigest()[:16]
 
     def log_eligibility_decision(
         self,
@@ -91,100 +146,24 @@ class AuditTrail:
         convergence_result: ConvergenceResult | None,
         context: ConversationContext | None = None,
     ) -> None:
-        """Log the full eligibility evaluation with both agents' reasoning traces.
-
-        This is the most critical audit entry -- it captures exactly *why*
-        a user was told they are eligible (or not) for each scheme.
-
-        Parameters
-        ----------
-        context:
-            If provided, a SHA-256 hash prefix of the user profile is
-            included for re-verification (DPDP Act audit requirement).
-        """
+        """Log the full eligibility evaluation with both agents' reasoning traces."""
         entry: dict[str, Any] = {
             "event": "eligibility_decision",
             "timestamp": _now_iso(),
             "call_id": call_id,
+            "versions": self._build_version_info(eligibility_result, reviewer_result),
         }
 
-        # Gap 2: Version tracking (PRD Section 11.4)
-        entry["versions"] = {
-            "pipeline": vaidya.__version__,
-            "model_eligibility": eligibility_result.model_used if eligibility_result else None,
-            "model_reviewer": reviewer_result.model_used if reviewer_result else None,
-            "scheme_data_version": self._get_scheme_version(),
-        }
-
-        # Gap 3: User profile hash for re-verification
         if context is not None:
-            profile_hash = hashlib.sha256(
-                context.user_profile.model_dump_json().encode()
-            ).hexdigest()[:16]
-            entry["user_profile_hash"] = profile_hash
-
+            entry["user_profile_hash"] = self._profile_hash(context)
         if eligibility_result is not None:
-            entry["eligibility"] = {
-                "model_used": eligibility_result.model_used,
-                "schemes_evaluated": eligibility_result.schemes_evaluated,
-                "processing_time_ms": eligibility_result.processing_time_ms,
-                "matches": [
-                    {
-                        "scheme_id": m.scheme_id,
-                        "verdict": m.verdict.value,
-                        "confidence": m.confidence,
-                        "reasoning_trace": m.reasoning_trace,
-                        "matched_criteria": m.matched_criteria,
-                        "failed_criteria": m.failed_criteria,
-                    }
-                    for m in eligibility_result.matches
-                ],
-            }
-
+            entry["eligibility"] = self._serialize_eligibility(eligibility_result)
         if reviewer_result is not None:
-            entry["reviewer"] = {
-                "model_used": reviewer_result.model_used,
-                "processing_time_ms": reviewer_result.processing_time_ms,
-                "transcript_evidence": reviewer_result.transcript_evidence,
-                "matches": [
-                    {
-                        "scheme_id": m.scheme_id,
-                        "verdict": m.verdict.value,
-                        "confidence": m.confidence,
-                        "reasoning_trace": m.reasoning_trace,
-                        "matched_criteria": m.matched_criteria,
-                        "failed_criteria": m.failed_criteria,
-                    }
-                    for m in reviewer_result.matches
-                ],
-            }
-
+            entry["reviewer"] = self._serialize_reviewer(reviewer_result)
         if convergence_result is not None:
-            entry["convergence"] = {
-                "agreed_eligible": [m.scheme_id for m in convergence_result.agreed_eligible],
-                "agreed_ineligible": convergence_result.agreed_ineligible,
-                "conservative_eligible": [
-                    m.scheme_id for m in convergence_result.conservative_eligible
-                ],
-                "disagreements": [
-                    {
-                        "scheme_id": d.scheme_id,
-                        "eligibility_verdict": d.eligibility_verdict.value,
-                        "reviewer_verdict": d.reviewer_verdict.value,
-                        "disagreement_field": d.disagreement_field,
-                        "resolved_from_transcript": d.resolved_from_transcript,
-                        "final_verdict": d.final_verdict.value,
-                        "caveat": d.caveat,
-                    }
-                    for d in convergence_result.disagreements
-                ],
-            }
+            entry["convergence"] = self._serialize_convergence(convergence_result)
 
         self._append(call_id, entry)
-
-    # ------------------------------------------------------------------
-    # Generic event logging
-    # ------------------------------------------------------------------
 
     def log_event(
         self,
@@ -201,10 +180,6 @@ class AuditTrail:
         if data:
             entry["data"] = data
         self._append(call_id, entry)
-
-    # ------------------------------------------------------------------
-    # Read
-    # ------------------------------------------------------------------
 
     def get_audit_log(self, call_id: str) -> list[dict[str, Any]]:
         """Read the complete audit trail for a call.
@@ -235,10 +210,6 @@ class AuditTrail:
                 extra={"call_id": call_id, "error": str(exc)},
             )
         return entries
-
-    # ------------------------------------------------------------------
-    # Internal
-    # ------------------------------------------------------------------
 
     def _call_path(self, call_id: str) -> Path:
         """Return the JSONL file path for a given call.
