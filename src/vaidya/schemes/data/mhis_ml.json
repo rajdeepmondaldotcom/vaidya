@@ -1,0 +1,212 @@
+{
+  "scheme_id": "MHIS-ML-2024-v1",
+  "canonical_name": "Megha Health Insurance Scheme (Meghalaya)",
+  "aliases": [
+    "MHIS",
+    "Megha Health",
+    "Meghalaya Health Scheme",
+    "Meghalaya Health Insurance",
+    "MHIS Meghalaya"
+  ],
+  "local_names": {
+    "hi": "मेघा स्वास्थ्य बीमा योजना (मेघालय)",
+    "bn": "মেঘা স্বাস্থ্য বীমা প্রকল্প (মেঘালয়)",
+    "ta": "மேகா சுகாதார காப்பீட்டுத் திட்டம் (மேகாலயா)",
+    "te": "మేఘా ఆరోగ్య బీమా పథకం (మేఘాలయ)",
+    "gu": "મેઘા આરોગ્ય વીમા યોજના (મેઘાલય)",
+    "kn": "ಮೇಘಾ ಆರೋಗ್ಯ ವಿಮಾ ಯೋಜನೆ (ಮೇಘಾಲಯ)",
+    "ml": "മേഘാ ഹെല്‍ത്ത് ഇന്‍ഷുറന്‍സ് സ്കീം (മേഘാലയ)",
+    "mr": "मेघा आरोग्य विमा योजना (मेघालय)",
+    "pa": "ਮੇਘਾ ਸਿਹਤ ਬੀਮਾ ਯੋਜਨਾ (ਮੇਘਾਲਿਆ)",
+    "od": "ମେଘା ସ୍ୱାସ୍ଥ୍ୟ ବୀମା ଯୋଜନା (ମେଘାଳୟ)",
+    "en": "Megha Health Insurance Scheme (Meghalaya)"
+  },
+  "state_variant_of": null,
+  "jurisdiction": "state",
+  "state_code": "ML",
+  "income_thresholds": [
+    {
+      "max_income_inr": 500000,
+      "unit": "per_annum",
+      "applies_to": "family",
+      "description": "BPL and NFSA families with annual income below Rs 5 lakh are eligible for free coverage. Rs 2 lakh for general hospitalization plus Rs 2 lakh for critical illness (total Rs 4 lakh per family per year).",
+      "source": "Meghalaya State Government / MHIS Portal"
+    }
+  ],
+  "secc_categories": ["D1", "D2", "D3", "D4", "D5"],
+  "occupation_included": [
+    "bpl_family",
+    "nfsa_beneficiary",
+    "farmer",
+    "daily_wage_labourer",
+    "construction_worker",
+    "mining_worker",
+    "handloom_weaver",
+    "plantation_worker",
+    "tribal_community_member"
+  ],
+  "occupation_excluded": [
+    "government_employee_with_health_cover",
+    "income_above_5_lakh"
+  ],
+  "exclusion_rules": [
+    {
+      "rule_id": "MHIS-ML-EX-001",
+      "exclusion_type": "hard",
+      "field": "state",
+      "condition": "state != 'ML'",
+      "description": "Only residents of Meghalaya are eligible for MHIS",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "MHIS-ML-EX-002",
+      "exclusion_type": "hard",
+      "field": "bpl_nfsa_status",
+      "condition": "bpl_card == false && nfsa_card == false",
+      "description": "Must be a BPL or NFSA cardholder to qualify for MHIS. Families not listed under BPL/NFSA are not eligible.",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "MHIS-ML-EX-003",
+      "exclusion_type": "hard",
+      "field": "income",
+      "condition": "family_income > 500000",
+      "description": "Families with annual income above Rs 5 lakh are not eligible",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "MHIS-ML-EX-004",
+      "exclusion_type": "hard",
+      "field": "existing_coverage",
+      "condition": "existing_coverage == 'CGHS' || existing_coverage == 'ESIC'",
+      "description": "Families already covered under CGHS or ESIC are excluded",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "MHIS-ML-EX-005",
+      "exclusion_type": "soft",
+      "field": "critical_illness_cap",
+      "condition": "claim_amount > 200000 && illness_type == 'general'",
+      "description": "General hospitalization capped at Rs 2 lakh. Critical illness has separate Rs 2 lakh limit. Total combined cap is Rs 4 lakh per family per year.",
+      "override_by_state": false
+    }
+  ],
+  "age_criteria": null,
+  "family_criteria": {
+    "max_family_size": 5,
+    "family_definition": "Family of up to 5 members as listed on BPL/NFSA/ration card. Family includes head of family, spouse, and up to 3 dependent children. Additional members may be covered on case-by-case basis.",
+    "head_of_family_required": true
+  },
+  "geographic_restrictions": [],
+  "coverage_amount_inr": 400000,
+  "coverage_type": "per_family_per_year",
+  "covered_procedures": [
+    "Hospitalization expenses (room, nursing, ICU)",
+    "Pre-hospitalization (up to 3 days before admission)",
+    "Post-hospitalization (up to 15 days after discharge)",
+    "General surgery",
+    "Cardiology (bypass surgery, angioplasty, valve replacement)",
+    "Oncology (chemotherapy, radiation, surgical oncology)",
+    "Orthopaedic (knee replacement, hip replacement)",
+    "Neurosurgery (brain surgery, spinal surgery)",
+    "Nephrology (dialysis)",
+    "Maternity care (normal delivery, caesarean section)",
+    "Neonatal care (NICU, SNCU)",
+    "Ophthalmology (cataract surgery)",
+    "ENT procedures",
+    "Paediatric surgery",
+    "Critical illness treatment (cancer, heart disease, kidney failure, stroke)",
+    "Day-care procedures",
+    "Diagnostics and lab tests during hospitalization",
+    "Medicines and consumables during treatment"
+  ],
+  "excluded_procedures": [
+    "OPD (Out-Patient Department) consultation",
+    "Cosmetic and aesthetic surgery",
+    "Fertility treatment and IVF",
+    "Organ transplant (except cornea and renal)",
+    "Drug rehabilitation and de-addiction",
+    "Dental treatment (unless related to covered surgery)",
+    "Routine vaccination and immunization",
+    "Spectacles and hearing aids"
+  ],
+  "required_documents": [
+    {
+      "name": "Aadhaar Card",
+      "category": "identity",
+      "mandatory": true,
+      "alternatives": ["Aadhaar Enrollment ID"],
+      "local_name_hi": "आधार कार्ड",
+      "notes": "Required for identity verification and e-KYC"
+    },
+    {
+      "name": "BPL Card / NFSA Card",
+      "category": "economic_status",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "बीपीएल कार्ड / एनएफएसए कार्ड",
+      "notes": "Mandatory proof of BPL/NFSA status. Must be valid and issued by Meghalaya state government."
+    },
+    {
+      "name": "ST/SC Certificate",
+      "category": "caste",
+      "mandatory": false,
+      "alternatives": [],
+      "local_name_hi": "अनुसूचित जनजाति / अनुसूचित जाति प्रमाण पत्र",
+      "notes": "If applicable. Meghalaya has a large tribal population. ST certificate helps with faster processing."
+    },
+    {
+      "name": "Residency Proof",
+      "category": "address",
+      "mandatory": true,
+      "alternatives": ["Voter ID Card", "Ration Card", "Electricity Bill"],
+      "local_name_hi": "निवास प्रमाण पत्र",
+      "notes": "Must prove current residence in Meghalaya"
+    },
+    {
+      "name": "Recent Passport-size Photograph",
+      "category": "identity",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "हालिया पासपोर्ट साइज़ फोटो",
+      "notes": "Required for MHIS card generation"
+    }
+  ],
+  "enrollment_channels": [
+    "Empanelled hospitals (government and private)",
+    "District hospitals",
+    "Community Health Centres (CHC)",
+    "Primary Health Centres (PHC)",
+    "Block Development Office",
+    "MHIS enrollment camps"
+  ],
+  "enrollment_steps": [
+    "Step 1: Visit the nearest empanelled hospital, district hospital, or MHIS enrollment camp with required documents.",
+    "Step 2: Submit Aadhaar card, BPL/NFSA card, residency proof, and photograph.",
+    "Step 3: Undergo biometric verification (fingerprint/iris scan) for e-KYC.",
+    "Step 4: MHIS smart card is generated with enrolled family member details.",
+    "Step 5: Card is activated. Present at any empanelled hospital in Meghalaya for cashless treatment.",
+    "Step 6: General hospitalization covered up to Rs 2 lakh. Critical illness covered up to additional Rs 2 lakh (total Rs 4 lakh per year)."
+  ],
+  "processing_time_days": 14,
+  "helpline_number": "1800-345-3673",
+  "portal_url": "https://meghealth.gov.in",
+  "version": "1.0",
+  "effective_date": "2012-11-01",
+  "expiry_date": null,
+  "last_verified": "2026-04-15",
+  "source_url": "https://meghealth.gov.in/mhis.html",
+  "confidence_level": "provisional",
+  "description_for_embedding": "Megha Health Insurance Scheme (MHIS) is Meghalaya's state health insurance scheme providing Rs 4 lakh per family per year, split into Rs 2 lakh for general hospitalization and Rs 2 lakh for critical illness. The scheme targets BPL and NFSA families in Meghalaya with annual income below Rs 5 lakh. MHIS covers secondary and tertiary care including hospitalization, surgeries, maternity care, neonatal care, and critical illness treatment at empanelled hospitals. Enrollment requires BPL/NFSA card, Aadhaar, and residency proof. The scheme particularly benefits tribal communities, farmers, plantation workers, and mining workers in Meghalaya. Smart card based cashless treatment across empanelled hospitals.",
+  "keywords": [
+    "mhis", "megha health", "meghalaya", "ML health scheme",
+    "BPL", "NFSA", "4 lakh", "2 lakh general", "2 lakh critical",
+    "tribal", "maternity", "cashless treatment",
+    "मेघा स्वास्थ्य बीमा", "मेघालय",
+    "মেঘা স্বাস্থ্য বীমা", "মেঘালয়",
+    "state scheme", "meghalaya health insurance",
+    "empanelled hospital", "smart card",
+    "1800-345-3673", "secondary care", "tertiary care",
+    "ST certificate", "BPL card"
+  ]
+}

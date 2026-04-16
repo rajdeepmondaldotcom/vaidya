@@ -1,0 +1,151 @@
+{
+  "scheme_id": "PMNDP-2024-v1",
+  "canonical_name": "Pradhan Mantri National Dialysis Programme",
+  "aliases": [
+    "PMNDP",
+    "PM Dialysis Programme",
+    "National Dialysis Programme",
+    "Free Dialysis Scheme",
+    "NDP",
+    "Dialysis PPP Programme"
+  ],
+  "local_names": {
+    "hi": "प्रधानमंत्री राष्ट्रीय डायलिसिस कार्यक्रम",
+    "bn": "প্রধানমন্ত্রী জাতীয় ডায়ালিসিস কার্যক্রম",
+    "ta": "பிரதான் மந்திரி தேசிய டயாலிசிஸ் திட்டம்",
+    "te": "ప్రధాన మంత్రి జాతీయ డయాలసిస్ కార్యక్రమం",
+    "mr": "प्रधानमंत्री राष्ट्रीय डायलिसिस कार्यक्रम",
+    "gu": "પ્રધાનમંત્રી રાષ્ટ્રીય ડાયાલિસિસ કાર્યક્રમ",
+    "kn": "ಪ್ರಧಾನ ಮಂತ್ರಿ ರಾಷ್ಟ್ರೀಯ ಡಯಾಲಿಸಿಸ್ ಕಾರ್ಯಕ್ರಮ",
+    "ml": "പ്രധാൻ മന്ത്രി ദേശീയ ഡയാലിസിസ് പരിപാടി",
+    "pa": "ਪ੍ਰਧਾਨ ਮੰਤਰੀ ਰਾਸ਼ਟਰੀ ਡਾਇਲਸਿਸ ਪ੍ਰੋਗਰਾਮ",
+    "or": "ପ୍ରଧାନ ମନ୍ତ୍ରୀ ଜାତୀୟ ଡାଏଲିସିସ୍ କାର୍ଯ୍ୟକ୍ରମ"
+  },
+  "state_variant_of": null,
+  "jurisdiction": "central",
+  "state_code": null,
+  "income_thresholds": [],
+  "secc_categories": [],
+  "occupation_included": [
+    "all_ESRD_patients"
+  ],
+  "occupation_excluded": [],
+  "exclusion_rules": [
+    {
+      "rule_id": "PMNDP-EX-001",
+      "exclusion_type": "hard",
+      "field": "medical_condition",
+      "condition": "diagnosis != 'ESRD' and dialysis_not_required == true",
+      "description": "Only patients with End Stage Renal Disease (ESRD) or chronic kidney disease requiring maintenance dialysis are eligible",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "PMNDP-EX-002",
+      "exclusion_type": "hard",
+      "field": "doctor_prescription",
+      "condition": "nephrologist_prescription == false",
+      "description": "Must have a prescription for maintenance hemodialysis from a qualified nephrologist or physician",
+      "override_by_state": false
+    }
+  ],
+  "age_criteria": null,
+  "family_criteria": {
+    "max_family_size": null,
+    "family_definition": "Individual entitlement for any patient diagnosed with ESRD requiring maintenance hemodialysis. No income, caste, or family restriction. BPL patients get completely free dialysis; APL patients may pay subsidized rates in some states.",
+    "head_of_family_required": false
+  },
+  "geographic_restrictions": [],
+  "coverage_amount_inr": 0,
+  "coverage_type": "per_person_per_year",
+  "covered_procedures": [
+    "Maintenance hemodialysis sessions (typically 2-3 sessions per week)",
+    "Dialysis consumables (dialyzer, blood tubing, fistula needles, dialysis fluid)",
+    "Essential drugs during dialysis (erythropoietin, iron sucrose, heparin, etc.)",
+    "Blood pressure and vital monitoring during sessions",
+    "Vascular access care (AV fistula maintenance)",
+    "Emergency dialysis for acute presentations",
+    "Basic blood investigations (Hb, creatinine, electrolytes, hepatitis screening)",
+    "Nutritional counselling for CKD patients",
+    "Free dialysis for BPL patients at PPP centres",
+    "Subsidized dialysis for APL patients at PPP centres"
+  ],
+  "excluded_procedures": [
+    "Peritoneal dialysis (CAPD) — covered under separate programme in some states",
+    "Kidney transplant surgery (referred under PM-JAY/RAN)",
+    "Non-dialysis nephrology OPD consultation",
+    "Home hemodialysis setup",
+    "Dialysis at private centres not under the PPP model",
+    "Treatment of CKD not requiring dialysis"
+  ],
+  "required_documents": [
+    {
+      "name": "Aadhaar Card",
+      "category": "identity",
+      "mandatory": true,
+      "alternatives": ["Voter ID", "Government-issued photo ID"],
+      "local_name_hi": "आधार कार्ड",
+      "notes": "For patient registration and tracking at the dialysis centre"
+    },
+    {
+      "name": "Nephrologist/Physician Prescription",
+      "category": "medical",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "नेफ्रोलॉजिस्ट/चिकित्सक का नुस्खा",
+      "notes": "Prescription confirming ESRD diagnosis and need for maintenance hemodialysis"
+    },
+    {
+      "name": "BPL Card / Income Certificate",
+      "category": "eligibility_proof",
+      "mandatory": false,
+      "alternatives": ["Ration Card (BPL)", "Ayushman Card"],
+      "local_name_hi": "बीपीएल कार्ड / आय प्रमाण पत्र",
+      "notes": "For availing completely free dialysis. APL patients may need to pay subsidized charges in some states."
+    },
+    {
+      "name": "Blood Test Reports",
+      "category": "medical",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "रक्त जांच रिपोर्ट",
+      "notes": "Recent creatinine, BUN, electrolytes, hepatitis B/C screening, HIV test reports"
+    }
+  ],
+  "enrollment_channels": [
+    "District Hospital dialysis centre (PPP model)",
+    "Government medical college hospital nephrology department",
+    "NHM-empanelled dialysis centre",
+    "Referral from Primary Health Centre or CHC",
+    "PM-JAY empanelled hospital (for PM-JAY beneficiaries)"
+  ],
+  "enrollment_steps": [
+    "Step 1: Get diagnosed with ESRD/CKD by a nephrologist or physician at a government hospital",
+    "Step 2: Obtain prescription for maintenance hemodialysis with frequency recommendation",
+    "Step 3: Visit nearest PMNDP dialysis centre (at district hospital or empanelled PPP centre)",
+    "Step 4: Register with Aadhaar and medical documents at the dialysis centre",
+    "Step 5: BPL patients registered for free dialysis; APL patients for subsidized sessions",
+    "Step 6: Undergo initial assessment including blood tests and hepatitis/HIV screening",
+    "Step 7: Start regular dialysis sessions (typically 2-3 per week, 4 hours each)",
+    "Step 8: Regular follow-up blood tests and clinical monitoring at the centre"
+  ],
+  "processing_time_days": 1,
+  "helpline_number": "14555",
+  "portal_url": "https://pmndp.mohfw.gov.in",
+  "version": "1.0",
+  "effective_date": "2016-04-01",
+  "expiry_date": null,
+  "last_verified": "2026-04-15",
+  "source_url": "https://nhm.gov.in/New_Updates_2018/NHM_Components/Health_System_Stregthening/NDP/NDP_guidelines.pdf",
+  "confidence_level": "provisional",
+  "description_for_embedding": "Pradhan Mantri National Dialysis Programme (PMNDP) is a central government programme providing free or subsidized hemodialysis to patients with End Stage Renal Disease (ESRD) at 1700+ dialysis centres across 751 districts in India, operated primarily through a Public-Private Partnership (PPP) model at district hospitals. BPL patients receive completely free dialysis including consumables and essential drugs. No income criteria for access — universal for all ESRD patients needing maintenance dialysis. Requires nephrologist prescription. Does not cover kidney transplant (covered under PM-JAY/RAN) or peritoneal dialysis.",
+  "keywords": [
+    "PMNDP", "dialysis", "hemodialysis", "kidney disease", "ESRD",
+    "chronic kidney disease", "CKD", "free dialysis", "district hospital",
+    "PPP model", "renal failure", "maintenance dialysis",
+    "डायलिसिस", "गुर्दे की बीमारी", "मुफ्त डायलिसिस",
+    "किडनी", "हीमोडायलिसिस", "जिला अस्पताल",
+    "kidney failure", "renal disease", "nephrology",
+    "1700 centres", "751 districts", "BPL free",
+    "dialysis programme", "central scheme", "NHM"
+  ]
+}

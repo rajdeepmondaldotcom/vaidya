@@ -1,0 +1,146 @@
+{
+  "scheme_id": "JSSK-2024-v1",
+  "canonical_name": "Janani Shishu Suraksha Karyakram",
+  "aliases": [
+    "JSSK",
+    "Janani Shishu Suraksha",
+    "Free Delivery Scheme",
+    "Free Maternity Scheme",
+    "Zero Expense Delivery"
+  ],
+  "local_names": {
+    "hi": "जननी शिशु सुरक्षा कार्यक्रम",
+    "bn": "জননী শিশু সুরক্ষা কার্যক্রম",
+    "ta": "ஜனனி சிசு சுரக்ஷா கார்யக்ரம்",
+    "te": "జననీ శిశు సురక్ష కార్యక్రమం",
+    "mr": "जननी शिशु सुरक्षा कार्यक्रम",
+    "gu": "જનની શિશુ સુરક્ષા કાર્યક્રમ",
+    "kn": "ಜನನಿ ಶಿಶು ಸುರಕ್ಷಾ ಕಾರ್ಯಕ್ರಮ",
+    "ml": "ജനനി ശിശു സുരക്ഷാ കാര്യക്രമം",
+    "pa": "ਜਨਨੀ ਸ਼ਿਸ਼ੂ ਸੁਰੱਖਿਆ ਕਾਰਿਆਕ੍ਰਮ",
+    "or": "ଜନନୀ ଶିଶୁ ସୁରକ୍ଷା କାର୍ଯ୍ୟକ୍ରମ"
+  },
+  "state_variant_of": null,
+  "jurisdiction": "central",
+  "state_code": null,
+  "income_thresholds": [],
+  "secc_categories": [],
+  "occupation_included": [
+    "all_pregnant_women_at_govt_facilities"
+  ],
+  "occupation_excluded": [],
+  "exclusion_rules": [
+    {
+      "rule_id": "JSSK-EX-001",
+      "exclusion_type": "hard",
+      "field": "facility_type",
+      "condition": "facility_type != 'government'",
+      "description": "Free services only at government health facilities (PHC, CHC, sub-district, district hospitals). Private hospitals are NOT covered.",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "JSSK-EX-002",
+      "exclusion_type": "hard",
+      "field": "sick_newborn_age",
+      "condition": "newborn_age > 365",
+      "description": "Sick newborn entitlements apply only up to 1 year (365 days) from birth",
+      "override_by_state": false
+    }
+  ],
+  "age_criteria": null,
+  "family_criteria": {
+    "max_family_size": null,
+    "family_definition": "Covers the pregnant woman (any age) and her newborn child up to 1 year of age. No family size, income, or caste restriction. Universal entitlement at government facilities.",
+    "head_of_family_required": false
+  },
+  "geographic_restrictions": [],
+  "coverage_amount_inr": 0,
+  "coverage_type": "per_event",
+  "covered_procedures": [
+    "Normal vaginal delivery — completely free",
+    "Caesarean section (C-section) — completely free",
+    "Complicated deliveries and management — completely free",
+    "All drugs and consumables during delivery and hospital stay",
+    "All diagnostic tests (blood tests, ultrasound, X-ray, etc.)",
+    "Diet during hospital stay (for mother)",
+    "Blood transfusion if required (free of cost)",
+    "Free transport from home to facility (referral transport)",
+    "Free transport between facilities in case of referral",
+    "Free drop-back from facility to home after discharge",
+    "Exemption from all user charges at government facilities",
+    "Sick newborn treatment up to 30 days at facility",
+    "Sick newborn: free drugs, consumables, diagnostics, blood",
+    "Sick newborn: free transport and diet for mother accompanying child"
+  ],
+  "excluded_procedures": [
+    "Delivery at private hospitals or non-government facilities",
+    "Treatment of newborns older than 1 year",
+    "Maternal health issues unrelated to pregnancy/delivery",
+    "Pre-pregnancy fertility treatment",
+    "Post-natal complications beyond the initial hospital stay period"
+  ],
+  "required_documents": [
+    {
+      "name": "MCH Card / ANC Registration",
+      "category": "medical",
+      "mandatory": false,
+      "alternatives": ["Self-declaration at admission"],
+      "local_name_hi": "एमसीएच कार्ड / एएनसी पंजीकरण",
+      "notes": "Preferred but not mandatory — no pregnant woman can be denied free delivery at a government facility"
+    },
+    {
+      "name": "Aadhaar Card",
+      "category": "identity",
+      "mandatory": false,
+      "alternatives": ["Any government-issued photo ID", "Self-declaration"],
+      "local_name_hi": "आधार कार्ड",
+      "notes": "For record-keeping; absence of ID cannot be reason for denial of services"
+    },
+    {
+      "name": "Referral Slip",
+      "category": "medical",
+      "mandatory": false,
+      "alternatives": ["Direct walk-in for emergency cases"],
+      "local_name_hi": "रेफरल पर्ची",
+      "notes": "For inter-facility referral transport. Emergency cases accepted without referral."
+    }
+  ],
+  "enrollment_channels": [
+    "Government Sub-Centre",
+    "Primary Health Centre (PHC)",
+    "Community Health Centre (CHC)",
+    "Sub-District Hospital",
+    "District Hospital",
+    "Government Medical College Hospital",
+    "ASHA worker referral"
+  ],
+  "enrollment_steps": [
+    "Step 1: No prior enrollment needed — entitlement is automatic at any government health facility",
+    "Step 2: Visit nearest government hospital when delivery is due (or call 108/102 for free ambulance)",
+    "Step 3: Present any available ID at admission (not mandatory — cannot be denied without it)",
+    "Step 4: Receive completely free delivery care including drugs, diagnostics, diet, and blood",
+    "Step 5: If referral needed, free transport arranged to higher facility",
+    "Step 6: After discharge, free drop-back transport to home arranged",
+    "Step 7: For sick newborn, return to government facility within 1 year for free treatment"
+  ],
+  "processing_time_days": 0,
+  "helpline_number": "102",
+  "portal_url": "https://nhm.gov.in/index1.php?lang=1&level=3&sublinkid=842&lid=308",
+  "version": "1.0",
+  "effective_date": "2011-06-01",
+  "expiry_date": null,
+  "last_verified": "2026-04-15",
+  "source_url": "https://nhm.gov.in/index1.php?lang=1&level=3&sublinkid=842&lid=308",
+  "confidence_level": "provisional",
+  "description_for_embedding": "Janani Shishu Suraksha Karyakram (JSSK) is a central government entitlement scheme that guarantees completely free delivery services (normal and C-section) to ALL pregnant women at government health facilities, regardless of income, caste, or BPL status. It covers free drugs, diagnostics, diet, blood transfusion, and transport (home to facility, between facilities, and drop-back). Sick newborns up to 1 year also get free treatment. Unlike JSY which gives cash, JSSK eliminates out-of-pocket expenses by making all services free. No enrollment or documents required.",
+  "keywords": [
+    "JSSK", "janani shishu suraksha", "free delivery", "C-section free",
+    "pregnant women", "newborn", "government hospital", "zero expense",
+    "free drugs", "free diagnostics", "free transport", "free blood",
+    "NHM", "maternal health", "institutional delivery",
+    "जननी शिशु सुरक्षा", "मुफ्त प्रसव", "सरकारी अस्पताल",
+    "गर्भवती महिला", "नवजात शिशु", "मुफ्त दवाई", "मुफ्त जांच",
+    "free maternity", "sick newborn", "no user charges",
+    "universal entitlement", "free caesarean"
+  ]
+}

@@ -1,0 +1,184 @@
+{
+  "scheme_id": "JSY-2024-v1",
+  "canonical_name": "Janani Suraksha Yojana",
+  "aliases": [
+    "JSY",
+    "Janani Suraksha",
+    "Safe Motherhood Scheme",
+    "Institutional Delivery Scheme",
+    "Maternity Cash Assistance"
+  ],
+  "local_names": {
+    "hi": "जननी सुरक्षा योजना",
+    "bn": "জননী সুরক্ষা যোজনা",
+    "ta": "ஜனனி சுரக்ஷா யோஜனா",
+    "te": "జననీ సురక్ష యోజన",
+    "mr": "जननी सुरक्षा योजना",
+    "gu": "જનની સુરક્ષા યોજના",
+    "kn": "ಜನನಿ ಸುರಕ್ಷಾ ಯೋಜನೆ",
+    "ml": "ജനനി സുരക്ഷാ യോജന",
+    "pa": "ਜਨਨੀ ਸੁਰੱਖਿਆ ਯੋਜਨਾ",
+    "or": "ଜନନୀ ସୁରକ୍ଷା ଯୋଜନା"
+  },
+  "state_variant_of": null,
+  "jurisdiction": "central",
+  "state_code": null,
+  "income_thresholds": [
+    {
+      "max_income_inr": 0,
+      "unit": "per_annum",
+      "applies_to": "family",
+      "description": "In Low Performing States (LPS), ALL pregnant women delivering in govt facilities are eligible regardless of income. In High Performing States (HPS), only BPL/SC/ST women are eligible.",
+      "source": "Ministry of Health and Family Welfare / NHM Guidelines"
+    }
+  ],
+  "secc_categories": ["D1", "D2", "D3", "D4", "D5", "D6", "D7"],
+  "occupation_included": [
+    "BPL_family",
+    "scheduled_caste",
+    "scheduled_tribe",
+    "all_women_in_LPS_states"
+  ],
+  "occupation_excluded": [],
+  "exclusion_rules": [
+    {
+      "rule_id": "JSY-EX-001",
+      "exclusion_type": "hard",
+      "field": "age",
+      "condition": "age < 19",
+      "description": "Pregnant woman must be at least 19 years of age",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "JSY-EX-002",
+      "exclusion_type": "hard",
+      "field": "delivery_type",
+      "condition": "delivery_location == 'home' and state_category == 'HPS'",
+      "description": "In High Performing States, only institutional deliveries (at government or accredited private facilities) qualify. Home deliveries do NOT qualify in HPS.",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "JSY-EX-003",
+      "exclusion_type": "soft",
+      "field": "birth_order",
+      "condition": "birth_order > 2 and state_category == 'HPS'",
+      "description": "In High Performing States, cash assistance is restricted to first two live births. In LPS, no birth order restriction for institutional delivery.",
+      "override_by_state": true
+    },
+    {
+      "rule_id": "JSY-EX-004",
+      "exclusion_type": "hard",
+      "field": "bpl_status",
+      "condition": "bpl_or_sc_st == false and state_category == 'HPS'",
+      "description": "In High Performing States (HPS), only BPL, SC, or ST women are eligible",
+      "override_by_state": false
+    }
+  ],
+  "age_criteria": {
+    "min_age": 19,
+    "max_age": null,
+    "applies_to": "beneficiary"
+  },
+  "family_criteria": {
+    "max_family_size": null,
+    "family_definition": "Benefit is per pregnancy/delivery to the pregnant woman. In HPS, restricted to first 2 live births. In LPS, no birth order restriction for institutional delivery.",
+    "head_of_family_required": false
+  },
+  "geographic_restrictions": [],
+  "coverage_amount_inr": 1400,
+  "coverage_type": "per_event",
+  "covered_procedures": [
+    "Cash assistance of Rs 1400 for rural institutional delivery in LPS states",
+    "Cash assistance of Rs 1000 for urban institutional delivery in LPS states",
+    "Cash assistance of Rs 700 for rural BPL/SC/ST institutional delivery in HPS states",
+    "Cash assistance of Rs 600 for urban BPL/SC/ST institutional delivery in HPS states",
+    "ASHA incentive of Rs 600 (rural) / Rs 200 (urban) for facilitating delivery",
+    "Transport assistance for reaching government health facility"
+  ],
+  "excluded_procedures": [
+    "Home deliveries in High Performing States",
+    "Deliveries at non-accredited private hospitals",
+    "Any medical treatment costs (JSY is a CASH ASSISTANCE scheme, not insurance)",
+    "Post-natal treatment beyond the delivery event",
+    "Pregnancy complications treatment (covered under JSSK separately)"
+  ],
+  "required_documents": [
+    {
+      "name": "BPL Card / SC/ST Certificate",
+      "category": "eligibility_proof",
+      "mandatory": true,
+      "alternatives": ["SECC Inclusion Letter", "Ration Card (BPL)"],
+      "local_name_hi": "बीपीएल कार्ड / अनुसूचित जाति/जनजाति प्रमाण पत्र",
+      "notes": "Required in High Performing States. In Low Performing States, all pregnant women are eligible regardless."
+    },
+    {
+      "name": "MCH Card / ANC Registration",
+      "category": "medical",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "एमसीएच कार्ड / एएनसी पंजीकरण",
+      "notes": "Mother and Child Health card with at least 3 ante-natal checkups registered"
+    },
+    {
+      "name": "Aadhaar Card",
+      "category": "identity",
+      "mandatory": true,
+      "alternatives": ["Voter ID", "Government-issued photo ID"],
+      "local_name_hi": "आधार कार्ड",
+      "notes": "For identity verification and DBT payment"
+    },
+    {
+      "name": "Bank Account / Jan Dhan Account",
+      "category": "financial",
+      "mandatory": true,
+      "alternatives": ["Post Office Savings Account"],
+      "local_name_hi": "बैंक खाता / जन धन खाता",
+      "notes": "Cash assistance transferred directly to mother's bank account via DBT"
+    },
+    {
+      "name": "Discharge Certificate from Hospital",
+      "category": "medical",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "अस्पताल से छुट्टी प्रमाण पत्र",
+      "notes": "Proof of institutional delivery at government or accredited facility"
+    }
+  ],
+  "enrollment_channels": [
+    "ASHA worker (Accredited Social Health Activist) during pregnancy registration",
+    "Sub-centre / Primary Health Centre (PHC)",
+    "Community Health Centre (CHC)",
+    "District Hospital",
+    "Government maternity hospital",
+    "Anganwadi Centre"
+  ],
+  "enrollment_steps": [
+    "Step 1: Register pregnancy with ASHA worker or at nearest government health facility",
+    "Step 2: Get MCH (Mother and Child Health) card with ANC registration",
+    "Step 3: Complete at least 3 ante-natal checkups as per schedule",
+    "Step 4: ASHA worker assists with institutional delivery planning and transport",
+    "Step 5: Deliver at government hospital or accredited private facility",
+    "Step 6: Hospital issues discharge certificate with delivery details",
+    "Step 7: ASHA worker or hospital submits JSY claim with required documents",
+    "Step 8: Cash assistance transferred to mother's bank account within 7 days via DBT"
+  ],
+  "processing_time_days": 7,
+  "helpline_number": "104",
+  "portal_url": "https://nhm.gov.in/index1.php?lang=1&level=3&sublinkid=841&lid=309",
+  "version": "1.0",
+  "effective_date": "2005-04-12",
+  "expiry_date": null,
+  "last_verified": "2026-04-15",
+  "source_url": "https://nhm.gov.in/index1.php?lang=1&level=3&sublinkid=841&lid=309",
+  "confidence_level": "provisional",
+  "description_for_embedding": "Janani Suraksha Yojana (JSY) is a central government cash assistance scheme under the National Health Mission to promote institutional delivery among pregnant women from BPL, SC, and ST families. It provides Rs 1400 (rural) or Rs 1000 (urban) per institutional delivery in Low Performing States, and Rs 700 (rural) or Rs 600 (urban) in High Performing States. The scheme targets reducing maternal and neonatal mortality by incentivizing hospital delivery. Only women aged 19+ are eligible. ASHA workers facilitate registration, transport, and claim processing.",
+  "keywords": [
+    "JSY", "janani suraksha", "maternity cash", "institutional delivery",
+    "pregnant women", "BPL", "SC ST", "ASHA worker", "Rs 1400",
+    "delivery assistance", "NHM", "maternal health",
+    "जननी सुरक्षा", "प्रसव सहायता", "गर्भवती महिला", "बीपीएल",
+    "अनुसूचित जाति", "अनुसूचित जनजाति", "आशा कार्यकर्ता",
+    "safe motherhood", "cash transfer", "DBT maternity",
+    "institutional delivery incentive", "LPS HPS states"
+  ]
+}

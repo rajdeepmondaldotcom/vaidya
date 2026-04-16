@@ -1,0 +1,217 @@
+{
+  "scheme_id": "DDSSY-GA-2024-v1",
+  "canonical_name": "Deen Dayal Swasthya Seva Yojana (Goa)",
+  "aliases": [
+    "DDSSY",
+    "Deen Dayal Goa",
+    "Goa Health Scheme",
+    "Goa Health Insurance",
+    "DDSSY Goa"
+  ],
+  "local_names": {
+    "hi": "दीन दयाल स्वास्थ्य सेवा योजना (गोवा)",
+    "bn": "দীন দয়াল স্বাস্থ্য সেবা যোজনা (গোয়া)",
+    "ta": "தீன் தயால் சுவாஸ்த்ய சேவா யோஜனா (கோவா)",
+    "te": "దీన్ దయాళ్ స్వాస్థ్య సేవా యోజన (గోవా)",
+    "gu": "દીન દયાળ સ્વાસ્થ્ય સેવા યોજના (ગોવા)",
+    "kn": "ದೀನ್ ದಯಾಳ್ ಸ್ವಾಸ್ಥ್ಯ ಸೇವಾ ಯೋಜನೆ (ಗೋವಾ)",
+    "ml": "ദീന്‍ ദയാല്‍ സ്വാസ്ഥ്യ സേവാ യോജന (ഗോവ)",
+    "mr": "दीन दयाळ स्वास्थ्य सेवा योजना (गोवा)",
+    "pa": "ਦੀਨ ਦਿਆਲ ਸਿਹਤ ਸੇਵਾ ਯੋਜਨਾ (ਗੋਆ)",
+    "od": "ଦୀନ ଦୟାଳ ସ୍ୱାସ୍ଥ୍ୟ ସେବା ଯୋଜନା (ଗୋଆ)",
+    "en": "Deen Dayal Swasthya Seva Yojana (Goa)"
+  },
+  "state_variant_of": null,
+  "jurisdiction": "state",
+  "state_code": "GA",
+  "income_thresholds": [
+    {
+      "max_income_inr": 300000,
+      "unit": "per_annum",
+      "applies_to": "family",
+      "description": "BPL and economically weaker families with income below Rs 3 lakh get free enrollment for Rs 2.5 lakh basic coverage and Rs 4 lakh critical illness coverage.",
+      "source": "Goa State Government / Directorate of Health Services Goa"
+    },
+    {
+      "max_income_inr": 99999999,
+      "unit": "per_annum",
+      "applies_to": "family",
+      "description": "All Goa domicile holders are eligible for basic tier (Rs 2.5 lakh). No income cap for basic hospitalization coverage. Higher income families may need to pay nominal contribution.",
+      "source": "Goa State Government / DDSSY Portal"
+    }
+  ],
+  "secc_categories": ["D1", "D2", "D3", "D4", "D5"],
+  "occupation_included": [
+    "all_goa_residents_with_domicile",
+    "bpl_family",
+    "daily_wage_labourer",
+    "farmer",
+    "fisherman",
+    "mining_worker",
+    "tourism_sector_worker",
+    "construction_worker",
+    "domestic_worker"
+  ],
+  "occupation_excluded": [
+    "non_goa_domicile_holder"
+  ],
+  "exclusion_rules": [
+    {
+      "rule_id": "DDSSY-GA-EX-001",
+      "exclusion_type": "hard",
+      "field": "state",
+      "condition": "state != 'GA'",
+      "description": "Only residents of Goa with a valid Goa domicile certificate are eligible",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "DDSSY-GA-EX-002",
+      "exclusion_type": "hard",
+      "field": "domicile",
+      "condition": "goa_domicile == false",
+      "description": "Valid Goa domicile certificate is mandatory for enrollment. Non-domicile holders cannot enroll.",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "DDSSY-GA-EX-003",
+      "exclusion_type": "hard",
+      "field": "existing_coverage",
+      "condition": "existing_coverage == 'CGHS' || existing_coverage == 'ESIC'",
+      "description": "Families already covered under CGHS or ESIC are excluded from DDSSY",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "DDSSY-GA-EX-004",
+      "exclusion_type": "soft",
+      "field": "pre_existing_condition",
+      "condition": "pre_existing_condition == true && waiting_period_not_completed",
+      "description": "Pre-existing conditions may have a waiting period of 30 days from enrollment before coverage activates",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "DDSSY-GA-EX-005",
+      "exclusion_type": "soft",
+      "field": "critical_illness_cap",
+      "condition": "claim_amount > 400000 && illness_type == 'critical'",
+      "description": "Critical illness coverage capped at Rs 4 lakh per family per year. Claims beyond this limit are not covered.",
+      "override_by_state": false
+    }
+  ],
+  "age_criteria": null,
+  "family_criteria": {
+    "max_family_size": null,
+    "family_definition": "Family as defined in ration card. All members listed on ration card with Goa domicile are covered. Coverage is floater across all family members.",
+    "head_of_family_required": true
+  },
+  "geographic_restrictions": [],
+  "coverage_amount_inr": 250000,
+  "coverage_type": "per_family_per_year",
+  "covered_procedures": [
+    "Hospitalization expenses (room, nursing, ICU)",
+    "Pre-hospitalization (up to 3 days before admission)",
+    "Post-hospitalization (up to 15 days after discharge)",
+    "General surgery",
+    "Cardiology (bypass surgery, angioplasty, valve replacement)",
+    "Oncology (chemotherapy, radiation, surgical oncology)",
+    "Orthopaedic (knee replacement, hip replacement, fracture fixation)",
+    "Neurosurgery (brain surgery, spinal surgery)",
+    "Nephrology (dialysis)",
+    "Urology (kidney stone, prostate surgery)",
+    "Ophthalmology (cataract surgery, retinal surgery)",
+    "ENT procedures",
+    "Maternity and delivery (normal and caesarean)",
+    "Neonatal care (NICU)",
+    "Critical illness treatment (up to Rs 4 lakh)",
+    "Day-care procedures",
+    "Diagnostics and lab tests during hospitalization",
+    "Medicines and consumables during treatment"
+  ],
+  "excluded_procedures": [
+    "OPD (Out-Patient Department) consultation",
+    "Cosmetic and aesthetic surgery",
+    "Fertility treatment and IVF",
+    "Organ transplant (except cornea and renal)",
+    "Drug rehabilitation and de-addiction",
+    "Dental treatment (unless related to covered surgery)",
+    "Routine vaccination and immunization",
+    "Spectacles and hearing aids"
+  ],
+  "required_documents": [
+    {
+      "name": "Aadhaar Card",
+      "category": "identity",
+      "mandatory": true,
+      "alternatives": ["Aadhaar Enrollment ID"],
+      "local_name_hi": "आधार कार्ड",
+      "notes": "Required for identity verification and e-KYC"
+    },
+    {
+      "name": "Goa Domicile Certificate",
+      "category": "residency",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "गोवा अधिवास प्रमाण पत्र",
+      "notes": "Mandatory. Issued by Mamlatdar office. Proves 15+ years of residence in Goa."
+    },
+    {
+      "name": "Ration Card",
+      "category": "economic_status",
+      "mandatory": true,
+      "alternatives": ["BPL Card"],
+      "local_name_hi": "राशन कार्ड",
+      "notes": "Used to identify family members and economic status. BPL ration card holders get priority enrollment."
+    },
+    {
+      "name": "Recent Passport-size Photograph",
+      "category": "identity",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "हालिया पासपोर्ट साइज़ फोटो",
+      "notes": "Required for DDSSY card generation"
+    },
+    {
+      "name": "Mobile Number",
+      "category": "contact",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "मोबाइल नंबर",
+      "notes": "For OTP verification and scheme communication"
+    }
+  ],
+  "enrollment_channels": [
+    "Government hospitals in Goa",
+    "Primary Health Centres (PHC)",
+    "Community Health Centres (CHC)",
+    "Empanelled private hospitals",
+    "Taluka-level offices",
+    "DDSSY enrollment camps"
+  ],
+  "enrollment_steps": [
+    "Step 1: Visit the nearest government hospital, PHC, or DDSSY enrollment camp with required documents.",
+    "Step 2: Submit Aadhaar card, Goa domicile certificate, ration card, and photograph.",
+    "Step 3: Undergo biometric verification (fingerprint/iris scan) for e-KYC.",
+    "Step 4: DDSSY card is generated with family member details.",
+    "Step 5: Card is activated. Present at any empanelled hospital in Goa for cashless treatment.",
+    "Step 6: For basic hospitalization, coverage up to Rs 2.5 lakh. For critical illness, additional Rs 1.5 lakh (total Rs 4 lakh)."
+  ],
+  "processing_time_days": 7,
+  "helpline_number": "1800-233-2085",
+  "portal_url": "https://www.goa.gov.in/department/directorate-of-health-services/",
+  "version": "1.0",
+  "effective_date": "2017-06-01",
+  "expiry_date": null,
+  "last_verified": "2026-04-15",
+  "source_url": "https://www.goa.gov.in/department/directorate-of-health-services/",
+  "confidence_level": "provisional",
+  "description_for_embedding": "Deen Dayal Swasthya Seva Yojana (DDSSY) is Goa's universal state health insurance scheme providing Rs 2.5 lakh per family per year for basic hospitalization and Rs 4 lakh for critical illnesses. Uniquely, DDSSY has no income cap for the basic tier - all Goa domicile holders are eligible regardless of income. The scheme covers hospitalization, surgeries, critical illness treatment, maternity care, and day-care procedures at empanelled government and private hospitals across Goa. Goa domicile certificate is mandatory for enrollment. BPL families get priority and free enrollment. The scheme particularly benefits fishermen, tourism workers, mining workers, and other sections of Goa's population.",
+  "keywords": [
+    "ddssy", "deen dayal", "goa", "GA health scheme",
+    "2.5 lakh", "4 lakh critical illness", "universal coverage",
+    "no income cap", "goa domicile", "cashless treatment",
+    "दीन दयाल स्वास्थ्य सेवा योजना", "गोवा",
+    "state scheme", "goa health insurance",
+    "empanelled hospital", "PHC", "critical illness",
+    "1800-233-2085", "goa domicile certificate",
+    "maternity", "surgery", "hospitalization"
+  ]
+}

@@ -1,0 +1,204 @@
+{
+  "scheme_id": "DAK-DL-2024-v1",
+  "canonical_name": "Delhi Arogya Kosh",
+  "aliases": [
+    "DAK",
+    "Arogya Kosh",
+    "Delhi Health Fund",
+    "Delhi Arogya Kosh Scheme",
+    "Delhi Health Scheme"
+  ],
+  "local_names": {
+    "hi": "दिल्ली आरोग्य कोष",
+    "bn": "দিল্লি আরোগ্য কোষ",
+    "ta": "டெல்லி ஆரோக்ய கோஷ்",
+    "te": "ఢిల్లీ ఆరోగ్య కోశ్",
+    "mr": "दिल्ली आरोग्य कोष",
+    "gu": "દિલ્હી આરોગ્ય કોષ",
+    "kn": "ದೆಹಲಿ ಆರೋಗ್ಯ ಕೋಶ",
+    "ml": "ഡൽഹി ആരോഗ്യ കോശ്",
+    "pa": "ਦਿੱਲੀ ਆਰੋਗਿਆ ਕੋਸ਼",
+    "or": "ଦିଲ୍ଲୀ ଆରୋଗ୍ୟ କୋଷ"
+  },
+  "state_variant_of": null,
+  "jurisdiction": "state",
+  "state_code": "DL",
+  "income_thresholds": [
+    {
+      "max_income_inr": 300000,
+      "unit": "per_annum",
+      "applies_to": "family",
+      "description": "Annual household income must be below Rs 3 lakh. BPL families are automatically eligible. Delhi opted OUT of PM-JAY; this is the state's alternative health coverage.",
+      "source": "Delhi Government / DGEHS"
+    }
+  ],
+  "secc_categories": [],
+  "occupation_included": [
+    "bpl_family",
+    "daily_wage",
+    "domestic_worker",
+    "auto_rickshaw_driver",
+    "street_vendor",
+    "construction_worker",
+    "sanitation_worker",
+    "unorganized_worker"
+  ],
+  "occupation_excluded": [
+    "government_employee",
+    "income_tax_payer",
+    "employer_insured"
+  ],
+  "exclusion_rules": [
+    {
+      "rule_id": "DAK-DL-EX-001",
+      "exclusion_type": "hard",
+      "field": "state",
+      "condition": "state != 'DL'",
+      "description": "Only residents of Delhi with valid Delhi voter ID or residential proof are eligible",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "DAK-DL-EX-002",
+      "exclusion_type": "hard",
+      "field": "voter_id",
+      "condition": "delhi_voter_id == false && delhi_residence_proof == false",
+      "description": "Must have Delhi voter ID or valid Delhi residential address proof. Non-Delhi residents cannot avail this scheme.",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "DAK-DL-EX-003",
+      "exclusion_type": "hard",
+      "field": "income",
+      "condition": "family_income > 300000",
+      "description": "Families with annual income above Rs 3 lakh are not eligible",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "DAK-DL-EX-004",
+      "exclusion_type": "hard",
+      "field": "existing_coverage",
+      "condition": "existing_coverage == 'CGHS' || existing_coverage == 'ESIC' || existing_coverage == 'employer'",
+      "description": "Families covered under CGHS, ESIC, or employer-provided insurance are excluded",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "DAK-DL-EX-005",
+      "exclusion_type": "hard",
+      "field": "income_tax",
+      "condition": "pays_income_tax == true",
+      "description": "Income tax paying individuals and their families are excluded",
+      "override_by_state": false
+    }
+  ],
+  "age_criteria": null,
+  "family_criteria": {
+    "max_family_size": null,
+    "family_definition": "Family as per ration card or voter ID address. All family members at the same Delhi address are covered.",
+    "head_of_family_required": false
+  },
+  "geographic_restrictions": [],
+  "coverage_amount_inr": 500000,
+  "coverage_type": "per_family_per_year",
+  "covered_procedures": [
+    "Hospitalization expenses at Delhi govt hospitals",
+    "Pre-hospitalization expenses",
+    "Post-hospitalization expenses (up to 15 days)",
+    "Surgical procedures",
+    "Cardiology (bypass, angioplasty, valve replacement)",
+    "Orthopedic (knee replacement, hip replacement)",
+    "Oncology (chemotherapy, radiation)",
+    "Neurosurgery",
+    "Dialysis",
+    "Emergency care",
+    "Neonatal and pediatric care",
+    "Cataract surgery",
+    "Burns treatment",
+    "Day-care procedures",
+    "Diagnostics during hospitalization",
+    "Medicines and consumables during treatment"
+  ],
+  "excluded_procedures": [
+    "OPD (Out-Patient Department) consultation",
+    "Fertility treatment and IVF",
+    "Cosmetic surgery",
+    "Drug rehabilitation",
+    "Treatment at private hospitals (unless referred by govt hospital)",
+    "Vaccination (routine immunization)"
+  ],
+  "required_documents": [
+    {
+      "name": "Aadhaar Card",
+      "category": "identity",
+      "mandatory": true,
+      "alternatives": ["Aadhaar Enrollment ID"],
+      "local_name_hi": "आधार कार्ड",
+      "notes": "Required for identity verification"
+    },
+    {
+      "name": "Delhi Voter ID",
+      "category": "eligibility_proof",
+      "mandatory": true,
+      "alternatives": ["Delhi Ration Card", "Delhi Electricity Bill", "Delhi Rent Agreement"],
+      "local_name_hi": "दिल्ली मतदाता पहचान पत्र",
+      "notes": "Must prove Delhi residency. Voter ID is preferred. Ration card or utility bill with Delhi address also accepted."
+    },
+    {
+      "name": "Income Certificate / BPL Card",
+      "category": "eligibility_proof",
+      "mandatory": true,
+      "alternatives": ["Self-Declaration of Income (on stamp paper)", "Affidavit of Income"],
+      "local_name_hi": "आय प्रमाण पत्र / BPL कार्ड",
+      "notes": "Income certificate from SDM office or BPL card to prove income below Rs 3 lakh"
+    },
+    {
+      "name": "Mobile Number",
+      "category": "contact",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "मोबाइल नंबर",
+      "notes": "For communication and OTP verification"
+    },
+    {
+      "name": "Hospital Referral Letter",
+      "category": "treatment",
+      "mandatory": false,
+      "alternatives": [],
+      "local_name_hi": "अस्पताल रेफरल पत्र",
+      "notes": "Referral from Delhi govt hospital may be needed for treatment at certain empanelled facilities"
+    }
+  ],
+  "enrollment_channels": [
+    "DGEHS Delhi portal (dgehs.delhi.gov.in/dghs/delhi-arogya-kosh)",
+    "Delhi government hospital Medical Social Worker (MSW) office",
+    "District hospital help desk",
+    "SDM office for income certificate"
+  ],
+  "enrollment_steps": [
+    "Step 1: Visit nearest Delhi government hospital when hospitalization is needed",
+    "Step 2: Meet the Medical Social Worker (MSW) at the hospital",
+    "Step 3: Submit Aadhaar, Delhi voter ID/ration card, and income certificate/BPL card",
+    "Step 4: MSW verifies income and residency documents",
+    "Step 5: If eligible, treatment cost is covered under Delhi Arogya Kosh up to Rs 5 lakh",
+    "Step 6: For treatments beyond government hospital capacity, referral to empanelled private facility may be arranged",
+    "Step 7: No pre-enrollment needed — apply at time of hospitalization with required documents"
+  ],
+  "processing_time_days": 3,
+  "helpline_number": "1031",
+  "portal_url": "https://dgehs.delhi.gov.in/dghs/delhi-arogya-kosh",
+  "version": "1.0",
+  "effective_date": "2019-04-01",
+  "expiry_date": null,
+  "last_verified": "2026-04-15",
+  "source_url": "https://dgehs.delhi.gov.in/dghs/delhi-arogya-kosh",
+  "confidence_level": "provisional",
+  "description_for_embedding": "Delhi Arogya Kosh (DAK) is Delhi's primary health coverage scheme, created because Delhi opted OUT of PM-JAY. Provides up to Rs 5 lakh per family for hospitalization at Delhi government hospitals. Targeted at BPL families and those with annual income below Rs 3 lakh. Requires Delhi voter ID or residence proof and income certificate. Unlike PM-JAY, enrollment is primarily at the point of hospitalization through the Medical Social Worker at government hospitals. Delhi residents who are not covered by CGHS, ESIC, or employer insurance can avail this scheme. Portal: dgehs.delhi.gov.in.",
+  "keywords": [
+    "delhi arogya kosh", "DAK", "delhi", "DL health scheme",
+    "no pmjay", "delhi opted out", "BPL delhi", "3 lakh income",
+    "5 lakh", "govt hospital", "MSW", "medical social worker",
+    "दिल्ली आरोग्य कोष", "दिल्ली", "BPL", "3 लाख आय",
+    "5 लाख", "सरकारी अस्पताल", "मुफ्त इलाज",
+    "dgehs.delhi.gov.in", "1031", "delhi health fund",
+    "voter id", "delhi residence"
+  ]
+}

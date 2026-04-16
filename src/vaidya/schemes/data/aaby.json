@@ -1,0 +1,221 @@
+{
+  "scheme_id": "AABY-2024-v1",
+  "canonical_name": "Aam Aadmi Bima Yojana",
+  "aliases": [
+    "AABY",
+    "Common Man Insurance Scheme",
+    "Aam Aadmi Insurance",
+    "Janashree Bima Yojana (predecessor)",
+    "LIC Aam Aadmi Bima"
+  ],
+  "local_names": {
+    "hi": "आम आदमी बीमा योजना",
+    "bn": "আম আদমি বীমা যোজনা",
+    "ta": "ஆம் ஆத்மி பீமா யோஜனா",
+    "te": "ఆమ్ ఆద్మీ బీమా యోజన",
+    "mr": "आम आदमी विमा योजना",
+    "gu": "આમ આદમી બીમા યોજના",
+    "kn": "ಆಮ್ ಆದ್ಮಿ ಬೀಮಾ ಯೋಜನೆ",
+    "ml": "ആം ആദ്മി ബീമ യോജന",
+    "pa": "ਆਮ ਆਦਮੀ ਬੀਮਾ ਯੋਜਨਾ",
+    "or": "ଆମ ଆଦମୀ ବୀମା ଯୋଜନା"
+  },
+  "state_variant_of": null,
+  "jurisdiction": "central",
+  "state_code": null,
+  "income_thresholds": [
+    {
+      "max_income_inr": 0,
+      "unit": "per_annum",
+      "applies_to": "family",
+      "description": "No specific income threshold; must be a member of BPL (below poverty line) family or belong to identified occupation group in the unorganized sector",
+      "source": "AABY Guidelines / LIC of India / Ministry of Finance"
+    }
+  ],
+  "secc_categories": ["D1", "D2", "D3", "D4", "D5", "D6", "D7"],
+  "occupation_included": [
+    "beedi_worker",
+    "brick_kiln_worker",
+    "carpenter",
+    "cobbler",
+    "fisherman",
+    "handloom_weaver",
+    "khadi_worker",
+    "leather_worker",
+    "pappad_worker",
+    "plantation_worker",
+    "rickshaw_puller",
+    "auto_rickshaw_driver",
+    "salt_worker",
+    "safai_karmachari",
+    "tendu_leaf_collector",
+    "forest_worker",
+    "handicraft_artisan",
+    "lady_tailor",
+    "sericulture_worker",
+    "toddy_tapper",
+    "street_vendor",
+    "construction_worker",
+    "domestic_worker",
+    "daily_wage",
+    "agricultural_labourer"
+  ],
+  "occupation_excluded": [
+    "government_employee",
+    "income_tax_payer",
+    "employer_insured",
+    "organized_sector_employee"
+  ],
+  "exclusion_rules": [
+    {
+      "rule_id": "AABY-EX-001",
+      "exclusion_type": "hard",
+      "field": "age",
+      "condition": "age < 18 or age > 59",
+      "description": "Only individuals aged 18-59 are eligible for enrollment as primary member",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "AABY-EX-002",
+      "exclusion_type": "hard",
+      "field": "family_status",
+      "condition": "is_head_or_earning_member == false",
+      "description": "Only head of family or one earning member per BPL family can be enrolled",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "AABY-EX-003",
+      "exclusion_type": "hard",
+      "field": "bpl_status",
+      "condition": "bpl_status == false and identified_occupation == false",
+      "description": "Must belong to BPL family or be in an identified unorganized sector occupation group",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "AABY-EX-004",
+      "exclusion_type": "hard",
+      "field": "existing_coverage",
+      "condition": "existing_coverage == 'employer'",
+      "description": "Persons already covered under employer-provided life/accident insurance are excluded",
+      "override_by_state": false
+    }
+  ],
+  "age_criteria": {
+    "min_age": 18,
+    "max_age": 59,
+    "applies_to": "primary_insured_member"
+  },
+  "family_criteria": {
+    "max_family_size": 1,
+    "family_definition": "One member per BPL family — either head of family or one earning member. The insured member's children (up to 2, classes 9-12) eligible for scholarship benefit.",
+    "head_of_family_required": true
+  },
+  "geographic_restrictions": [],
+  "coverage_amount_inr": 75000,
+  "coverage_type": "per_person_per_year",
+  "covered_procedures": [
+    "Natural death benefit: Rs 30,000 lump sum to nominee",
+    "Accidental death benefit: Rs 75,000 lump sum to nominee",
+    "Permanent total disability (accident): Rs 75,000 lump sum",
+    "Partial permanent disability (accident — loss of one eye or one limb): Rs 37,500 lump sum",
+    "Scholarship for children: Rs 100/month per child for up to 2 children studying in classes 9-12"
+  ],
+  "excluded_procedures": [
+    "Hospitalization expenses",
+    "OPD (Out-Patient Department) treatment",
+    "Surgical procedures",
+    "Pre-existing disease treatment",
+    "Maternity benefits",
+    "Disability due to pre-existing conditions",
+    "Death or disability from self-inflicted injury",
+    "Death or disability while under influence of intoxicants",
+    "Death or disability from war, riot, or nuclear hazard"
+  ],
+  "required_documents": [
+    {
+      "name": "Aadhaar Card",
+      "category": "identity",
+      "mandatory": true,
+      "alternatives": ["Voter ID", "Ration Card with photo"],
+      "local_name_hi": "आधार कार्ड",
+      "notes": "Primary identity proof for enrollment"
+    },
+    {
+      "name": "BPL Certificate / BPL Ration Card",
+      "category": "eligibility_proof",
+      "mandatory": true,
+      "alternatives": ["Identification by nodal agency of the occupation group"],
+      "local_name_hi": "बीपीएल प्रमाण पत्र / बीपीएल राशन कार्ड",
+      "notes": "Proof of BPL status or certification from identified occupation group's nodal agency"
+    },
+    {
+      "name": "Age Proof",
+      "category": "eligibility_proof",
+      "mandatory": true,
+      "alternatives": ["Aadhaar Card", "Voter ID", "School Certificate", "Birth Certificate"],
+      "local_name_hi": "आयु प्रमाण",
+      "notes": "Must prove age between 18-59 years at enrollment"
+    },
+    {
+      "name": "Passport-size Photograph",
+      "category": "identity",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "पासपोर्ट साइज़ फोटो",
+      "notes": "2 recent passport-size photographs required"
+    },
+    {
+      "name": "Nominee Details",
+      "category": "identity",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "नामांकित व्यक्ति का विवरण",
+      "notes": "Name, age, relationship, and Aadhaar of nominee for death/disability benefit claim"
+    },
+    {
+      "name": "Mobile Number",
+      "category": "contact",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "मोबाइल नंबर",
+      "notes": "For scheme communication and claim status updates"
+    }
+  ],
+  "enrollment_channels": [
+    "LIC of India branch office",
+    "Nodal agency of identified occupation group",
+    "State government social welfare department",
+    "Block Development Office",
+    "Common Service Centre (CSC)",
+    "Gram Panchayat office"
+  ],
+  "enrollment_steps": [
+    "Step 1: Identify if you belong to a BPL family or identified unorganized sector occupation group",
+    "Step 2: Contact nearest nodal agency (occupation group body) or LIC branch office",
+    "Step 3: Submit enrollment form with Aadhaar, BPL certificate, age proof, photographs, and nominee details",
+    "Step 4: Nodal agency verifies BPL/occupation status and submits master list to LIC",
+    "Step 5: Annual premium of Rs 200 paid — 50% by Central Government from Social Security Fund, 50% by State Government",
+    "Step 6: LIC issues insurance policy; member receives certificate of insurance",
+    "Step 7: In case of claim — nominee submits death/disability certificate and claim form to LIC via nodal agency"
+  ],
+  "processing_time_days": 30,
+  "helpline_number": "1800-22-6400",
+  "portal_url": "https://www.licindia.in/Bottom-Links/About-Us/AABY",
+  "version": "1.0",
+  "effective_date": "2007-10-02",
+  "expiry_date": null,
+  "last_verified": "2024-11-15",
+  "source_url": "https://www.licindia.in/Bottom-Links/About-Us/AABY",
+  "confidence_level": "verified",
+  "description_for_embedding": "Aam Aadmi Bima Yojana (AABY) is a central government social security insurance scheme administered by LIC of India for BPL families and unorganized sector workers aged 18-59 years. It provides life and accident insurance: Rs 30,000 for natural death, Rs 75,000 for accidental death, Rs 75,000 for permanent total disability, and Rs 37,500 for partial permanent disability. Additionally, children of insured members (up to 2 studying in classes 9-12) receive a scholarship of Rs 100 per month. The premium of Rs 200 per year is shared equally between Central and State Governments — completely free for the beneficiary. Only the head of family or one earning member per BPL household can be enrolled. This is not a health insurance scheme — it covers death and disability benefits only.",
+  "keywords": [
+    "aaby", "aam aadmi bima", "common man insurance", "life insurance",
+    "accidental death", "disability", "BPL", "unorganized sector",
+    "LIC", "social security", "death benefit", "scholarship",
+    "30000", "75000", "37500", "Rs 200 premium",
+    "आम आदमी बीमा", "जीवन बीमा", "दुर्घटना बीमा", "बीपीएल",
+    "मुफ्त बीमा", "सरकारी योजना", "एलआईसी", "छात्रवृत्ति",
+    "असंगठित क्षेत्र", "मृत्यु लाभ", "विकलांगता",
+    "aam aadmi insurance", "janashree bima", "social security scheme", "1800-22-6400"
+  ]
+}

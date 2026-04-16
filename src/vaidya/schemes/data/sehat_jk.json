@@ -1,0 +1,176 @@
+{
+  "scheme_id": "SEHAT-JK-2024-v1",
+  "canonical_name": "Ayushman Bharat PM-JAY SEHAT (Jammu & Kashmir)",
+  "aliases": [
+    "AB-PMJAY SEHAT",
+    "SEHAT JK",
+    "JK SEHAT",
+    "Jammu Kashmir Health Scheme",
+    "SEHAT Yojana"
+  ],
+  "local_names": {
+    "hi": "आयुष्मान भारत पीएम-जय सेहत (जम्मू और कश्मीर)",
+    "bn": "আয়ুষ্মান ভারত পিএম-জে সেহত (জম্মু ও কাশ্মীর)",
+    "ta": "ஆயுஷ்மான் பாரத் பிஎம்-ஜே சேஹத் (ஜம்மு காஷ்மீர்)",
+    "te": "ఆయుష్మాన్ భారత్ పీఎం-జే సేహత్ (జమ్ము కాశ్మీర్)",
+    "mr": "आयुष्मान भारत पीएम-जय सेहत (जम्मू आणि काश्मीर)",
+    "gu": "આયુષ્માન ભારત પીએમ-જે સેહત (જમ્મુ અને કાશ્મીર)",
+    "kn": "ಆಯುಷ್ಮಾನ್ ಭಾರತ್ ಪಿಎಂ-ಜೆ ಸೆಹತ್ (ಜಮ್ಮು ಮತ್ತು ಕಾಶ್ಮೀರ)",
+    "ml": "ആയുഷ്മാൻ ഭാരത് പിഎം-ജെ സെഹത് (ജമ്മു കാശ്മീർ)",
+    "pa": "ਆਯੁਸ਼ਮਾਨ ਭਾਰਤ ਪੀਐਮ-ਜੇ ਸੇਹਤ (ਜੰਮੂ ਅਤੇ ਕਸ਼ਮੀਰ)",
+    "or": "ଆୟୁଷ୍ମାନ ଭାରତ ପିଏମ-ଜେ ସେହତ (ଜମ୍ମୁ ଓ କାଶ୍ମୀର)"
+  },
+  "state_variant_of": "PMJAY-2024-v3",
+  "jurisdiction": "state",
+  "state_code": "JK",
+  "income_thresholds": [
+    {
+      "max_income_inr": 0,
+      "unit": "per_annum",
+      "applies_to": "family",
+      "description": "UNIVERSAL COVERAGE — NO income criteria. ALL residents of Jammu & Kashmir are eligible regardless of income, caste, or occupation. SEHAT extends PM-JAY universally to the entire population of J&K.",
+      "source": "J&K UT Administration / SEHAT Portal / PM-JAY NHA"
+    }
+  ],
+  "secc_categories": [],
+  "occupation_included": [
+    "all_jk_residents",
+    "farmer",
+    "daily_wage",
+    "self_employed",
+    "salaried_private",
+    "student",
+    "homemaker",
+    "retired",
+    "trader",
+    "artisan",
+    "houseboat_owner",
+    "shikara_operator"
+  ],
+  "occupation_excluded": [],
+  "exclusion_rules": [
+    {
+      "rule_id": "SEHAT-JK-EX-001",
+      "exclusion_type": "hard",
+      "field": "state",
+      "condition": "state != 'JK'",
+      "description": "Only residents of Jammu & Kashmir UT are eligible. Must have valid J&K domicile or residence proof.",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "SEHAT-JK-EX-002",
+      "exclusion_type": "hard",
+      "field": "existing_coverage",
+      "condition": "existing_coverage == 'CGHS'",
+      "description": "Families covered under CGHS (Central Government Health Scheme) are excluded to avoid duplication",
+      "override_by_state": false
+    }
+  ],
+  "age_criteria": null,
+  "family_criteria": {
+    "max_family_size": null,
+    "family_definition": "Family as per ration card or Aadhaar-linked family unit in J&K. All members are covered. Coverage is floater across all family members. No cap on family size.",
+    "head_of_family_required": false
+  },
+  "geographic_restrictions": [],
+  "coverage_amount_inr": 500000,
+  "coverage_type": "per_family_per_year",
+  "covered_procedures": [
+    "Hospitalization expenses (room, nursing, ICU)",
+    "Pre-hospitalization (up to 3 days before admission)",
+    "Post-hospitalization (up to 15 days after discharge)",
+    "Surgical procedures (1,393 packages across 26 specialties)",
+    "Cardiology (bypass surgery, angioplasty, valve replacement)",
+    "Orthopedic (knee replacement, hip replacement)",
+    "Oncology (chemotherapy, radiation, surgical oncology)",
+    "Neurosurgery",
+    "Burns treatment",
+    "Dialysis",
+    "Emergency care",
+    "Neonatal and pediatric care",
+    "Cataract surgery",
+    "Cochlear implant",
+    "Mental health treatment",
+    "Day-care procedures",
+    "Diagnostics and lab tests during hospitalization",
+    "Medicines and consumables during treatment"
+  ],
+  "excluded_procedures": [
+    "OPD (Out-Patient Department) consultation",
+    "Fertility treatment and IVF",
+    "Cosmetic surgery",
+    "Organ transplantation (except cornea and renal)",
+    "Drug rehabilitation",
+    "Vaccination (routine immunization)"
+  ],
+  "required_documents": [
+    {
+      "name": "Aadhaar Card",
+      "category": "identity",
+      "mandatory": true,
+      "alternatives": ["Aadhaar Enrollment ID"],
+      "local_name_hi": "आधार कार्ड",
+      "notes": "Required for e-KYC verification at empanelled hospital or CSC"
+    },
+    {
+      "name": "J&K Domicile Certificate / Residence Proof",
+      "category": "eligibility_proof",
+      "mandatory": true,
+      "alternatives": ["J&K Ration Card", "J&K Voter ID", "J&K Permanent Resident Certificate"],
+      "local_name_hi": "जम्मू-कश्मीर निवास प्रमाण पत्र",
+      "notes": "Must prove residency in Jammu & Kashmir. Ration card, voter ID, or domicile certificate accepted."
+    },
+    {
+      "name": "Mobile Number",
+      "category": "contact",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "मोबाइल नंबर",
+      "notes": "Linked to Aadhaar for OTP-based verification"
+    },
+    {
+      "name": "Family Photo",
+      "category": "identity",
+      "mandatory": false,
+      "alternatives": [],
+      "local_name_hi": "परिवार का फोटो",
+      "notes": "Required for new SEHAT/Ayushman card generation"
+    }
+  ],
+  "enrollment_channels": [
+    "SEHAT portal (sehatjk.nic.in)",
+    "Common Service Centre (CSC)",
+    "Empanelled hospital Ayushman Mitra desk",
+    "District hospital help desk",
+    "Block-level enrollment camps",
+    "PM-JAY official website (pmjay.gov.in)"
+  ],
+  "enrollment_steps": [
+    "Step 1: Check eligibility at sehatjk.nic.in or pmjay.gov.in with Aadhaar number",
+    "Step 2: Visit nearest CSC or empanelled hospital with Aadhaar and J&K residence proof",
+    "Step 3: Complete e-KYC verification (Aadhaar biometric or OTP)",
+    "Step 4: Operator verifies J&K residency in the SEHAT portal",
+    "Step 5: Family photograph taken and uploaded",
+    "Step 6: SEHAT / Ayushman card (Golden Card) generated and printed",
+    "Step 7: Card valid immediately; present at any empanelled hospital in J&K or across India for cashless treatment up to Rs 5 lakh"
+  ],
+  "processing_time_days": 1,
+  "helpline_number": "14555",
+  "portal_url": "https://sehatjk.nic.in",
+  "version": "1.0",
+  "effective_date": "2020-12-26",
+  "expiry_date": null,
+  "last_verified": "2026-04-15",
+  "source_url": "https://sehatjk.nic.in",
+  "confidence_level": "provisional",
+  "description_for_embedding": "AB-PMJAY SEHAT is Jammu & Kashmir's universal health insurance scheme that extends PM-JAY coverage to ALL residents of J&K regardless of income, occupation, or caste. SEHAT stands for Social, Endeavour for Health and Telemedicine. Launched on December 26, 2020, it provides Rs 5 lakh per family per year for hospitalization at empanelled hospitals. Unlike standard PM-JAY which covers only SECC families, SEHAT is universal — every J&K resident is eligible. Covers 1,393 medical packages across 26 specialties. Cards are valid across India at PM-JAY empanelled hospitals. Enrollment via sehatjk.nic.in or CSC. Helpline 14555.",
+  "keywords": [
+    "sehat", "AB-PMJAY SEHAT", "jammu kashmir", "JK health scheme",
+    "universal coverage", "all residents", "no income limit", "5 lakh",
+    "state scheme", "cashless treatment", "golden card",
+    "आयुष्मान भारत सेहत", "जम्मू कश्मीर", "सभी निवासी",
+    "कोई आय सीमा नहीं", "5 लाख", "मुफ्त इलाज",
+    "sehatjk.nic.in", "14555", "JK state insurance",
+    "pmjay extension", "universal health"
+  ]
+}

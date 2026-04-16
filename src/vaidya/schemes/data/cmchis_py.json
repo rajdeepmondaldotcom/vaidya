@@ -1,0 +1,243 @@
+{
+  "scheme_id": "CMCHIS-PY-2024-v1",
+  "canonical_name": "Chief Minister's Comprehensive Health Insurance Scheme (Puducherry)",
+  "aliases": [
+    "CMCHIS Puducherry",
+    "Puducherry Health Insurance",
+    "Puducherry CMCHIS",
+    "CM Health Insurance Puducherry",
+    "Pondicherry Health Scheme"
+  ],
+  "local_names": {
+    "hi": "मुख्यमंत्री व्यापक स्वास्थ्य बीमा योजना (पुडुचेरी)",
+    "bn": "মুখ্যমন্ত্রীর ব্যাপক স্বাস্থ্য বীমা প্রকল্প (পুদুচেরি)",
+    "ta": "முதலமைச்சர் முழு நல மருத்துவக் காப்பீட்டுத் திட்டம் (புதுச்சேரி)",
+    "te": "ముఖ్యమంత్రి సమగ్ర ఆరోగ్య బీమా పథకం (పుదుచ్చేరి)",
+    "gu": "મુખ્યમંત્રી વ્યાપક આરોગ્ય વીમા યોજના (પુદુચેરી)",
+    "kn": "ಮುಖ್ಯಮಂತ್ರಿ ಸಮಗ್ರ ಆರೋಗ್ಯ ವಿಮಾ ಯೋಜನೆ (ಪುದುಚ್ಚೇರಿ)",
+    "ml": "മുഖ്യമന്ത്രിയുടെ സമഗ്ര ആരോഗ്യ ഇന്ഷുറന്സ് പദ്ധതി (പുതുച്ചേരി)",
+    "mr": "मुख्यमंत्री सर्वसमावेशक आरोग्य विमा योजना (पुद्दुचेरी)",
+    "pa": "ਮੁੱਖ ਮੰਤਰੀ ਵਿਆਪਕ ਸਿਹਤ ਬੀਮਾ ਯੋਜਨਾ (ਪੁਡੂਚੇਰੀ)",
+    "od": "ମୁଖ୍ୟମନ୍ତ୍ରୀ ବ୍ୟାପକ ସ୍ୱାସ୍ଥ୍ୟ ବୀମା ଯୋଜନା (ପୁଡୁଚେରୀ)",
+    "en": "Chief Minister's Comprehensive Health Insurance Scheme (Puducherry)"
+  },
+  "state_variant_of": "CMCHIS-TN-2024-v1",
+  "jurisdiction": "state",
+  "state_code": "PY",
+  "income_thresholds": [
+    {
+      "max_income_inr": 72000,
+      "unit": "per_annum",
+      "applies_to": "family",
+      "description": "Families with annual income below Rs 72,000 get completely free enrollment and Rs 5 lakh coverage. Priority enrollment for BPL families.",
+      "source": "Puducherry UT Administration / Health Department"
+    },
+    {
+      "max_income_inr": 500000,
+      "unit": "per_annum",
+      "applies_to": "family",
+      "description": "All Puducherry residents with income up to Rs 5 lakh are eligible. Higher income families may need to pay nominal contribution for enrollment.",
+      "source": "Puducherry UT Administration / CMCHIS Portal"
+    }
+  ],
+  "secc_categories": ["D1", "D2", "D3", "D4", "D5", "D6", "D7"],
+  "occupation_included": [
+    "all_puducherry_residents",
+    "bpl_family",
+    "nfsa_beneficiary",
+    "daily_wage_labourer",
+    "farmer",
+    "fisherman",
+    "construction_worker",
+    "street_vendor",
+    "domestic_worker",
+    "auto_rickshaw_driver"
+  ],
+  "occupation_excluded": [
+    "government_employee_with_health_cover",
+    "income_above_5_lakh"
+  ],
+  "exclusion_rules": [
+    {
+      "rule_id": "CMCHIS-PY-EX-001",
+      "exclusion_type": "hard",
+      "field": "state",
+      "condition": "state != 'PY'",
+      "description": "Only residents of Puducherry Union Territory (including Karaikal, Mahe, Yanam) are eligible",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "CMCHIS-PY-EX-002",
+      "exclusion_type": "hard",
+      "field": "residency",
+      "condition": "puducherry_resident_certificate == false",
+      "description": "Valid Puducherry resident certificate is mandatory for enrollment. Must prove domicile in Puducherry UT.",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "CMCHIS-PY-EX-003",
+      "exclusion_type": "hard",
+      "field": "income",
+      "condition": "family_income > 500000",
+      "description": "Families with annual income above Rs 5 lakh are not eligible for CMCHIS Puducherry",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "CMCHIS-PY-EX-004",
+      "exclusion_type": "hard",
+      "field": "existing_coverage",
+      "condition": "existing_coverage == 'CGHS' || existing_coverage == 'ESIC'",
+      "description": "Families already covered under CGHS or ESIC are excluded from CMCHIS Puducherry",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "CMCHIS-PY-EX-005",
+      "exclusion_type": "soft",
+      "field": "procedure",
+      "condition": "procedure_not_in_1027_list",
+      "description": "Only 1,027 listed procedures are covered. Procedures outside this approved list are not covered under the scheme.",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "CMCHIS-PY-EX-006",
+      "exclusion_type": "soft",
+      "field": "pre_existing_condition",
+      "condition": "pre_existing_condition == true && waiting_period_not_completed",
+      "description": "Pre-existing conditions may have a waiting period before coverage activates",
+      "override_by_state": false
+    }
+  ],
+  "age_criteria": null,
+  "family_criteria": {
+    "max_family_size": 5,
+    "family_definition": "Family of up to 5 members as listed on ration card. Family includes head of family, spouse, and up to 3 dependent children. Additional members may be covered on case-by-case basis.",
+    "head_of_family_required": true
+  },
+  "geographic_restrictions": [],
+  "coverage_amount_inr": 500000,
+  "coverage_type": "per_family_per_year",
+  "covered_procedures": [
+    "Hospitalization expenses (room, nursing, ICU)",
+    "Pre-hospitalization (up to 3 days before admission)",
+    "Post-hospitalization (up to 15 days after discharge)",
+    "1,027 approved medical and surgical procedures",
+    "Cardiology (bypass surgery, angioplasty, valve replacement, pacemaker)",
+    "Oncology (chemotherapy, radiation, surgical oncology, biopsy)",
+    "Orthopaedic (knee replacement, hip replacement, spinal surgery)",
+    "Neurosurgery (brain surgery, spinal cord surgery)",
+    "Nephrology (dialysis, renal transplant)",
+    "Urology (kidney stone, prostate surgery)",
+    "Ophthalmology (cataract surgery, retinal surgery, glaucoma)",
+    "ENT procedures (cochlear implant, tonsillectomy)",
+    "Maternity care (normal delivery, caesarean section)",
+    "Neonatal care (NICU, SNCU)",
+    "General surgery (hernia, appendicitis, gallbladder)",
+    "Gastroenterology",
+    "Pulmonology",
+    "Burns management",
+    "Day-care procedures",
+    "Diagnostics and lab tests during hospitalization",
+    "Medicines and consumables during treatment"
+  ],
+  "excluded_procedures": [
+    "OPD (Out-Patient Department) consultation",
+    "Cosmetic and aesthetic surgery",
+    "Fertility treatment and IVF",
+    "Organ transplant (except cornea and renal)",
+    "Drug rehabilitation and de-addiction",
+    "Dental treatment (unless related to covered surgery)",
+    "Routine vaccination and immunization",
+    "Spectacles and hearing aids",
+    "Procedures not in the 1,027 approved list"
+  ],
+  "required_documents": [
+    {
+      "name": "Aadhaar Card",
+      "category": "identity",
+      "mandatory": true,
+      "alternatives": ["Aadhaar Enrollment ID"],
+      "local_name_hi": "आधार कार्ड",
+      "notes": "Required for identity verification and e-KYC"
+    },
+    {
+      "name": "Ration Card",
+      "category": "economic_status",
+      "mandatory": true,
+      "alternatives": ["BPL Card"],
+      "local_name_hi": "राशन कार्ड",
+      "notes": "Used to verify family members and economic status. BPL ration card holders get free enrollment."
+    },
+    {
+      "name": "Puducherry Resident Certificate",
+      "category": "residency",
+      "mandatory": true,
+      "alternatives": ["Voter ID Card with Puducherry address"],
+      "local_name_hi": "पुडुचेरी निवासी प्रमाण पत्र",
+      "notes": "Mandatory proof of residence in Puducherry UT. Issued by Revenue Department."
+    },
+    {
+      "name": "Income Certificate",
+      "category": "economic_status",
+      "mandatory": false,
+      "alternatives": ["BPL Card"],
+      "local_name_hi": "आय प्रमाण पत्र",
+      "notes": "Required for families claiming income below Rs 72,000 for free enrollment. Issued by Revenue Department."
+    },
+    {
+      "name": "Recent Passport-size Photograph",
+      "category": "identity",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "हालिया पासपोर्ट साइज़ फोटो",
+      "notes": "Required for CMCHIS card generation"
+    },
+    {
+      "name": "Mobile Number",
+      "category": "contact",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "मोबाइल नंबर",
+      "notes": "For OTP verification and scheme communication"
+    }
+  ],
+  "enrollment_channels": [
+    "Empanelled hospitals (government and private)",
+    "JIPMER Hospital, Puducherry",
+    "Indira Gandhi Government General Hospital",
+    "Primary Health Centres (PHC)",
+    "Ration shops (PDS outlets)",
+    "Common Service Centres (CSC)",
+    "CMCHIS enrollment camps"
+  ],
+  "enrollment_steps": [
+    "Step 1: Visit the nearest empanelled hospital, PHC, ration shop, or CMCHIS enrollment camp with required documents.",
+    "Step 2: Submit Aadhaar card, ration card, Puducherry resident certificate, and photograph.",
+    "Step 3: For families with income below Rs 72,000: submit income certificate for free enrollment.",
+    "Step 4: Undergo biometric verification (fingerprint/iris scan) for e-KYC.",
+    "Step 5: CMCHIS smart card is generated with enrolled family member details (up to 5 members).",
+    "Step 6: Card is activated. Present at any empanelled hospital in Puducherry for cashless treatment up to Rs 5 lakh.",
+    "Step 7: For critical procedures, hospital seeks pre-authorization. Treatment is cashless upon approval."
+  ],
+  "processing_time_days": 7,
+  "helpline_number": "1800-425-3993",
+  "portal_url": "https://health.puducherry.gov.in",
+  "version": "1.0",
+  "effective_date": "2018-01-01",
+  "expiry_date": null,
+  "last_verified": "2026-04-15",
+  "source_url": "https://health.puducherry.gov.in",
+  "confidence_level": "provisional",
+  "description_for_embedding": "Chief Minister's Comprehensive Health Insurance Scheme (CMCHIS) Puducherry is the Union Territory's health insurance scheme providing Rs 5 lakh per family per year, modelled after Tamil Nadu's CMCHIS. The scheme covers 1,027 medical and surgical procedures across secondary and tertiary care at empanelled hospitals. All Puducherry residents are eligible, with priority for BPL families. Families with income below Rs 72,000 per year get free enrollment. The scheme covers Puducherry, Karaikal, Mahe, and Yanam regions. Enrollment is through empanelled hospitals, PHCs, and ration shops with Aadhaar, ration card, and resident certificate. Similar to TN CMCHIS in coverage and structure.",
+  "keywords": [
+    "cmchis puducherry", "puducherry", "PY health scheme",
+    "pondicherry", "5 lakh", "1027 procedures",
+    "BPL", "free enrollment", "72000 income",
+    "JIPMER", "cashless treatment",
+    "मुख्यमंत्री व्यापक स्वास्थ्य बीमा योजना", "पुडुचेरी",
+    "முதலமைச்சர் மருத்துவக் காப்பீடு", "புதுச்சேரி",
+    "state scheme", "puducherry health insurance",
+    "empanelled hospital", "smart card", "ration card",
+    "1800-425-3993", "secondary care", "tertiary care",
+    "karaikal", "mahe", "yanam", "union territory"
+  ]
+}

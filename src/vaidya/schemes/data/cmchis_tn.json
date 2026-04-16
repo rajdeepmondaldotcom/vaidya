@@ -1,0 +1,226 @@
+{
+  "scheme_id": "CMCHIS-TN-2024-v1",
+  "canonical_name": "Chief Minister's Comprehensive Health Insurance Scheme (Tamil Nadu)",
+  "aliases": [
+    "CMCHIS",
+    "CM Health Insurance",
+    "TN Health Insurance",
+    "Mudhalamaicharin Muthunala Maruthuvak Kappeettu Thittam",
+    "Kalaignar Insurance Scheme",
+    "TN CMCHIS",
+    "Chief Minister Insurance TN"
+  ],
+  "local_names": {
+    "hi": "मुख्यमंत्री व्यापक स्वास्थ्य बीमा योजना (तमिलनाडु)",
+    "bn": "মুখ্যমন্ত্রীর ব্যাপক স্বাস্থ্য বীমা প্রকল্প (তামিলনাড়ু)",
+    "ta": "முதலமைச்சரின் முழு நல மருத்துவக் காப்பீட்டுத் திட்டம்",
+    "te": "ముఖ్యమంత్రి సమగ్ర ఆరోగ్య బీమా పథకం (తమిళనాడు)",
+    "mr": "मुख्यमंत्री सर्वसमावेशक आरोग्य विमा योजना (तमिळनाडू)",
+    "gu": "મુખ્યમંત્રી વ્યાપક આરોગ્ય વીમા યોજના (તમિલનાડુ)",
+    "kn": "ಮುಖ್ಯಮಂತ್ರಿ ಸಮಗ್ರ ಆರೋಗ್ಯ ವಿಮಾ ಯೋಜನೆ (ತಮಿಳುನಾಡು)",
+    "ml": "മുഖ്യമന്ത്രിയുടെ സമഗ്ര ആരോഗ്യ ഇന്ഷുറന്സ് പദ്ധതി (തമിഴ്നാട്)",
+    "pa": "ਮੁੱਖ ਮੰਤਰੀ ਵਿਆਪਕ ਸਿਹਤ ਬੀਮਾ ਯੋਜਨਾ (ਤਾਮਿਲਨਾਡੂ)",
+    "or": "ମୁଖ୍ୟମନ୍ତ୍ରୀ ବ୍ୟାପକ ସ୍ୱାସ୍ଥ୍ୟ ବୀମା ଯୋଜନା (ତାମିଲନାଡୁ)"
+  },
+  "state_variant_of": null,
+  "jurisdiction": "state",
+  "state_code": "TN",
+  "income_thresholds": [
+    {
+      "max_income_inr": 72000,
+      "unit": "per_annum",
+      "applies_to": "family",
+      "description": "Annual family income must be below Rs 72,000 for basic CMCHIS coverage (BPL/rice card holders)",
+      "source": "CMCHIS Guidelines / TN Government GO"
+    },
+    {
+      "max_income_inr": 120000,
+      "unit": "per_annum",
+      "applies_to": "family",
+      "description": "Extended coverage for families with annual income up to Rs 1.2 lakh under revised 2022 norms",
+      "source": "CMCHIS Revised Guidelines 2022"
+    }
+  ],
+  "secc_categories": ["D1", "D2", "D3", "D4", "D5"],
+  "occupation_included": [
+    "daily_wage",
+    "farmer",
+    "construction_worker",
+    "street_vendor",
+    "domestic_worker",
+    "fisherman",
+    "handloom_weaver",
+    "auto_rickshaw_driver",
+    "small_trader",
+    "landless_household",
+    "beedi_worker",
+    "salt_pan_worker"
+  ],
+  "occupation_excluded": [
+    "government_employee",
+    "income_tax_payer",
+    "employer_insured"
+  ],
+  "exclusion_rules": [
+    {
+      "rule_id": "CMCHIS-EX-001",
+      "exclusion_type": "hard",
+      "field": "income_tax",
+      "condition": "pays_income_tax == true",
+      "description": "Any family member paying income tax disqualifies the household from CMCHIS",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "CMCHIS-EX-002",
+      "exclusion_type": "hard",
+      "field": "existing_coverage",
+      "condition": "existing_coverage == 'employer'",
+      "description": "Families with employer-provided health insurance are excluded",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "CMCHIS-EX-003",
+      "exclusion_type": "hard",
+      "field": "occupation_type",
+      "condition": "occupation_type == 'salaried_govt'",
+      "description": "Government employees and pensioners covered under separate TN government medical schemes are excluded",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "CMCHIS-EX-004",
+      "exclusion_type": "hard",
+      "field": "ration_card_type",
+      "condition": "ration_card_type == 'none'",
+      "description": "Families without a valid Tamil Nadu ration card are excluded; ration card is mandatory for enrollment",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "CMCHIS-EX-005",
+      "exclusion_type": "hard",
+      "field": "pmjay_overlap",
+      "condition": "false",
+      "description": "CMCHIS operates INDEPENDENTLY of PM-JAY; beneficiaries may hold both cards separately. No exclusion for PM-JAY holders.",
+      "override_by_state": false
+    }
+  ],
+  "age_criteria": null,
+  "family_criteria": {
+    "max_family_size": 5,
+    "family_definition": "Family includes head of family, spouse, and up to 3 dependent children. Additional family members can be added by paying nominal premium. Coverage is floater across listed members.",
+    "head_of_family_required": true
+  },
+  "geographic_restrictions": [],
+  "coverage_amount_inr": 500000,
+  "coverage_type": "per_family_per_year",
+  "covered_procedures": [
+    "Hospitalization expenses (room, nursing, ICU)",
+    "Pre-hospitalization (up to 7 days before admission)",
+    "Post-hospitalization (up to 10 days after discharge)",
+    "1090+ listed medical and surgical procedures",
+    "Cardiology (bypass surgery, valve replacement, angioplasty, pacemaker implant)",
+    "Orthopedic (knee replacement, hip replacement, spinal surgery, fracture fixation)",
+    "Oncology (chemotherapy, radiation therapy, surgical oncology)",
+    "Neurosurgery (brain surgery, spinal cord procedures, craniotomy)",
+    "Nephrology (dialysis, renal transplant)",
+    "Urology procedures",
+    "Burns treatment and reconstructive surgery",
+    "Neonatal and pediatric surgical care",
+    "Ophthalmology (cataract surgery, glaucoma treatment, retinal procedures)",
+    "ENT surgeries (cochlear implant up to Rs 6.5 lakh additional)",
+    "General surgical procedures",
+    "Gynecological and obstetric procedures",
+    "Emergency care and trauma management",
+    "Diagnostics and lab tests during hospitalization",
+    "Medicines and consumables during treatment"
+  ],
+  "excluded_procedures": [
+    "OPD (Out-Patient Department) consultation",
+    "Fertility treatment and IVF",
+    "Cosmetic surgery",
+    "Drug rehabilitation",
+    "Dental treatment (unless requiring hospitalization)",
+    "Spectacles and hearing aids (standalone purchase)",
+    "Vaccination (routine immunization)",
+    "Congenital external anomalies"
+  ],
+  "required_documents": [
+    {
+      "name": "Aadhaar Card",
+      "category": "identity",
+      "mandatory": true,
+      "alternatives": ["Aadhaar Enrollment ID"],
+      "local_name_hi": "आधार कार्ड",
+      "notes": "Required for e-KYC verification at empanelled hospital"
+    },
+    {
+      "name": "Ration Card (Tamil Nadu)",
+      "category": "eligibility_proof",
+      "mandatory": true,
+      "alternatives": ["Family Card issued by TN Civil Supplies"],
+      "local_name_hi": "राशन कार्ड (तमिलनाडु)",
+      "notes": "Must be a valid rice/sugar ration card issued by TN government. Income ceiling verified from this. Ration card is mandatory for CMCHIS enrollment."
+    },
+    {
+      "name": "Income Certificate",
+      "category": "eligibility_proof",
+      "mandatory": false,
+      "alternatives": ["BPL Certificate", "Community Certificate with income"],
+      "local_name_hi": "आय प्रमाण पत्र",
+      "notes": "Revenue department-issued income certificate if ration card alone does not confirm income below Rs 1.2 lakh"
+    },
+    {
+      "name": "Mobile Number",
+      "category": "contact",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "मोबाइल नंबर",
+      "notes": "For OTP verification and scheme communication"
+    },
+    {
+      "name": "Family Photo",
+      "category": "identity",
+      "mandatory": false,
+      "alternatives": [],
+      "local_name_hi": "परिवार का फोटो",
+      "notes": "Required for new CMCHIS card generation at enrollment centre"
+    }
+  ],
+  "enrollment_channels": [
+    "Empanelled hospital CMCHIS desk",
+    "District Collectorate",
+    "Taluk office",
+    "CMCHIS official website (cmchistn.com)",
+    "Common Service Centre (CSC)",
+    "Primary Health Centre (PHC)"
+  ],
+  "enrollment_steps": [
+    "Step 1: Check eligibility at cmchistn.com or call helpline 1800-425-3993 with ration card number",
+    "Step 2: Visit nearest empanelled hospital CMCHIS desk or CSC with Aadhaar and TN ration card",
+    "Step 3: Complete e-KYC verification (Aadhaar biometric or OTP)",
+    "Step 4: Operator verifies ration card and income details against TN Civil Supplies database",
+    "Step 5: Family members added and photographs taken",
+    "Step 6: CMCHIS card generated; valid immediately for cashless treatment at empanelled hospitals",
+    "Step 7: For treatment, visit any CMCHIS-empanelled hospital in Tamil Nadu with CMCHIS card and Aadhaar"
+  ],
+  "processing_time_days": 3,
+  "helpline_number": "1800-425-3993",
+  "portal_url": "https://www.cmchistn.com",
+  "version": "1.0",
+  "effective_date": "2012-01-01",
+  "expiry_date": null,
+  "last_verified": "2026-04-15",
+  "source_url": "https://www.cmchistn.com/",
+  "confidence_level": "provisional",
+  "description_for_embedding": "Chief Minister's Comprehensive Health Insurance Scheme (CMCHIS) is Tamil Nadu's flagship state health insurance scheme providing Rs 5 lakh (Rs 500000) per family per year for hospitalization and surgical procedures. It covers families with annual income below Rs 1.2 lakh who hold valid Tamil Nadu ration cards. The scheme covers over 1090 medical and surgical procedures across major specialties including cardiology, oncology, orthopedics, neurosurgery, and nephrology at empanelled public and private hospitals across Tamil Nadu. CMCHIS operates INDEPENDENTLY of PM-JAY and co-exists as a separate state scheme; beneficiaries can hold both CMCHIS and Ayushman cards. Additional coverage of Rs 6.5 lakh available for cochlear implants. Free for eligible families with no premium payment required. Helpline: 1800-425-3993.",
+  "keywords": [
+    "cmchis", "tamil nadu health insurance", "TN health scheme", "chief minister health insurance",
+    "5 lakh", "500000", "ration card", "free treatment", "hospitalization", "surgery",
+    "cashless treatment", "empanelled hospital", "state scheme", "BPL",
+    "1090 procedures", "independent of pmjay", "no pmjay overlap",
+    "முதலமைச்சர் காப்பீடு", "தமிழ்நாடு", "மருத்துவக் காப்பீடு",
+    "मुख्यमंत्री स्वास्थ्य बीमा", "तमिलनाडु", "मुफ्त इलाज", "सरकारी योजना",
+    "राशन कार्ड", "अस्पताल", "1800-425-3993",
+    "kalaignar insurance", "cm insurance", "health insurance tamil nadu",
+    "cmchistn.com", "cochlear implant"
+  ]
+}

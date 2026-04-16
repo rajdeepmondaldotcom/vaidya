@@ -1,0 +1,212 @@
+{
+  "scheme_id": "PMMVY-2024-v1",
+  "canonical_name": "Pradhan Mantri Matru Vandana Yojana",
+  "aliases": [
+    "PMMVY",
+    "PM Matru Vandana",
+    "Maternity Benefit Programme",
+    "PMMVY 2.0",
+    "Pregnancy Aid Scheme",
+    "Matru Vandana"
+  ],
+  "local_names": {
+    "hi": "प्रधानमंत्री मातृ वंदना योजना",
+    "bn": "প্রধানমন্ত্রী মাতৃ বন্দনা যোজনা",
+    "ta": "பிரதான் மந்திரி மாத்ரு வந்தனா யோஜனா",
+    "te": "ప్రధాన మంత్రి మాతృ వందన యోజన",
+    "mr": "प्रधानमंत्री मातृ वंदना योजना",
+    "gu": "પ્રધાનમંત્રી માતૃ વંદના યોજના",
+    "kn": "ಪ್ರಧಾನ ಮಂತ್ರಿ ಮಾತೃ ವಂದನಾ ಯೋಜನೆ",
+    "ml": "പ്രധാൻ മന്ത്രി മാതൃ വന്ദന യോജന",
+    "pa": "ਪ੍ਰਧਾਨ ਮੰਤਰੀ ਮਾਤ੍ਰੁ ਵੰਦਨਾ ਯੋਜਨਾ",
+    "or": "ପ୍ରଧାନ ମନ୍ତ୍ରୀ ମାତୃ ବନ୍ଦନା ଯୋଜନା"
+  },
+  "state_variant_of": null,
+  "jurisdiction": "central",
+  "state_code": null,
+  "income_thresholds": [
+    {
+      "max_income_inr": 800000,
+      "unit": "per_annum",
+      "applies_to": "family",
+      "description": "Family annual income should be below Rs 8 lakh. SC/ST/BPL/PM-JAY beneficiaries are automatically eligible regardless of income.",
+      "source": "Ministry of Women and Child Development / PMMVY 2.0 Guidelines"
+    }
+  ],
+  "secc_categories": ["D1", "D2", "D3", "D4", "D5", "D6", "D7"],
+  "occupation_included": [
+    "BPL_family",
+    "scheduled_caste",
+    "scheduled_tribe",
+    "PMJAY_beneficiary",
+    "unorganized_sector_worker",
+    "daily_wage",
+    "farmer",
+    "self_employed_below_8_lakh"
+  ],
+  "occupation_excluded": [
+    "government_employee",
+    "PSU_employee",
+    "women_receiving_maternity_benefits_under_any_law"
+  ],
+  "exclusion_rules": [
+    {
+      "rule_id": "PMMVY-EX-001",
+      "exclusion_type": "hard",
+      "field": "age",
+      "condition": "age < 19",
+      "description": "Pregnant woman must be at least 19 years of age",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "PMMVY-EX-002",
+      "exclusion_type": "hard",
+      "field": "employment_type",
+      "condition": "employment_type == 'government' or employment_type == 'PSU'",
+      "description": "Women employed in central/state government or PSUs are NOT eligible as they receive maternity benefits from their employer",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "PMMVY-EX-003",
+      "exclusion_type": "hard",
+      "field": "existing_maternity_benefit",
+      "condition": "receiving_maternity_benefit_under_any_law == true",
+      "description": "Women already receiving maternity benefits under any other law (e.g., Maternity Benefit Act, ESI Act) are NOT eligible",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "PMMVY-EX-004",
+      "exclusion_type": "soft",
+      "field": "birth_order",
+      "condition": "birth_order > 2 and second_child_is_not_girl",
+      "description": "Under PMMVY 2.0: First child gets Rs 5000. Second child ONLY if it is a girl child (Rs 6000). Third and subsequent children not eligible.",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "PMMVY-EX-005",
+      "exclusion_type": "hard",
+      "field": "income",
+      "condition": "family_income > 800000 and not_SC_ST_BPL_PMJAY",
+      "description": "Family income must be below Rs 8 lakh unless the woman belongs to SC/ST/BPL/PM-JAY beneficiary category",
+      "override_by_state": false
+    }
+  ],
+  "age_criteria": {
+    "min_age": 19,
+    "max_age": null,
+    "applies_to": "beneficiary"
+  },
+  "family_criteria": {
+    "max_family_size": null,
+    "family_definition": "Benefit is to the pregnant/lactating woman. First child: Rs 5000 in 3 installments. Second child (ONLY if girl): Rs 6000 in 2 installments. SC/ST/BPL/PM-JAY beneficiaries eligible regardless of income.",
+    "head_of_family_required": false
+  },
+  "geographic_restrictions": [],
+  "coverage_amount_inr": 5000,
+  "coverage_type": "per_event",
+  "covered_procedures": [
+    "First child: Rs 5000 cash benefit in 3 installments via DBT",
+    "Installment 1: Rs 3000 after early pregnancy registration (within 150 days of LMP)",
+    "Installment 2: Rs 2000 after at least one ANC checkup (after 6 months of pregnancy)",
+    "Second child (girl only): Rs 6000 in single installment after birth registration",
+    "Additional Rs 1000 JSY benefit for institutional delivery (claimed separately)",
+    "Partial wage compensation for pregnant and lactating mothers",
+    "Nutritional support to improve health of mother and child"
+  ],
+  "excluded_procedures": [
+    "Medical treatment costs (this is a CASH BENEFIT scheme, not insurance)",
+    "Hospitalization expenses (covered under PM-JAY or JSSK separately)",
+    "Third or subsequent pregnancies",
+    "Second child if not a girl (under PMMVY 2.0)",
+    "Government/PSU employees who receive employer maternity benefits",
+    "Women receiving maternity benefits under any other law"
+  ],
+  "required_documents": [
+    {
+      "name": "Aadhaar Card",
+      "category": "identity",
+      "mandatory": true,
+      "alternatives": ["Aadhaar Enrollment ID"],
+      "local_name_hi": "आधार कार्ड",
+      "notes": "Required for DBT payment and identity verification"
+    },
+    {
+      "name": "Bank Account (Aadhaar-linked)",
+      "category": "financial",
+      "mandatory": true,
+      "alternatives": ["Post Office Savings Account (Aadhaar-linked)"],
+      "local_name_hi": "बैंक खाता (आधार से जुड़ा)",
+      "notes": "For receiving cash benefit via Direct Benefit Transfer"
+    },
+    {
+      "name": "MCH Card / ANC Registration",
+      "category": "medical",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "एमसीएच कार्ड / एएनसी पंजीकरण",
+      "notes": "Mother and Child Health card showing pregnancy registration date and ANC visits"
+    },
+    {
+      "name": "LMP Certificate / Pregnancy Confirmation",
+      "category": "medical",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "अंतिम मासिक धर्म प्रमाण / गर्भावस्था पुष्टि",
+      "notes": "For verifying early registration within 150 days of Last Menstrual Period"
+    },
+    {
+      "name": "SC/ST/BPL Certificate",
+      "category": "eligibility_proof",
+      "mandatory": false,
+      "alternatives": ["Ayushman Card", "Ration Card (BPL)"],
+      "local_name_hi": "अनुसूचित जाति/जनजाति/बीपीएल प्रमाण पत्र",
+      "notes": "Required only if claiming eligibility through SC/ST/BPL/PM-JAY category (bypasses income ceiling)"
+    },
+    {
+      "name": "Child Birth Registration Certificate",
+      "category": "eligibility_proof",
+      "mandatory": false,
+      "alternatives": ["Hospital Discharge Summary with child details"],
+      "local_name_hi": "बच्चे का जन्म पंजीकरण प्रमाण पत्र",
+      "notes": "Required for second child (girl) benefit of Rs 6000"
+    }
+  ],
+  "enrollment_channels": [
+    "Anganwadi Centre (AWC) through Anganwadi Worker",
+    "Sub-Centre or Primary Health Centre through ANM/ASHA",
+    "Common Service Centre (CSC)",
+    "PMMVY-CAS portal (online application)",
+    "Block/District Programme Officer (Women and Child Development)",
+    "Gram Panchayat office"
+  ],
+  "enrollment_steps": [
+    "Step 1: Register pregnancy early (within 150 days of LMP) at Anganwadi Centre, PHC, or online",
+    "Step 2: Fill PMMVY application form (Form 1A) with Aadhaar, bank details, and MCH card",
+    "Step 3: Anganwadi worker or ANM verifies and enters application in PMMVY-CAS portal",
+    "Step 4: First installment of Rs 3000 credited to bank account after early registration verification",
+    "Step 5: Complete at least one ante-natal checkup after 6 months of pregnancy",
+    "Step 6: Submit Form 1B with ANC proof; second installment of Rs 2000 credited",
+    "Step 7: For second child (girl only): submit Form 2A with birth registration after delivery",
+    "Step 8: Second child benefit of Rs 6000 credited in single installment after verification"
+  ],
+  "processing_time_days": 14,
+  "helpline_number": "7998799804",
+  "portal_url": "https://pmmvy.wcd.gov.in",
+  "version": "1.0",
+  "effective_date": "2017-01-01",
+  "expiry_date": null,
+  "last_verified": "2026-04-15",
+  "source_url": "https://pmmvy.wcd.gov.in/",
+  "confidence_level": "provisional",
+  "description_for_embedding": "Pradhan Mantri Matru Vandana Yojana (PMMVY) is a central government maternity benefit scheme providing cash assistance via DBT to pregnant and lactating women. For the first child, Rs 5000 is paid in 3 installments (Rs 3000 at early registration + Rs 2000 after ANC). For the second child ONLY if it is a girl, Rs 6000 is paid in a single installment. Women must be 19+ years old and NOT government/PSU employees. Family income below Rs 8 lakh, but SC/ST/BPL/PM-JAY beneficiaries are eligible regardless of income. This is a cash benefit for nutrition and wage compensation, not medical insurance.",
+  "keywords": [
+    "PMMVY", "matru vandana", "maternity benefit", "pregnant women",
+    "Rs 5000", "Rs 6000", "first child", "second girl child",
+    "DBT", "anganwadi", "ANC", "cash benefit",
+    "मातृ वंदना", "गर्भवती महिला", "मातृत्व लाभ",
+    "5000 रुपये", "6000 रुपये", "पहला बच्चा", "दूसरी बेटी",
+    "आंगनवाड़ी", "डीबीटी", "नकद सहायता",
+    "maternity cash", "pregnancy benefit", "SC ST BPL",
+    "PM-JAY beneficiary", "not govt employee", "wage compensation"
+  ]
+}

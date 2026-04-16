@@ -1,0 +1,209 @@
+{
+  "scheme_id": "ATAL-AMRIT-AS-2024-v1",
+  "canonical_name": "Atal Amrit Abhiyan (Assam)",
+  "aliases": [
+    "Atal Amrit Abhiyan",
+    "Atal Amrit",
+    "Assam Health Scheme",
+    "AAA Assam",
+    "Amrit Abhiyan"
+  ],
+  "local_names": {
+    "hi": "अटल अमृत अभियान (असम)",
+    "bn": "অটল অমৃত অভিযান (অসম)",
+    "ta": "அடல் அம்ரித் அபியான் (அசாம்)",
+    "te": "అటల్ అమృత్ అభియాన్ (అస్సాం)",
+    "gu": "અટલ અમૃત અભિયાન (આસામ)",
+    "kn": "ಅಟಲ್ ಅಮೃತ್ ಅಭಿಯಾನ್ (ಅಸ್ಸಾಂ)",
+    "ml": "അടല്‍ അമൃത് അഭിയാന്‍ (അസം)",
+    "mr": "अटल अमृत अभियान (आसाम)",
+    "pa": "ਅਟਲ ਅੰਮ੍ਰਿਤ ਅਭਿਯਾਨ (ਅਸਾਮ)",
+    "od": "ଅଟଲ ଅମୃତ ଅଭିଯାନ (ଆସାମ)",
+    "en": "Atal Amrit Abhiyan (Assam)"
+  },
+  "state_variant_of": null,
+  "jurisdiction": "state",
+  "state_code": "AS",
+  "income_thresholds": [
+    {
+      "max_income_inr": 500000,
+      "unit": "per_annum",
+      "applies_to": "family",
+      "description": "BPL families and families with annual income below Rs 5 lakh are eligible for free coverage of Rs 2 lakh per family per year.",
+      "source": "Assam State Government / National Health Mission Assam"
+    }
+  ],
+  "secc_categories": ["D1", "D2", "D3", "D4", "D5"],
+  "occupation_included": [
+    "bpl_family",
+    "tea_garden_worker",
+    "daily_wage_labourer",
+    "farmer",
+    "construction_worker",
+    "street_vendor",
+    "domestic_worker",
+    "fisherman",
+    "handloom_weaver"
+  ],
+  "occupation_excluded": [
+    "government_employee_with_health_cover",
+    "income_above_5_lakh"
+  ],
+  "exclusion_rules": [
+    {
+      "rule_id": "ATAL-AMRIT-AS-EX-001",
+      "exclusion_type": "hard",
+      "field": "state",
+      "condition": "state != 'AS'",
+      "description": "Only residents of Assam are eligible for Atal Amrit Abhiyan",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "ATAL-AMRIT-AS-EX-002",
+      "exclusion_type": "hard",
+      "field": "income",
+      "condition": "family_income > 500000",
+      "description": "Families with annual income above Rs 5 lakh are not eligible",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "ATAL-AMRIT-AS-EX-003",
+      "exclusion_type": "hard",
+      "field": "bpl_status",
+      "condition": "bpl_card == false && family_income > 500000",
+      "description": "Must be a BPL cardholder or have income below Rs 5 lakh to qualify",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "ATAL-AMRIT-AS-EX-004",
+      "exclusion_type": "hard",
+      "field": "existing_coverage",
+      "condition": "existing_coverage == 'CGHS' || existing_coverage == 'ESIC'",
+      "description": "Families already covered under CGHS or ESIC are excluded",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "ATAL-AMRIT-AS-EX-005",
+      "exclusion_type": "soft",
+      "field": "disease_category",
+      "condition": "disease_not_in_492_categories",
+      "description": "Only 492 disease categories across 12 specialties are covered. Diseases outside this list are not covered.",
+      "override_by_state": false
+    }
+  ],
+  "age_criteria": null,
+  "family_criteria": {
+    "max_family_size": null,
+    "family_definition": "Family as defined in BPL card or ration card. All members listed are covered under the scheme. Coverage is floater across all family members.",
+    "head_of_family_required": true
+  },
+  "geographic_restrictions": [],
+  "coverage_amount_inr": 200000,
+  "coverage_type": "per_family_per_year",
+  "covered_procedures": [
+    "Cardiology (bypass surgery, angioplasty, valve replacement, pacemaker implantation)",
+    "Oncology (chemotherapy, radiation therapy, surgical oncology)",
+    "Nephrology (dialysis, renal transplant)",
+    "Neurosurgery (brain tumour, spinal surgery, craniotomy)",
+    "Orthopaedic (knee replacement, hip replacement, fracture management)",
+    "Urology (kidney stone, prostate surgery)",
+    "General surgery",
+    "Burns management and plastic surgery",
+    "Paediatric surgery",
+    "Neonatal care (NICU)",
+    "Gastroenterology",
+    "Pulmonology",
+    "Hospitalization expenses (room, nursing, ICU)",
+    "Pre-hospitalization (up to 3 days before admission)",
+    "Post-hospitalization (up to 15 days after discharge)",
+    "Diagnostics and lab tests during hospitalization",
+    "Medicines and consumables during treatment"
+  ],
+  "excluded_procedures": [
+    "OPD (Out-Patient Department) consultation",
+    "Cosmetic and aesthetic surgery",
+    "Fertility treatment and IVF",
+    "Organ transplant (except renal)",
+    "Drug rehabilitation and de-addiction",
+    "Dental treatment (unless related to covered surgery)",
+    "Routine vaccination and immunization"
+  ],
+  "required_documents": [
+    {
+      "name": "Aadhaar Card",
+      "category": "identity",
+      "mandatory": true,
+      "alternatives": ["Aadhaar Enrollment ID"],
+      "local_name_hi": "आधार कार्ड",
+      "notes": "Required for identity verification and e-KYC at empanelled hospitals"
+    },
+    {
+      "name": "BPL Card / NFSA Card",
+      "category": "economic_status",
+      "mandatory": true,
+      "alternatives": ["Income Certificate from Circle Officer"],
+      "local_name_hi": "बीपीएल कार्ड / एनएफएसए कार्ड",
+      "notes": "Proof of BPL status or income eligibility. Income certificate must show annual income below Rs 5 lakh."
+    },
+    {
+      "name": "Income Certificate",
+      "category": "economic_status",
+      "mandatory": false,
+      "alternatives": ["BPL Card"],
+      "local_name_hi": "आय प्रमाण पत्र",
+      "notes": "Issued by Circle Officer or Deputy Commissioner office. Required if BPL card is not available."
+    },
+    {
+      "name": "Residency Proof",
+      "category": "address",
+      "mandatory": true,
+      "alternatives": ["Voter ID Card", "Ration Card", "Electricity Bill"],
+      "local_name_hi": "निवास प्रमाण पत्र",
+      "notes": "Must prove current residence in Assam"
+    },
+    {
+      "name": "Recent Passport-size Photograph",
+      "category": "identity",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "हालिया पासपोर्ट साइज़ फोटो",
+      "notes": "Required for Atal Amrit Abhiyan card generation"
+    }
+  ],
+  "enrollment_channels": [
+    "Empanelled hospitals (government and private)",
+    "District Health Offices",
+    "National Health Mission (NHM) Assam offices",
+    "Block Primary Health Centres (PHC)",
+    "Common Service Centres (CSC)"
+  ],
+  "enrollment_steps": [
+    "Step 1: Visit the nearest empanelled hospital or District Health Office with required documents.",
+    "Step 2: Submit Aadhaar card, BPL card or income certificate, and residency proof.",
+    "Step 3: Undergo biometric verification (fingerprint/iris scan) for e-KYC.",
+    "Step 4: Atal Amrit Abhiyan card is generated with family member details.",
+    "Step 5: Card is activated immediately. Present at any empanelled hospital in Assam for cashless treatment up to Rs 2 lakh.",
+    "Step 6: For treatment, visit empanelled hospital with Atal Amrit card and Aadhaar. Hospital verifies and provides cashless care."
+  ],
+  "processing_time_days": 7,
+  "helpline_number": "104",
+  "portal_url": "https://nhm.assam.gov.in",
+  "version": "1.0",
+  "effective_date": "2012-12-25",
+  "expiry_date": null,
+  "last_verified": "2026-04-15",
+  "source_url": "https://nhm.assam.gov.in/schemes/atal-amrit-abhiyan",
+  "confidence_level": "provisional",
+  "description_for_embedding": "Atal Amrit Abhiyan is Assam's state health insurance scheme providing Rs 2 lakh per family per year for BPL families and families with annual income below Rs 5 lakh. The scheme covers 492 disease categories across 12 medical specialties including cardiology, oncology, nephrology, neurosurgery, orthopaedics, and urology. Treatment is cashless at empanelled government and private hospitals across Assam. Enrollment is through empanelled hospitals and district health offices with Aadhaar, BPL card, and residency proof. The scheme particularly benefits tea garden workers, daily wage labourers, and other economically weaker sections in Assam. Helpline number is 104.",
+  "keywords": [
+    "atal amrit abhiyan", "atal amrit", "assam", "AS health scheme",
+    "BPL", "2 lakh", "492 diseases", "12 specialties",
+    "cardiology", "oncology", "nephrology", "neurosurgery",
+    "tea garden worker", "cashless treatment",
+    "अटल अमृत अभियान", "असम", "बीपीएल",
+    "অটল অমৃত অভিযান", "অসম",
+    "state scheme", "assam health insurance",
+    "empanelled hospital", "district health office",
+    "104 helpline", "NHM Assam"
+  ]
+}

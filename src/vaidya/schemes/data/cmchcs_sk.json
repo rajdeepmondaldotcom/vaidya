@@ -1,0 +1,146 @@
+{
+  "scheme_id": "CMCHCS-SK-2024-v1",
+  "canonical_name": "Chief Minister's Comprehensive Health Care Scheme (Sikkim)",
+  "aliases": [
+    "CMCHCS",
+    "Sikkim Health Scheme",
+    "CM Health Care Sikkim"
+  ],
+  "local_names": {
+    "hi": "मुख्यमंत्री व्यापक स्वास्थ्य देखभाल योजना (सिक्किम)",
+    "bn": "মুখ্যমন্ত্রীর ব্যাপক স্বাস্থ্যসেবা প্রকল্প (সিকিম)",
+    "ta": "முதலமைச்சரின் விரிவான சுகாதாரப் பாதுகாப்புத் திட்டம் (சிக்கிம்)",
+    "te": "ముఖ్యమంత్రి సమగ్ర ఆరోగ్య సంరక్షణ పథకం (సిక్కిం)",
+    "gu": "મુખ્યમંત્રી વ્યાપક આરોગ્ય સંભાળ યોજના (સિક્કિમ)",
+    "kn": "ಮುಖ್ಯಮಂತ್ರಿ ಸಮಗ್ರ ಆರೋಗ್ಯ ಆರೈಕೆ ಯೋಜನೆ (ಸಿಕ್ಕಿಂ)",
+    "ml": "മുഖ്യമന്ത്രിയുടെ സമഗ്ര ആരോഗ്യ പരിചരണ പദ്ധതി (സിക്കിം)",
+    "mr": "मुख्यमंत्री सर्वसमावेशक आरोग्य सेवा योजना (सिक्कीम)",
+    "pa": "ਮੁੱਖ ਮੰਤਰੀ ਵਿਆਪਕ ਸਿਹਤ ਸੰਭਾਲ ਯੋਜਨਾ (ਸਿੱਕਮ)",
+    "od": "ମୁଖ୍ୟମନ୍ତ୍ରୀ ବ୍ୟାପକ ସ୍ୱାସ୍ଥ୍ୟ ସେବା ଯୋଜନା (ସିକ୍କିମ)",
+    "en": "Chief Minister's Comprehensive Health Care Scheme (Sikkim)"
+  },
+  "state_variant_of": null,
+  "jurisdiction": "state",
+  "state_code": "SK",
+  "income_thresholds": [],
+  "secc_categories": [],
+  "occupation_included": [
+    "all_residents_with_ssc"
+  ],
+  "occupation_excluded": [],
+  "exclusion_rules": [
+    {
+      "rule_id": "CMCHCS-SK-EX-001",
+      "exclusion_type": "hard",
+      "field": "state",
+      "condition": "state != 'SK'",
+      "description": "Only residents of Sikkim are eligible for CMCHCS",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "CMCHCS-SK-EX-002",
+      "exclusion_type": "hard",
+      "field": "sikkim_subject_certificate",
+      "condition": "sikkim_subject_certificate == false",
+      "description": "Must hold a valid Sikkim Subject Certificate (SSC) to be eligible. Non-SSC holders are excluded.",
+      "override_by_state": false
+    }
+  ],
+  "age_criteria": null,
+  "family_criteria": {
+    "max_family_size": null,
+    "family_definition": "All family members listed under the Sikkim Subject Certificate are covered. Coverage is universal for the entire household.",
+    "head_of_family_required": false
+  },
+  "geographic_restrictions": [],
+  "coverage_amount_inr": 0,
+  "coverage_type": "per_family_per_year",
+  "covered_procedures": [
+    "Free treatment at all Sikkim government hospitals",
+    "Free OPD (Out-Patient Department) consultation at government facilities",
+    "Free hospitalization at government hospitals (room, nursing, ICU)",
+    "Referral to empanelled private hospitals for specialized care not available in government facilities",
+    "Cardiology (bypass surgery, angioplasty, valve replacement at referral hospitals)",
+    "Oncology (chemotherapy, radiation therapy, surgical oncology at referral hospitals)",
+    "Nephrology (dialysis, renal care at referral hospitals)",
+    "Neurosurgery (brain and spinal procedures at referral hospitals)",
+    "Orthopaedic (knee replacement, hip replacement, fracture management)",
+    "General surgery",
+    "Paediatric and neonatal care",
+    "Obstetric and gynaecological care",
+    "Emergency and trauma management",
+    "Diagnostics and lab tests at government facilities",
+    "Medicines and consumables at government hospitals",
+    "Ambulance services within Sikkim"
+  ],
+  "excluded_procedures": [
+    "Treatment at non-empanelled private hospitals without referral",
+    "Cosmetic and aesthetic surgery",
+    "Fertility treatment and IVF",
+    "Drug rehabilitation and de-addiction (unless at government facility)",
+    "Treatment sought outside Sikkim without prior government referral"
+  ],
+  "required_documents": [
+    {
+      "name": "Sikkim Subject Certificate (SSC)",
+      "category": "eligibility_proof",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "सिक्किम विषय प्रमाण पत्र (एसएससी)",
+      "notes": "Primary eligibility document. Must be a valid Sikkim Subject Certificate issued by the Government of Sikkim. This is mandatory with no alternatives."
+    },
+    {
+      "name": "Aadhaar Card",
+      "category": "identity",
+      "mandatory": true,
+      "alternatives": ["Aadhaar Enrollment ID"],
+      "local_name_hi": "आधार कार्ड",
+      "notes": "Required for identity verification at government and empanelled hospitals"
+    },
+    {
+      "name": "Any Government-issued Photo ID",
+      "category": "identity",
+      "mandatory": false,
+      "alternatives": ["Voter ID Card", "Driving Licence", "PAN Card", "Passport"],
+      "local_name_hi": "कोई भी सरकारी फोटो पहचान पत्र",
+      "notes": "Additional identity proof for verification if needed"
+    }
+  ],
+  "enrollment_channels": [
+    "Automatic for all Sikkim Subject Certificate holders",
+    "Government hospitals in Sikkim",
+    "District hospitals (Gangtok, Namchi, Mangan, Gyalshing)",
+    "Primary Health Centres (PHC) and Community Health Centres (CHC)",
+    "District Collector / District Magistrate office"
+  ],
+  "enrollment_steps": [
+    "Step 1: Enrollment is automatic for all holders of Sikkim Subject Certificate (SSC). No separate registration required.",
+    "Step 2: Visit any government hospital in Sikkim with your Sikkim Subject Certificate and Aadhaar card.",
+    "Step 3: Hospital verifies SSC and provides free treatment at the government facility.",
+    "Step 4: If specialized care is needed that is not available at the government hospital, the hospital issues a referral to an empanelled private hospital.",
+    "Step 5: Present the referral letter, SSC, and Aadhaar at the empanelled private hospital for cashless specialized treatment.",
+    "Step 6: For emergencies, present SSC at any government hospital for immediate free treatment."
+  ],
+  "processing_time_days": 0,
+  "helpline_number": "104",
+  "portal_url": "https://sikkim.gov.in/departments/health-care-human-services-and-family-welfare-department",
+  "version": "1.0",
+  "effective_date": "2016-01-01",
+  "expiry_date": null,
+  "last_verified": "2026-04-15",
+  "source_url": "https://sikkim.gov.in/departments/health-care-human-services-and-family-welfare-department",
+  "confidence_level": "provisional",
+  "description_for_embedding": "Chief Minister's Comprehensive Health Care Scheme (CMCHCS) is Sikkim's universal healthcare scheme providing free medical treatment to all residents holding a Sikkim Subject Certificate (SSC). Unlike insurance-based schemes, CMCHCS provides universal free healthcare at the point of service with no coverage cap, no income restriction, and no premium. All Sikkim residents with a valid SSC receive free treatment at government hospitals across the state. For specialized care not available at government facilities, patients are referred to empanelled private hospitals at no cost. The scheme covers OPD consultations, hospitalization, surgery, diagnostics, medicines, and emergency care at government hospitals. Enrollment is automatic for SSC holders with no separate registration needed. The only hard requirement is possessing a valid Sikkim Subject Certificate. Helpline number is 104.",
+  "keywords": [
+    "cmchcs", "sikkim health scheme", "chief minister health care sikkim",
+    "free healthcare", "universal healthcare", "sikkim subject certificate", "SSC",
+    "government hospital", "free treatment", "no income limit", "no premium",
+    "referral hospital", "empanelled hospital", "cashless treatment",
+    "state scheme", "sikkim", "SK",
+    "मुख्यमंत्री स्वास्थ्य देखभाल योजना", "सिक्किम", "मुफ्त इलाज",
+    "সিকিম স্বাস্থ্যসেবা", "সিকিম",
+    "104 helpline", "gangtok", "namchi", "mangan", "gyalshing",
+    "all residents", "universal scheme", "no cap",
+    "OPD free", "hospitalization free", "surgery free"
+  ]
+}

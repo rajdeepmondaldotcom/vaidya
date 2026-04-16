@@ -1,0 +1,134 @@
+{
+  "scheme_id": "NPHCE-2024-v1",
+  "canonical_name": "National Programme for Health Care of the Elderly",
+  "aliases": [
+    "NPHCE",
+    "Elderly Health Programme",
+    "National Elderly Care Programme",
+    "Senior Citizen Health Scheme",
+    "Vriddhjan Swasthya Karyakram"
+  ],
+  "local_names": {
+    "hi": "वृद्धजनों की स्वास्थ्य देखभाल का राष्ट्रीय कार्यक्रम",
+    "bn": "বয়স্কদের স্বাস্থ্যসেবা জাতীয় কার্যক্রম",
+    "ta": "முதியோர் சுகாதாரப் பாதுகாப்பு தேசிய திட்டம்",
+    "te": "వృద్ధుల ఆరోగ్య సంరక్షణ జాతీయ కార్యక్రమం",
+    "mr": "वृद्धांच्या आरोग्य सेवेचा राष्ट्रीय कार्यक्रम",
+    "gu": "વૃદ્ધોની આરોગ્ય સંભાળનો રાષ્ટ્રીય કાર્યક્રમ",
+    "kn": "ವೃದ್ಧರ ಆರೋಗ್ಯ ಆರೈಕೆ ರಾಷ್ಟ್ರೀಯ ಕಾರ್ಯಕ್ರಮ",
+    "ml": "വയോജന ആരോഗ്യ പരിചരണ ദേശീയ പദ്ധതി",
+    "pa": "ਬਜ਼ੁਰਗਾਂ ਦੀ ਸਿਹਤ ਦੇਖਭਾਲ ਲਈ ਰਾਸ਼ਟਰੀ ਪ੍ਰੋਗਰਾਮ",
+    "or": "ବୟସ୍କ ବ୍ୟକ୍ତିଙ୍କ ସ୍ୱାସ୍ଥ୍ୟ ସେବା ଜାତୀୟ କାର୍ଯ୍ୟକ୍ରମ"
+  },
+  "state_variant_of": null,
+  "jurisdiction": "central",
+  "state_code": null,
+  "income_thresholds": [],
+  "secc_categories": [],
+  "occupation_included": [
+    "all_citizens_60_plus"
+  ],
+  "occupation_excluded": [],
+  "exclusion_rules": [
+    {
+      "rule_id": "NPHCE-EX-001",
+      "exclusion_type": "hard",
+      "field": "age",
+      "condition": "age < 60",
+      "description": "Only citizens aged 60 years and above are eligible for services under NPHCE",
+      "override_by_state": false
+    }
+  ],
+  "age_criteria": {
+    "min_age": 60,
+    "max_age": null,
+    "applies_to": "beneficiary"
+  },
+  "family_criteria": {
+    "max_family_size": null,
+    "family_definition": "Individual entitlement for all citizens aged 60+. No income, caste, or family restriction. Universal programme for the elderly population.",
+    "head_of_family_required": false
+  },
+  "geographic_restrictions": [],
+  "coverage_amount_inr": 0,
+  "coverage_type": "per_person_per_year",
+  "covered_procedures": [
+    "Preventive health screening for elderly-specific conditions",
+    "Management of chronic diseases (diabetes, hypertension, COPD, arthritis)",
+    "Cataract surgery and vision care",
+    "Hearing assessment and hearing aids",
+    "Dental care for elderly",
+    "Physiotherapy and rehabilitation services",
+    "Geriatric OPD at district hospitals",
+    "Dedicated geriatric ward beds at district hospitals (10-bedded)",
+    "Geriatric specialty care at regional centres (8 Regional Geriatric Centres)",
+    "National Centre of Ageing at AIIMS New Delhi for complex cases",
+    "Palliative care for terminal elderly patients",
+    "Mental health care for dementia, depression, and age-related psychiatric conditions",
+    "Nutritional counselling and supplementation",
+    "Fall prevention and mobility aid provision",
+    "Home-based care through community health workers",
+    "Health promotion and wellness activities for elderly"
+  ],
+  "excluded_procedures": [
+    "Citizens below 60 years of age",
+    "Organ transplantation (referred to RAN/PM-JAY)",
+    "Advanced oncology (referred to tertiary centres under other schemes)",
+    "Treatment at private hospitals (NPHCE services at government facilities only)"
+  ],
+  "required_documents": [
+    {
+      "name": "Aadhaar Card / Age Proof",
+      "category": "identity",
+      "mandatory": false,
+      "alternatives": ["Voter ID", "Senior Citizen Card", "Pension Book"],
+      "local_name_hi": "आधार कार्ड / आयु प्रमाण",
+      "notes": "Any document proving age 60+ is sufficient. Services should not be denied for lack of documents."
+    },
+    {
+      "name": "Senior Citizen Card",
+      "category": "identity",
+      "mandatory": false,
+      "alternatives": ["Aadhaar Card showing date of birth"],
+      "local_name_hi": "वरिष्ठ नागरिक कार्ड",
+      "notes": "Issued by local municipality. Helpful for availing priority services but not mandatory."
+    }
+  ],
+  "enrollment_channels": [
+    "District Hospital geriatric OPD",
+    "Community Health Centre (CHC)",
+    "Primary Health Centre (PHC) / Health and Wellness Centre",
+    "Regional Geriatric Centre (8 centres in teaching hospitals)",
+    "National Centre of Ageing, AIIMS New Delhi",
+    "ASHA / ANM home visit for bedridden elderly"
+  ],
+  "enrollment_steps": [
+    "Step 1: No formal enrollment — visit nearest government health facility (PHC/CHC/District Hospital)",
+    "Step 2: Ask for geriatric OPD or elderly health services",
+    "Step 3: Undergo comprehensive geriatric assessment and health screening",
+    "Step 4: Receive treatment for identified conditions (chronic disease management, vision, hearing, dental)",
+    "Step 5: For complex cases, get referral to Regional Geriatric Centre or National Centre of Ageing",
+    "Step 6: For bedridden elderly, request home-based care through ASHA/ANM or district team",
+    "Step 7: Regular follow-up at the facility for chronic disease management"
+  ],
+  "processing_time_days": 0,
+  "helpline_number": "14567",
+  "portal_url": "https://mohfw.gov.in",
+  "version": "1.0",
+  "effective_date": "2010-01-01",
+  "expiry_date": null,
+  "last_verified": "2026-04-15",
+  "source_url": "https://mohfw.gov.in/Major-Programmes/non-communicable-diseases-injury-trauma/Non-Communicable-Disease-II/national-programme-health-care-elderly-nphce",
+  "confidence_level": "provisional",
+  "description_for_embedding": "National Programme for Health Care of the Elderly (NPHCE) is a central government programme providing free comprehensive healthcare services to all citizens aged 60 years and above through government health facilities. Services include geriatric OPD at district hospitals, chronic disease management, cataract surgery, hearing aids, physiotherapy, dental care, mental health care, palliative care, and home-based care for bedridden elderly. No income criteria or documents required. The programme operates through dedicated geriatric facilities at district, regional (8 centres), and national level (AIIMS). Complements PM-JAY for hospitalization needs.",
+  "keywords": [
+    "NPHCE", "elderly health", "senior citizen", "geriatric care",
+    "60 plus", "old age", "chronic disease", "cataract", "hearing aid",
+    "physiotherapy", "palliative care", "dementia", "arthritis",
+    "district hospital geriatric", "AIIMS geriatric",
+    "वृद्ध स्वास्थ्य", "बुजुर्ग", "वरिष्ठ नागरिक", "60 वर्ष",
+    "मोतियाबिंद", "श्रवण यंत्र", "पुराने रोग", "फिजियोथेरेपी",
+    "elderly care", "senior health", "old age programme",
+    "universal elderly", "no income criteria", "14567"
+  ]
+}

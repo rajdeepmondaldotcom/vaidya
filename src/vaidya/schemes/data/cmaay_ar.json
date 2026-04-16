@@ -1,0 +1,177 @@
+{
+  "scheme_id": "CMAAY-AR-2024-v1",
+  "canonical_name": "Chief Minister's Arogya Arunachal Yojana (CMAAY)",
+  "aliases": [
+    "CMAAY",
+    "Arogya Arunachal",
+    "Arunachal Health Scheme",
+    "CM Arogya Arunachal"
+  ],
+  "local_names": {
+    "hi": "मुख्यमंत्री आरोग्य अरुणाचल योजना",
+    "bn": "মুখ্যমন্ত্রী আরোগ্য অরুণাচল যোজনা",
+    "ta": "முதலமைச்சர் ஆரோக்கிய அருணாசல் யோஜனா",
+    "te": "ముఖ్యమంత్రి ఆరోగ్య అరుణాచల్ యోజన",
+    "mr": "मुख्यमंत्री आरोग्य अरुणाचल योजना",
+    "gu": "મુખ્યમંત્રી આરોગ્ય અરુણાચલ યોજના",
+    "kn": "ಮುಖ್ಯಮಂತ್ರಿ ಆರೋಗ್ಯ ಅರುಣಾಚಲ್ ಯೋಜನೆ",
+    "ml": "മുഖ്യമന്ത്രി ആരോഗ്യ അരുണാചൽ യോജന",
+    "pa": "ਮੁੱਖ ਮੰਤਰੀ ਆਰੋਗਿਆ ਅਰੁਣਾਚਲ ਯੋਜਨਾ",
+    "or": "ମୁଖ୍ୟମନ୍ତ୍ରୀ ଆରୋଗ୍ୟ ଅରୁଣାଚଳ ଯୋଜନା"
+  },
+  "state_variant_of": null,
+  "jurisdiction": "state",
+  "state_code": "AR",
+  "income_thresholds": [
+    {
+      "max_income_inr": 500000,
+      "unit": "per_annum",
+      "applies_to": "family",
+      "description": "Covers Above Poverty Line (APL) families in Arunachal Pradesh not eligible under PM-JAY SECC criteria. Annual family income up to Rs 5 lakh.",
+      "source": "Government of Arunachal Pradesh notification"
+    }
+  ],
+  "secc_categories": [],
+  "occupation_included": [
+    "all_arunachal_residents",
+    "farmer",
+    "daily_wage",
+    "self_employed",
+    "salaried_pvt",
+    "student",
+    "homemaker",
+    "trader",
+    "artisan"
+  ],
+  "occupation_excluded": [
+    "central_govt_with_cghs"
+  ],
+  "exclusion_rules": [
+    {
+      "rule_id": "CMAAY-AR-EX-001",
+      "exclusion_type": "hard",
+      "field": "state",
+      "condition": "state != 'AR'",
+      "description": "Only residents of Arunachal Pradesh are eligible. Must have valid Arunachal Pradesh domicile or APST certificate.",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "CMAAY-AR-EX-002",
+      "exclusion_type": "hard",
+      "field": "existing_coverage",
+      "condition": "existing_coverage == 'CGHS'",
+      "description": "Families covered under CGHS (Central Government Health Scheme) are excluded to avoid duplication.",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "CMAAY-AR-EX-003",
+      "exclusion_type": "soft",
+      "field": "pmjay_eligible",
+      "condition": "already_covered_under_pmjay == true",
+      "description": "Families already covered under PM-JAY SECC criteria should use PM-JAY. CMAAY is for APL families not covered by PM-JAY.",
+      "override_by_state": false
+    }
+  ],
+  "age_criteria": null,
+  "family_criteria": {
+    "max_family_size": null,
+    "family_definition": "Family as per ration card or APST certificate. All listed members are covered. No cap on family size.",
+    "head_of_family_required": false
+  },
+  "geographic_restrictions": [],
+  "coverage_amount_inr": 500000,
+  "coverage_type": "per_family_per_year",
+  "covered_procedures": [
+    "Hospitalization expenses (room, nursing, ICU)",
+    "Pre-hospitalization (up to 3 days before admission)",
+    "Post-hospitalization (up to 15 days after discharge)",
+    "Surgical procedures across multiple specialties",
+    "Cardiology (bypass surgery, angioplasty)",
+    "Orthopedic (knee replacement, hip replacement)",
+    "Oncology (chemotherapy, radiation)",
+    "Neurosurgery",
+    "Burns treatment",
+    "Dialysis",
+    "Emergency care",
+    "Neonatal and pediatric care",
+    "Cataract surgery",
+    "Mental health treatment",
+    "Day-care procedures",
+    "Diagnostics and lab tests during hospitalization",
+    "Medicines and consumables during treatment"
+  ],
+  "excluded_procedures": [
+    "OPD (Out-Patient Department) consultation",
+    "Fertility treatment and IVF",
+    "Cosmetic surgery",
+    "Drug rehabilitation",
+    "Vaccination (routine immunization)"
+  ],
+  "required_documents": [
+    {
+      "name": "Aadhaar Card",
+      "category": "identity",
+      "mandatory": true,
+      "alternatives": ["Aadhaar Enrollment ID"],
+      "local_name_hi": "आधार कार्ड",
+      "notes": "Required for e-KYC verification"
+    },
+    {
+      "name": "APST Certificate / Domicile Certificate",
+      "category": "eligibility_proof",
+      "mandatory": true,
+      "alternatives": ["Arunachal Pradesh Ration Card", "Voter ID (Arunachal Pradesh)"],
+      "local_name_hi": "APST प्रमाण पत्र / निवास प्रमाण पत्र",
+      "notes": "Must prove residency in Arunachal Pradesh. APST certificate or domicile certificate accepted."
+    },
+    {
+      "name": "Income Certificate",
+      "category": "eligibility_proof",
+      "mandatory": true,
+      "alternatives": ["BPL Certificate", "Self-declaration affidavit"],
+      "local_name_hi": "आय प्रमाण पत्र",
+      "notes": "Income certificate from Circle Officer or SDM to confirm APL status"
+    },
+    {
+      "name": "Mobile Number",
+      "category": "contact",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "मोबाइल नंबर",
+      "notes": "Linked to Aadhaar for OTP-based verification"
+    }
+  ],
+  "enrollment_channels": [
+    "District hospital help desk",
+    "Common Service Centre (CSC)",
+    "Block-level enrollment camps",
+    "Chief Minister's office portal",
+    "Empanelled hospital Ayushman Mitra desk"
+  ],
+  "enrollment_steps": [
+    "Step 1: Visit nearest CSC, district hospital, or block enrollment camp with Aadhaar and APST/domicile certificate",
+    "Step 2: Submit income certificate or self-declaration affidavit",
+    "Step 3: Complete e-KYC verification (Aadhaar biometric or OTP)",
+    "Step 4: Operator verifies Arunachal Pradesh residency and APL status",
+    "Step 5: CMAAY health card generated",
+    "Step 6: Card valid immediately; present at empanelled hospital for cashless treatment up to Rs 5 lakh"
+  ],
+  "processing_time_days": 7,
+  "helpline_number": "14555",
+  "portal_url": "https://cmaay.com",
+  "version": "1.0",
+  "effective_date": "2019-03-01",
+  "expiry_date": null,
+  "last_verified": "2026-04-15",
+  "source_url": "https://cmaay.com",
+  "confidence_level": "provisional",
+  "description_for_embedding": "Chief Minister's Arogya Arunachal Yojana (CMAAY) is Arunachal Pradesh's state health insurance scheme that supplements PM-JAY by covering Above Poverty Line (APL) families not eligible under SECC 2011 criteria. Launched in 2019, CMAAY provides Rs 5 lakh per family per year for hospitalization at empanelled hospitals. While PM-JAY covers SECC-identified families, CMAAY extends coverage to the remaining population of Arunachal Pradesh, making the state's health insurance nearly universal. Covers surgical and medical procedures across multiple specialties. Enrollment via district hospitals, CSCs, or block camps.",
+  "keywords": [
+    "cmaay", "arogya arunachal", "arunachal pradesh health scheme",
+    "APL families", "state health insurance", "5 lakh",
+    "supplements pmjay", "non-SECC families", "cashless treatment",
+    "मुख्यमंत्री आरोग्य अरुणाचल", "अरुणाचल प्रदेश", "स्वास्थ्य योजना",
+    "APST", "domicile certificate", "above poverty line",
+    "empanelled hospital", "hospitalization", "state scheme"
+  ]
+}

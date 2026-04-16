@@ -1,0 +1,195 @@
+{
+  "scheme_id": "ABUA-JH-2024-v1",
+  "canonical_name": "Mukhyamantri Abua Swasthya Suraksha Yojana (Jharkhand)",
+  "aliases": [
+    "Abua Swasthya Suraksha",
+    "MASSY",
+    "Jharkhand Health Scheme",
+    "Abua Yojana",
+    "Jharkhand Swasthya Suraksha"
+  ],
+  "local_names": {
+    "hi": "मुख्यमंत्री अबुआ स्वास्थ्य सुरक्षा योजना (झारखंड)",
+    "bn": "মুখ্যমন্ত্রী অবুয়া স্বাস্থ্য সুরক্ষা যোজনা (ঝাড়খণ্ড)",
+    "ta": "முக்கியமந்திரி அபுவா சுவாஸ்த்ய சுரக்ஷா யோஜனா (ஜார்கண்ட்)",
+    "te": "ముఖ్యమంత్రి అబువా స్వాస్థ్య సురక్ష యోజన (జార్ఖండ్)",
+    "mr": "मुख्यमंत्री अबुआ स्वास्थ्य सुरक्षा योजना (झारखंड)",
+    "gu": "મુખ્યમંત્રી અબુઆ સ્વાસ્થ્ય સુરક્ષા યોજના (ઝારખંડ)",
+    "kn": "ಮುಖ್ಯಮಂತ್ರಿ ಅಬುವಾ ಸ್ವಾಸ್ಥ್ಯ ಸುರಕ್ಷಾ ಯೋಜನೆ (ಜಾರ್ಖಂಡ್)",
+    "ml": "മുഖ്യമന്ത്രി അബുവ സ്വാസ്ഥ്യ സുരക്ഷ യോജന (ജാർഖണ്ഡ്)",
+    "pa": "ਮੁੱਖ ਮੰਤਰੀ ਅਬੂਆ ਸਵਾਸਥ ਸੁਰੱਖਿਆ ਯੋਜਨਾ (ਝਾਰਖੰਡ)",
+    "or": "ମୁଖ୍ୟମନ୍ତ୍ରୀ ଅବୁଆ ସ୍ୱାସ୍ଥ୍ୟ ସୁରକ୍ଷା ଯୋଜନା (ଝାଡ଼ଖଣ୍ଡ)"
+  },
+  "state_variant_of": null,
+  "jurisdiction": "state",
+  "state_code": "JH",
+  "income_thresholds": [
+    {
+      "max_income_inr": 0,
+      "unit": "per_annum",
+      "applies_to": "family",
+      "description": "No direct income threshold. Eligibility based on NFSA ration card (pink, yellow, or green category). Covers approximately 33.44 lakh families in Jharkhand.",
+      "source": "Jharkhand State Government / BIS Jharkhand Portal"
+    }
+  ],
+  "secc_categories": [],
+  "occupation_included": [
+    "nfsa_ration_card_holder_pink",
+    "nfsa_ration_card_holder_yellow",
+    "nfsa_ration_card_holder_green",
+    "daily_wage",
+    "farmer",
+    "tribal",
+    "construction_worker",
+    "street_vendor",
+    "domestic_worker",
+    "mine_worker"
+  ],
+  "occupation_excluded": [
+    "government_employee",
+    "income_tax_payer",
+    "employer_insured"
+  ],
+  "exclusion_rules": [
+    {
+      "rule_id": "ABUA-JH-EX-001",
+      "exclusion_type": "hard",
+      "field": "state",
+      "condition": "state != 'JH'",
+      "description": "Only residents of Jharkhand are eligible",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "ABUA-JH-EX-002",
+      "exclusion_type": "hard",
+      "field": "ration_card",
+      "condition": "nfsa_ration_card == false",
+      "description": "Must hold a valid NFSA ration card (pink, yellow, or green category) issued in Jharkhand",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "ABUA-JH-EX-003",
+      "exclusion_type": "hard",
+      "field": "existing_coverage",
+      "condition": "existing_coverage == 'CGHS' || existing_coverage == 'ESIC'",
+      "description": "Families covered under CGHS or ESIC are excluded",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "ABUA-JH-EX-004",
+      "exclusion_type": "hard",
+      "field": "income_tax",
+      "condition": "pays_income_tax == true",
+      "description": "Income tax paying families are excluded",
+      "override_by_state": false
+    }
+  ],
+  "age_criteria": null,
+  "family_criteria": {
+    "max_family_size": null,
+    "family_definition": "Family as defined in NFSA ration card. All members listed on the ration card are covered. Coverage is floater across all family members. No cap on family size.",
+    "head_of_family_required": false
+  },
+  "geographic_restrictions": [],
+  "coverage_amount_inr": 1500000,
+  "coverage_type": "per_family_per_year",
+  "covered_procedures": [
+    "Hospitalization expenses (room, nursing, ICU)",
+    "Pre-hospitalization (up to 3 days before admission)",
+    "Post-hospitalization (up to 15 days after discharge)",
+    "Surgical procedures across multiple specialties",
+    "Cardiology (bypass surgery, angioplasty, valve replacement, pacemaker)",
+    "Orthopedic (knee replacement, hip replacement, spine surgery)",
+    "Oncology (chemotherapy, radiation, surgical oncology)",
+    "Neurosurgery",
+    "Organ transplant (kidney, liver)",
+    "Burns treatment",
+    "Dialysis",
+    "Emergency care and accident treatment",
+    "Neonatal and pediatric care",
+    "Maternity care",
+    "Cataract surgery",
+    "Cochlear implant",
+    "Mental health treatment",
+    "Day-care procedures",
+    "Diagnostics and lab tests during hospitalization",
+    "Medicines and consumables during treatment"
+  ],
+  "excluded_procedures": [
+    "OPD (Out-Patient Department) consultation",
+    "Fertility treatment and IVF",
+    "Cosmetic surgery",
+    "Drug rehabilitation",
+    "Experimental and unproven treatments",
+    "Vaccination (routine immunization)"
+  ],
+  "required_documents": [
+    {
+      "name": "Aadhaar Card",
+      "category": "identity",
+      "mandatory": true,
+      "alternatives": ["Aadhaar Enrollment ID"],
+      "local_name_hi": "आधार कार्ड",
+      "notes": "Required for e-KYC verification"
+    },
+    {
+      "name": "NFSA Ration Card (Pink/Yellow/Green)",
+      "category": "eligibility_proof",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "NFSA राशन कार्ड (गुलाबी/पीला/हरा)",
+      "notes": "Must be valid NFSA ration card in pink (Antyodaya), yellow (priority), or green (PHH) category issued in Jharkhand. This is MANDATORY."
+    },
+    {
+      "name": "Mobile Number",
+      "category": "contact",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "मोबाइल नंबर",
+      "notes": "Linked to Aadhaar for OTP-based verification"
+    },
+    {
+      "name": "Family Photo",
+      "category": "identity",
+      "mandatory": false,
+      "alternatives": [],
+      "local_name_hi": "परिवार का फोटो",
+      "notes": "Required for new card generation"
+    }
+  ],
+  "enrollment_channels": [
+    "BIS Jharkhand portal (bis.jharkhand.gov.in)",
+    "Common Service Centre (CSC / Pragya Kendra)",
+    "Empanelled hospital help desk",
+    "District hospital help desk",
+    "Block-level health camps"
+  ],
+  "enrollment_steps": [
+    "Step 1: Check eligibility at bis.jharkhand.gov.in or call 104 / 18003456540 with Aadhaar or ration card number",
+    "Step 2: Visit nearest CSC (Pragya Kendra) or empanelled hospital with Aadhaar and NFSA ration card",
+    "Step 3: Complete e-KYC verification (Aadhaar biometric or OTP)",
+    "Step 4: Operator verifies NFSA ration card status (pink/yellow/green) in BIS portal",
+    "Step 5: Family photograph taken and uploaded",
+    "Step 6: Abua Swasthya card generated",
+    "Step 7: Card valid immediately; present at any empanelled hospital in Jharkhand for cashless treatment up to Rs 15 lakh"
+  ],
+  "processing_time_days": 1,
+  "helpline_number": "104",
+  "portal_url": "https://bis.jharkhand.gov.in",
+  "version": "1.0",
+  "effective_date": "2024-01-01",
+  "expiry_date": null,
+  "last_verified": "2026-04-15",
+  "source_url": "https://bis.jharkhand.gov.in",
+  "confidence_level": "provisional",
+  "description_for_embedding": "Mukhyamantri Abua Swasthya Suraksha Yojana is Jharkhand's flagship state health insurance scheme providing a massive Rs 15 lakh (Rs 1,500,000) per family per year — three times the PM-JAY coverage. Targets NFSA ration card holders (pink, yellow, green categories) covering approximately 33.44 lakh families. Covers hospitalization, surgery, organ transplant, oncology, and more. One of the highest coverage amounts among all Indian state health schemes. Enrollment via BIS Jharkhand portal or CSC. Helplines: 104 and 18003456540.",
+  "keywords": [
+    "abua", "abua swasthya suraksha", "jharkhand", "JH health scheme",
+    "15 lakh", "NFSA ration card", "pink card", "yellow card", "green card",
+    "highest coverage", "state scheme", "cashless treatment",
+    "मुख्यमंत्री अबुआ स्वास्थ्य सुरक्षा", "झारखंड", "15 लाख",
+    "राशन कार्ड", "मुफ्त इलाज", "सरकारी योजना",
+    "bis.jharkhand.gov.in", "104", "18003456540", "jharkhand insurance",
+    "33 lakh families", "tribal health"
+  ]
+}

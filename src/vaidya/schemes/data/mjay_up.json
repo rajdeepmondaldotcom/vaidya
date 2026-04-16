@@ -1,0 +1,198 @@
+{
+  "scheme_id": "MJAY-UP-2024-v1",
+  "canonical_name": "Mukhyamantri Jan Arogya Yojana (UP)",
+  "aliases": [
+    "MJAY UP",
+    "UP Jan Arogya Yojana",
+    "UP Mukhyamantri Jan Arogya",
+    "Ayushman UP",
+    "UP Health Scheme"
+  ],
+  "local_names": {
+    "hi": "मुख्यमंत्री जन आरोग्य योजना (उत्तर प्रदेश)",
+    "bn": "মুখ্যমন্ত্রী জন আরোগ্য যোজনা (উত্তরপ্রদেশ)",
+    "ta": "முக்கியமந்திரி ஜன் ஆரோக்கிய யோஜனா (உ.பி.)",
+    "te": "ముఖ్యమంత్రి జన ఆరోగ్య యోజన (యు.పి.)",
+    "mr": "मुख्यमंत्री जन आरोग्य योजना (उ.प्र.)",
+    "gu": "મુખ્યમંત્રી જન આરોગ્ય યોજના (ઉ.પ્ર.)",
+    "kn": "ಮುಖ್ಯಮಂತ್ರಿ ಜನ ಆರೋಗ್ಯ ಯೋಜನೆ (ಯು.ಪಿ.)",
+    "ml": "മുഖ്യമന്ത്രി ജൻ ആരോഗ്യ യോജന (യു.പി.)",
+    "pa": "ਮੁੱਖ ਮੰਤਰੀ ਜਨ ਆਰੋਗਿਆ ਯੋਜਨਾ (ਯੂ.ਪੀ.)",
+    "or": "ମୁଖ୍ୟମନ୍ତ୍ରୀ ଜନ ଆରୋଗ୍ୟ ଯୋଜନା (ୟୁ.ପି.)"
+  },
+  "state_variant_of": null,
+  "jurisdiction": "state",
+  "state_code": "UP",
+  "income_thresholds": [
+    {
+      "max_income_inr": 0,
+      "unit": "per_annum",
+      "applies_to": "family",
+      "description": "No income ceiling; targets families NOT covered under PM-JAY SECC list, specifically ASHA workers, Anganwadi workers, and other non-SECC families identified by the state",
+      "source": "UP State Government GO 2019 / NHA-UP SHA Guidelines"
+    }
+  ],
+  "secc_categories": [],
+  "occupation_included": [
+    "asha_worker",
+    "anganwadi_worker",
+    "anganwadi_helper",
+    "non_secc_families_identified_by_state",
+    "construction_worker_registered",
+    "safai_karmachari",
+    "daily_wage",
+    "farmer"
+  ],
+  "occupation_excluded": [
+    "government_employee_class_a",
+    "government_employee_class_b",
+    "income_tax_payer",
+    "employer_insured"
+  ],
+  "exclusion_rules": [
+    {
+      "rule_id": "MJAY-UP-EX-001",
+      "exclusion_type": "hard",
+      "field": "state",
+      "condition": "state != 'UP'",
+      "description": "Only residents of Uttar Pradesh are eligible",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "MJAY-UP-EX-002",
+      "exclusion_type": "hard",
+      "field": "existing_coverage",
+      "condition": "covered_under_pmjay_secc == true",
+      "description": "Families already covered under PM-JAY through SECC 2011 are NOT eligible for MJAY; MJAY supplements PM-JAY for non-SECC families",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "MJAY-UP-EX-003",
+      "exclusion_type": "hard",
+      "field": "existing_coverage",
+      "condition": "existing_coverage == 'CGHS' || existing_coverage == 'ESIC'",
+      "description": "Families covered under CGHS or ESIC are excluded",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "MJAY-UP-EX-004",
+      "exclusion_type": "hard",
+      "field": "occupation_type",
+      "condition": "occupation_type == 'salaried_govt_class_a' || occupation_type == 'salaried_govt_class_b'",
+      "description": "Class A and Class B government employees and their families are excluded",
+      "override_by_state": false
+    }
+  ],
+  "age_criteria": null,
+  "family_criteria": {
+    "max_family_size": null,
+    "family_definition": "Family as per the Ayushman card. All members listed on the family card are covered. Coverage is floater across all family members. No cap on family size.",
+    "head_of_family_required": false
+  },
+  "geographic_restrictions": [],
+  "coverage_amount_inr": 500000,
+  "coverage_type": "per_family_per_year",
+  "covered_procedures": [
+    "Hospitalization expenses (room, nursing, ICU)",
+    "Pre-hospitalization (up to 3 days before admission)",
+    "Post-hospitalization (up to 15 days after discharge)",
+    "Surgical procedures across 26 specialties",
+    "Cardiology (bypass surgery, angioplasty, valve replacement)",
+    "Orthopedic (knee replacement, hip replacement)",
+    "Oncology (chemotherapy, radiation, surgical oncology)",
+    "Neurosurgery",
+    "Burns treatment",
+    "Dialysis",
+    "Emergency care",
+    "Neonatal and pediatric care",
+    "Cataract surgery",
+    "Day-care procedures",
+    "Diagnostics and lab tests during hospitalization",
+    "Medicines and consumables during treatment"
+  ],
+  "excluded_procedures": [
+    "OPD (Out-Patient Department) consultation",
+    "Fertility treatment and IVF",
+    "Cosmetic surgery",
+    "Organ transplantation (except cornea and renal)",
+    "Drug rehabilitation",
+    "Vaccination (routine immunization)"
+  ],
+  "required_documents": [
+    {
+      "name": "Aadhaar Card",
+      "category": "identity",
+      "mandatory": true,
+      "alternatives": ["Aadhaar Enrollment ID"],
+      "local_name_hi": "आधार कार्ड",
+      "notes": "Required for e-KYC verification at empanelled hospital or CSC"
+    },
+    {
+      "name": "Ration Card (NFSA)",
+      "category": "eligibility_proof",
+      "mandatory": false,
+      "alternatives": ["BPL Certificate", "Income Certificate"],
+      "local_name_hi": "राशन कार्ड",
+      "notes": "Helps verify family composition. Not mandatory if ASHA/Anganwadi worker ID is available."
+    },
+    {
+      "name": "ASHA/Anganwadi Worker ID",
+      "category": "eligibility_proof",
+      "mandatory": false,
+      "alternatives": ["Appointment Letter from ICDS/NHM", "Salary Slip"],
+      "local_name_hi": "आशा/आंगनवाड़ी कार्यकर्ता पहचान पत्र",
+      "notes": "Mandatory for ASHA/Anganwadi workers to claim eligibility under MJAY"
+    },
+    {
+      "name": "Mobile Number",
+      "category": "contact",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "मोबाइल नंबर",
+      "notes": "Linked to Aadhaar for OTP-based verification"
+    },
+    {
+      "name": "Family Photo",
+      "category": "identity",
+      "mandatory": false,
+      "alternatives": [],
+      "local_name_hi": "परिवार का फोटो",
+      "notes": "Required for new Ayushman card generation"
+    }
+  ],
+  "enrollment_channels": [
+    "Common Service Centre (CSC / Jan Seva Kendra)",
+    "Empanelled hospital Ayushman Mitra desk",
+    "Ayushman UP portal (ayushmanup.in)",
+    "District hospital help desk",
+    "Block-level health office"
+  ],
+  "enrollment_steps": [
+    "Step 1: Check eligibility on ayushmanup.in or visit nearest CSC with Aadhaar and supporting documents",
+    "Step 2: If ASHA/Anganwadi worker, carry valid ID card or appointment letter from ICDS/NHM",
+    "Step 3: Visit nearest CSC or empanelled hospital with all documents",
+    "Step 4: Complete e-KYC verification (Aadhaar biometric or OTP)",
+    "Step 5: Operator verifies state-identified beneficiary list in BIS portal",
+    "Step 6: Family photograph taken and uploaded",
+    "Step 7: Ayushman card generated and printed on the spot",
+    "Step 8: Card valid immediately; present at any empanelled hospital in UP for cashless treatment"
+  ],
+  "processing_time_days": 1,
+  "helpline_number": "14555",
+  "portal_url": "https://ayushmanup.in",
+  "version": "1.0",
+  "effective_date": "2019-03-01",
+  "expiry_date": null,
+  "last_verified": "2026-04-15",
+  "source_url": "https://ayushmanup.in",
+  "confidence_level": "provisional",
+  "description_for_embedding": "Mukhyamantri Jan Arogya Yojana (MJAY) is Uttar Pradesh's state-level health insurance scheme that supplements PM-JAY. While PM-JAY covers SECC 2011 families, MJAY extends Rs 5 lakh per family per year coverage to families NOT in the SECC list, including ASHA workers, Anganwadi workers, and other state-identified non-SECC beneficiaries. Same coverage and hospital network as PM-JAY but for a different target population. Enrollment via CSC, empanelled hospitals, or ayushmanup.in portal. Helpline 14555.",
+  "keywords": [
+    "mjay", "mukhyamantri jan arogya", "uttar pradesh", "UP health scheme",
+    "asha worker", "anganwadi worker", "non-SECC", "ayushman UP",
+    "5 lakh", "state scheme", "supplement pmjay", "cashless treatment",
+    "मुख्यमंत्री जन आरोग्य योजना", "उत्तर प्रदेश", "आशा कार्यकर्ता",
+    "आंगनवाड़ी कार्यकर्ता", "5 लाख", "मुफ्त इलाज",
+    "ayushmanup.in", "14555", "UP state insurance"
+  ]
+}

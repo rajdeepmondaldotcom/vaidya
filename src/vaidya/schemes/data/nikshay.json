@@ -1,0 +1,146 @@
+{
+  "scheme_id": "NIKSHAY-2024-v1",
+  "canonical_name": "Nikshay Poshan Yojana",
+  "aliases": [
+    "Nikshay Poshan",
+    "TB Nutrition Support",
+    "TB Patient DBT",
+    "Nikshay Yojana",
+    "TB Poshan Yojana",
+    "Nutritional Support for TB Patients"
+  ],
+  "local_names": {
+    "hi": "निक्षय पोषण योजना",
+    "bn": "নিক্ষয় পোষণ যোজনা",
+    "ta": "நிக்ஷய் போஷன் யோஜனா",
+    "te": "నిక్షయ్ పోషణ్ యోజన",
+    "mr": "निक्षय पोषण योजना",
+    "gu": "નિક્ષય પોષણ યોજના",
+    "kn": "ನಿಕ್ಷಯ್ ಪೋಷಣ್ ಯೋಜನೆ",
+    "ml": "നിക്ഷയ് പോഷൺ യോജന",
+    "pa": "ਨਿਕਸ਼ਯ ਪੋਸ਼ਣ ਯੋਜਨਾ",
+    "or": "ନିକ୍ଷୟ ପୋଷଣ ଯୋଜନା"
+  },
+  "state_variant_of": null,
+  "jurisdiction": "central",
+  "state_code": null,
+  "income_thresholds": [],
+  "secc_categories": [],
+  "occupation_included": [
+    "all_notified_TB_patients"
+  ],
+  "occupation_excluded": [],
+  "exclusion_rules": [
+    {
+      "rule_id": "NIKSHAY-EX-001",
+      "exclusion_type": "hard",
+      "field": "tb_status",
+      "condition": "notified_tb_patient == false",
+      "description": "Only TB patients formally notified (registered) on the NIKSHAY portal by a treating physician are eligible",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "NIKSHAY-EX-002",
+      "exclusion_type": "hard",
+      "field": "treatment_status",
+      "condition": "treatment_outcome_declared == true",
+      "description": "Nutrition support stops once treatment outcome is declared (cured, completed, failed, died, lost to follow-up)",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "NIKSHAY-EX-003",
+      "exclusion_type": "hard",
+      "field": "bank_account",
+      "condition": "has_bank_account == false",
+      "description": "Must have a bank account (own or family member's) linked to Aadhaar for receiving DBT payment",
+      "override_by_state": false
+    }
+  ],
+  "age_criteria": null,
+  "family_criteria": {
+    "max_family_size": null,
+    "family_definition": "Individual entitlement per notified TB patient. Each TB patient in a family can receive the benefit independently. No income or family size restriction.",
+    "head_of_family_required": false
+  },
+  "geographic_restrictions": [],
+  "coverage_amount_inr": 12000,
+  "coverage_type": "per_person_per_year",
+  "covered_procedures": [
+    "Monthly nutrition support of Rs 1000 via Direct Benefit Transfer (DBT) to patient's bank account",
+    "Paid for the entire duration of TB treatment (6 months for new cases, 9-20 months for MDR-TB)",
+    "Total Rs 6000 for new TB (6 months) or up to Rs 20000+ for MDR-TB (20 months)",
+    "Nutritional counselling on high-protein diet during TB treatment",
+    "Payment continues even if patient transfers between treatment centres"
+  ],
+  "excluded_procedures": [
+    "TB treatment drugs (free under NTEP/RNTCP separately)",
+    "TB diagnostic tests (free under NTEP)",
+    "Hospitalization for TB (free at government hospitals)",
+    "Non-TB patients or suspected TB cases not yet notified",
+    "Patients who have completed treatment (outcome already declared)",
+    "Any direct medical treatment — this is a nutrition support scheme only"
+  ],
+  "required_documents": [
+    {
+      "name": "NIKSHAY Registration / TB Notification",
+      "category": "medical",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "निक्षय पंजीकरण / टीबी अधिसूचना",
+      "notes": "TB patient must be registered on the NIKSHAY portal (nikshay.in) by the treating doctor. This is the primary eligibility document."
+    },
+    {
+      "name": "Aadhaar Card",
+      "category": "identity",
+      "mandatory": true,
+      "alternatives": ["Voter ID with Aadhaar linkage pending"],
+      "local_name_hi": "आधार कार्ड",
+      "notes": "Required for Aadhaar-based DBT payment. Must be linked to bank account."
+    },
+    {
+      "name": "Bank Account (Aadhaar-linked)",
+      "category": "financial",
+      "mandatory": true,
+      "alternatives": ["Family member's Aadhaar-linked bank account"],
+      "local_name_hi": "बैंक खाता (आधार से जुड़ा)",
+      "notes": "For monthly Rs 1000 DBT transfer. Jan Dhan accounts are also eligible. Can use family member's account if patient doesn't have one."
+    }
+  ],
+  "enrollment_channels": [
+    "Government DOTS Centre / TB Treatment Centre",
+    "District TB Centre (DTC)",
+    "Primary Health Centre / CHC",
+    "Private doctor who notifies on NIKSHAY portal",
+    "Medical college hospital TB clinic",
+    "NIKSHAY portal (nikshay.in) — registration by treating doctor"
+  ],
+  "enrollment_steps": [
+    "Step 1: Get diagnosed with TB at any government or private facility",
+    "Step 2: Treating doctor registers (notifies) the TB case on NIKSHAY portal (nikshay.in)",
+    "Step 3: Patient's Aadhaar number and bank account details entered in NIKSHAY system",
+    "Step 4: TB treatment initiated under DOTS protocol with free medicines from NTEP",
+    "Step 5: First Rs 1000 DBT automatically credited to patient's bank account within 1-2 weeks of notification",
+    "Step 6: Subsequent Rs 1000 payments credited monthly as long as patient is on treatment",
+    "Step 7: Patient takes medicines regularly and attends follow-up visits",
+    "Step 8: Nutrition support continues until treatment outcome is declared on NIKSHAY"
+  ],
+  "processing_time_days": 14,
+  "helpline_number": "1800-11-6666",
+  "portal_url": "https://nikshay.in",
+  "version": "1.0",
+  "effective_date": "2018-04-01",
+  "expiry_date": null,
+  "last_verified": "2026-04-15",
+  "source_url": "https://nikshay.in/Home/AboutNikshayPoshanYojana",
+  "confidence_level": "provisional",
+  "description_for_embedding": "Nikshay Poshan Yojana is a central government nutrition support scheme providing Rs 1000 per month via Direct Benefit Transfer (DBT) to all notified TB patients registered on the NIKSHAY portal for the entire duration of their treatment. For new TB patients this means Rs 6000 over 6 months; for MDR-TB patients it can extend to Rs 20,000+ over 20 months. No income criteria — ALL notified TB patients are eligible regardless of economic status. Requires Aadhaar-linked bank account. TB drugs and diagnostics are provided separately for free under NTEP. This scheme addresses the nutritional needs of TB patients to improve treatment outcomes.",
+  "keywords": [
+    "nikshay", "nikshay poshan", "TB nutrition", "tuberculosis support",
+    "Rs 1000 per month", "DBT", "TB patient", "DOTS",
+    "NTEP", "RNTCP", "TB treatment", "nutrition support",
+    "निक्षय पोषण", "टीबी", "क्षय रोग", "पोषण सहायता",
+    "1000 रुपये", "डीबीटी", "टीबी मरीज", "डॉट्स",
+    "TB monthly support", "MDR-TB", "free TB treatment",
+    "nikshay portal", "1800-11-6666", "central scheme"
+  ]
+}

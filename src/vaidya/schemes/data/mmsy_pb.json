@@ -1,0 +1,195 @@
+{
+  "scheme_id": "MMSY-PB-2024-v1",
+  "canonical_name": "Mukh Mantri Sehat Yojana (Punjab)",
+  "aliases": [
+    "MMSY",
+    "Mukh Mantri Sehat Yojana",
+    "Punjab Sehat Yojana",
+    "Punjab Health Scheme",
+    "AB-MMSY",
+    "Ayushman Bharat Mukh Mantri Sehat Yojana",
+    "Punjab Universal Health Insurance"
+  ],
+  "local_names": {
+    "hi": "मुख मंत्री सेहत योजना (पंजाब)",
+    "bn": "মুখ মন্ত্রী সেহত যোজনা (পাঞ্জাব)",
+    "ta": "முக் மந்திரி செஹத் யோஜனா (பஞ்சாப்)",
+    "te": "ముఖ్ మంత్రి సెహత్ యోజన (పంజాబ్)",
+    "mr": "मुख मंत्री सेहत योजना (पंजाब)",
+    "gu": "મુખ મંત્રી સેહત યોજના (પંજાબ)",
+    "kn": "ಮುಖ್ ಮಂತ್ರಿ ಸೆಹತ್ ಯೋಜನೆ (ಪಂಜಾಬ್)",
+    "ml": "മുഖ് മന്ത്രി സെഹത് യോജന (പഞ്ചാബ്)",
+    "pa": "ਮੁੱਖ ਮੰਤਰੀ ਸੇਹਤ ਯੋਜਨਾ (ਪੰਜਾਬ)",
+    "or": "ମୁଖ ମନ୍ତ୍ରୀ ସେହତ ଯୋଜନା (ପଞ୍ଜାବ)"
+  },
+  "state_variant_of": null,
+  "jurisdiction": "state",
+  "state_code": "PB",
+  "income_thresholds": [
+    {
+      "max_income_inr": 0,
+      "unit": "per_annum",
+      "applies_to": "family",
+      "description": "UNIVERSAL — NO income criteria. ALL Punjab residents are eligible regardless of income. This is the most inclusive state health scheme in India.",
+      "source": "Punjab MMSY / AB-MMSY Government Notification"
+    }
+  ],
+  "secc_categories": [],
+  "occupation_included": [
+    "daily_wage",
+    "farmer",
+    "construction_worker",
+    "street_vendor",
+    "domestic_worker",
+    "government_employee",
+    "private_sector_employee",
+    "self_employed",
+    "professional",
+    "businessman",
+    "all_occupations"
+  ],
+  "occupation_excluded": [],
+  "exclusion_rules": [
+    {
+      "rule_id": "MMSY-EX-001",
+      "exclusion_type": "hard",
+      "field": "residency",
+      "condition": "state_of_residence != 'PB'",
+      "description": "Only residents of Punjab are eligible; must hold valid Punjab domicile or ration card",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "MMSY-EX-002",
+      "exclusion_type": "soft",
+      "field": "documentation",
+      "condition": "no_aadhaar_and_no_ration_card == true",
+      "description": "Families without Aadhaar or Punjab ration card may face delays; alternative identity proof accepted",
+      "override_by_state": false
+    }
+  ],
+  "age_criteria": null,
+  "family_criteria": {
+    "max_family_size": null,
+    "family_definition": "All Punjab residents are covered with NO restriction on family size, NO age restriction, and NO income criteria. Coverage is the highest in India at Rs 10 lakh per family per year. Pre-existing conditions covered with no waiting period.",
+    "head_of_family_required": false
+  },
+  "geographic_restrictions": [],
+  "coverage_amount_inr": 1000000,
+  "coverage_type": "per_family_per_year",
+  "covered_procedures": [
+    "Hospitalization expenses (room, nursing, ICU)",
+    "Pre-hospitalization (up to 3 days before admission)",
+    "Post-hospitalization (up to 15 days after discharge)",
+    "1579 treatment packages across all specialties",
+    "Cardiology (bypass surgery, angioplasty, valve replacement, pacemaker implant)",
+    "Orthopedic (knee replacement, hip replacement, spinal surgery, fracture fixation)",
+    "Oncology (chemotherapy, radiation therapy, surgical oncology, bone marrow transplant)",
+    "Neurosurgery (brain tumor surgery, craniotomy, spinal cord procedures)",
+    "Nephrology (dialysis, renal transplant)",
+    "Liver transplant",
+    "Heart transplant",
+    "Burns treatment and reconstructive surgery",
+    "Neonatal and pediatric surgical care",
+    "Ophthalmology (cataract surgery, retinal surgery, glaucoma)",
+    "ENT surgeries (cochlear implant, tympanoplasty)",
+    "Polytrauma and emergency care",
+    "Gynecological and obstetric procedures",
+    "General surgical procedures",
+    "Pulmonology and respiratory procedures",
+    "Pre-existing conditions covered from day 1 (no waiting period)",
+    "Diagnostics and lab tests during hospitalization",
+    "Medicines and consumables during treatment"
+  ],
+  "excluded_procedures": [
+    "OPD (Out-Patient Department) consultation",
+    "Fertility treatment and IVF",
+    "Cosmetic surgery",
+    "Drug rehabilitation",
+    "Dental treatment (unless requiring hospitalization)",
+    "Spectacles and hearing aids (standalone purchase)",
+    "Vaccination (routine immunization)"
+  ],
+  "required_documents": [
+    {
+      "name": "Aadhaar Card",
+      "category": "identity",
+      "mandatory": true,
+      "alternatives": ["Aadhaar Enrollment ID", "Voter ID with Punjab address"],
+      "local_name_hi": "आधार कार्ड",
+      "notes": "Required for e-KYC verification at empanelled hospital or CSC"
+    },
+    {
+      "name": "Ration Card (Punjab) / Smart Ration Card",
+      "category": "eligibility_proof",
+      "mandatory": false,
+      "alternatives": ["Voter ID with Punjab address", "Punjab Domicile Certificate", "Driving License with Punjab address"],
+      "local_name_hi": "राशन कार्ड (पंजाब) / स्मार्ट राशन कार्ड",
+      "notes": "Any valid proof of Punjab residency accepted. Unlike most schemes, no specific ration card type required since scheme is UNIVERSAL."
+    },
+    {
+      "name": "Mobile Number",
+      "category": "contact",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "मोबाइल नंबर",
+      "notes": "For OTP-based Aadhaar verification and scheme notifications"
+    },
+    {
+      "name": "Family Photo",
+      "category": "identity",
+      "mandatory": false,
+      "alternatives": [],
+      "local_name_hi": "परिवार का फोटो",
+      "notes": "Required for new Ayushman/MMSY card generation"
+    },
+    {
+      "name": "Punjab Residency Proof",
+      "category": "address",
+      "mandatory": true,
+      "alternatives": ["Ration Card", "Voter ID", "Electricity Bill", "Driving License"],
+      "local_name_hi": "पंजाब निवास प्रमाण",
+      "notes": "Any government-issued document confirming Punjab residency is sufficient"
+    }
+  ],
+  "enrollment_channels": [
+    "MMSY empanelled hospital help desk",
+    "Common Service Centre (CSC / Sewa Kendra)",
+    "Punjab State Health Agency (SHA) office",
+    "District hospital MMSY counter",
+    "Ayushman Bharat portal linked to MMSY",
+    "SHA Punjab helpline"
+  ],
+  "enrollment_steps": [
+    "Step 1: ALL Punjab residents are eligible — check enrollment status on sha.punjab.gov.in or call SHA helpline",
+    "Step 2: Visit nearest CSC (Sewa Kendra) or empanelled hospital with Aadhaar and any Punjab residency proof",
+    "Step 3: Complete Aadhaar-based e-KYC (biometric or OTP verification)",
+    "Step 4: Operator verifies Punjab residency from provided documents",
+    "Step 5: MMSY/Ayushman card generated with family member details; valid immediately",
+    "Step 6: For treatment, visit any MMSY-empanelled hospital in Punjab or designated out-of-state hospitals",
+    "Step 7: Cashless treatment up to Rs 10 lakh per family per year; pre-existing conditions covered from day 1"
+  ],
+  "processing_time_days": 1,
+  "helpline_number": "14555",
+  "portal_url": "https://sha.punjab.gov.in",
+  "version": "1.0",
+  "effective_date": "2019-08-20",
+  "expiry_date": null,
+  "last_verified": "2026-04-15",
+  "source_url": "https://sha.punjab.gov.in/",
+  "confidence_level": "provisional",
+  "description_for_embedding": "Mukh Mantri Sehat Yojana (MMSY) is Punjab's UNIVERSAL health insurance scheme providing Rs 10 lakh (Rs 1000000) per family per year — the HIGHEST coverage amount among all state health schemes in India. It covers ALL Punjab residents with NO income criteria, NO age restriction, and NO occupation restriction. The scheme covers 1579 treatment packages across all medical specialties at empanelled hospitals. Pre-existing conditions are covered from day 1 with no waiting period. The scheme integrates with Ayushman Bharat PM-JAY at the central level. Completely free with no premium for any resident. Punjab is the only state offering truly universal Rs 10 lakh coverage to every resident. Portal: sha.punjab.gov.in.",
+  "keywords": [
+    "mmsy", "mukh mantri sehat", "punjab health insurance", "PB health scheme",
+    "sehat yojana", "10 lakh", "1000000", "highest coverage india",
+    "universal", "all residents", "no income criteria", "no age restriction",
+    "1579 packages", "pre-existing covered", "no waiting period",
+    "free treatment", "no premium", "cashless treatment",
+    "hospitalization", "surgery", "empanelled hospital",
+    "ਮੁੱਖ ਮੰਤਰੀ ਸੇਹਤ", "ਪੰਜਾਬ", "ਸਿਹਤ ਯੋਜਨਾ",
+    "मुख मंत्री सेहत", "पंजाब", "स्वास्थ्य बीमा", "मुफ्त इलाज",
+    "सरकारी योजना", "10 लाख", "सबके लिए", "अस्पताल",
+    "14555", "sha.punjab.gov.in",
+    "ab-mmsy", "ayushman bharat punjab", "punjab universal health",
+    "state scheme punjab", "health insurance punjab"
+  ]
+}

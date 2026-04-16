@@ -1,0 +1,161 @@
+{
+  "scheme_id": "PMJJBY-2024-v1",
+  "canonical_name": "Pradhan Mantri Jeevan Jyoti Bima Yojana",
+  "aliases": [
+    "PMJJBY",
+    "PM Jeevan Jyoti",
+    "Jeevan Jyoti Bima",
+    "PM Life Insurance Scheme",
+    "436 Rupee Bima",
+    "Jan Suraksha Life Cover"
+  ],
+  "local_names": {
+    "hi": "प्रधानमंत्री जीवन ज्योति बीमा योजना",
+    "bn": "প্রধানমন্ত্রী জীবন জ্যোতি বীমা যোজনা",
+    "ta": "பிரதான் மந்திரி ஜீவன் ஜோதி பீமா யோஜனா",
+    "te": "ప్రధాన మంత్రి జీవన్ జ్యోతి బీమా యోజన",
+    "mr": "प्रधानमंत्री जीवन ज्योती बीमा योजना",
+    "gu": "પ્રધાનમંત્રી જીવન જ્યોતિ વીમા યોજના",
+    "kn": "ಪ್ರಧಾನ ಮಂತ್ರಿ ಜೀವನ ಜ್ಯೋತಿ ಬೀಮಾ ಯೋಜನೆ",
+    "ml": "പ്രധാൻ മന്ത്രി ജീവൻ ജ്യോതി ബീമ യോജന",
+    "pa": "ਪ੍ਰਧਾਨ ਮੰਤਰੀ ਜੀਵਨ ਜੋਤੀ ਬੀਮਾ ਯੋਜਨਾ",
+    "or": "ପ୍ରଧାନ ମନ୍ତ୍ରୀ ଜୀବନ ଜ୍ୟୋତି ବୀମା ଯୋଜନା"
+  },
+  "state_variant_of": null,
+  "jurisdiction": "central",
+  "state_code": null,
+  "income_thresholds": [],
+  "secc_categories": [],
+  "occupation_included": [
+    "all_bank_account_holders"
+  ],
+  "occupation_excluded": [],
+  "exclusion_rules": [
+    {
+      "rule_id": "PMJJBY-EX-001",
+      "exclusion_type": "hard",
+      "field": "age",
+      "condition": "age < 18 or age > 50",
+      "description": "Only individuals aged 18 to 50 years can enroll. Coverage continues until age 55 if enrolled before 50.",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "PMJJBY-EX-002",
+      "exclusion_type": "hard",
+      "field": "bank_account",
+      "condition": "has_savings_bank_account == false",
+      "description": "Must have an active savings bank account for auto-debit of annual premium of Rs 436",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "PMJJBY-EX-003",
+      "exclusion_type": "hard",
+      "field": "multiple_accounts",
+      "condition": "enrolled_via_another_bank == true",
+      "description": "Can enroll through only ONE savings bank account even if multiple accounts exist",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "PMJJBY-EX-004",
+      "exclusion_type": "hard",
+      "field": "premium_payment",
+      "condition": "premium_not_debited == true",
+      "description": "Policy lapses if Rs 436 annual premium is not auto-debited by May 31 of each year",
+      "override_by_state": false
+    }
+  ],
+  "age_criteria": {
+    "min_age": 18,
+    "max_age": 50,
+    "applies_to": "beneficiary"
+  },
+  "family_criteria": {
+    "max_family_size": null,
+    "family_definition": "Individual scheme — each person must enroll separately with their own bank account. Not a family floater. Multiple family members can each enroll independently.",
+    "head_of_family_required": false
+  },
+  "geographic_restrictions": [],
+  "coverage_amount_inr": 200000,
+  "coverage_type": "per_event",
+  "covered_procedures": [
+    "Death due to any cause (accidental or non-accidental): Rs 2 lakh lump sum to nominee"
+  ],
+  "excluded_procedures": [
+    "Medical treatment expenses (this is life insurance, NOT health insurance)",
+    "Hospitalization costs",
+    "OPD or any medical expenses",
+    "Disability claims (covered under PMSBY instead)",
+    "Partial death benefit — full Rs 2 lakh or nothing"
+  ],
+  "required_documents": [
+    {
+      "name": "Savings Bank Account",
+      "category": "financial",
+      "mandatory": true,
+      "alternatives": ["Jan Dhan Account"],
+      "local_name_hi": "बचत बैंक खाता",
+      "notes": "Active savings account in any scheduled commercial bank, RRB, or cooperative bank. Jan Dhan accounts qualify."
+    },
+    {
+      "name": "Aadhaar Card",
+      "category": "identity",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "आधार कार्ड",
+      "notes": "Must be linked to the bank account for auto-debit consent"
+    },
+    {
+      "name": "Nomination Form",
+      "category": "enrollment",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "नामांकन फॉर्म",
+      "notes": "Must nominate a beneficiary who will receive Rs 2 lakh claim amount upon death. Available at bank branch."
+    },
+    {
+      "name": "Auto-Debit Consent",
+      "category": "payment",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "ऑटो-डेबिट सहमति",
+      "notes": "Written consent for Rs 436/year to be auto-debited from bank account between May 25 and May 31 annually"
+    }
+  ],
+  "enrollment_channels": [
+    "Any bank branch (SBI, PNB, BOB, etc.)",
+    "Net banking portal of your bank",
+    "Mobile banking app of your bank",
+    "Bank Mitra / Business Correspondent in villages",
+    "Jan Dhan account linked enrollment",
+    "Common Service Centre (CSC)"
+  ],
+  "enrollment_steps": [
+    "Step 1: Visit your bank branch or use net banking / mobile banking app",
+    "Step 2: Ask for the PMJJBY enrollment form or select PMJJBY option in digital banking",
+    "Step 3: Fill the form with personal details, bank account number, and nominee details",
+    "Step 4: Provide Aadhaar number for KYC linkage",
+    "Step 5: Sign the auto-debit consent for Rs 436/year premium",
+    "Step 6: Bank processes the enrollment and Rs 436 is debited from your account",
+    "Step 7: Policy certificate generated; coverage period June 1 to May 31 each year",
+    "Step 8: Policy auto-renews annually if sufficient balance (Rs 436) maintained in account"
+  ],
+  "processing_time_days": 3,
+  "helpline_number": "1800-180-1111",
+  "portal_url": "https://www.jansuraksha.gov.in",
+  "version": "1.0",
+  "effective_date": "2015-05-09",
+  "expiry_date": null,
+  "last_verified": "2026-04-15",
+  "source_url": "https://www.jansuraksha.gov.in/Forms-PMJJBY.aspx",
+  "confidence_level": "provisional",
+  "description_for_embedding": "Pradhan Mantri Jeevan Jyoti Bima Yojana (PMJJBY) is a central government LIFE INSURANCE scheme — NOT a health insurance scheme. It provides Rs 2 lakh to the nominee upon the death of the insured (from any cause, accidental or natural) at an annual premium of just Rs 436, auto-debited from the bank account. Eligibility: any individual aged 18-50 with a savings bank account. It does NOT cover hospitalization, medical treatment, or disability. This is a pure term life cover that complements PMSBY (accident insurance) and PM-JAY (health insurance) but does not replace either.",
+  "keywords": [
+    "PMJJBY", "jeevan jyoti bima", "life insurance", "436 rupees",
+    "death cover", "term insurance", "bank account", "Rs 2 lakh",
+    "auto debit", "pradhan mantri", "jan suraksha",
+    "जीवन ज्योति बीमा", "जीवन बीमा", "436 रुपये", "बैंक खाता",
+    "2 लाख", "प्रधानमंत्री", "मृत्यु बीमा", "jansuraksha",
+    "life cover", "death benefit", "term life", "nominee",
+    "premium 436", "bank enrollment", "not health insurance"
+  ]
+}

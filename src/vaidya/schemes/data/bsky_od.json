@@ -1,0 +1,200 @@
+{
+  "scheme_id": "BSKY-OD-2024-v1",
+  "canonical_name": "Biju Swasthya Kalyan Yojana / Gopabandhu Jan Arogya Yojana (Odisha)",
+  "aliases": [
+    "BSKY",
+    "Biju Health Scheme",
+    "Biju Swasthya Kalyan",
+    "Odisha Health Insurance",
+    "BSKY Card",
+    "Gopabandhu Jan Arogya",
+    "GJAY Odisha"
+  ],
+  "local_names": {
+    "hi": "बीजू स्वास्थ्य कल्याण योजना / गोपबंधु जन आरोग्य योजना (ओडिशा)",
+    "bn": "বিজু স্বাস্থ্য কল্যাণ যোজনা / গোপবন্ধু জন আরোগ্য যোজনা (ওড়িশা)",
+    "ta": "பிஜு ஸ்வாஸ்த்ய கல்யாண் யோஜனா / கோபபந்து ஜன் ஆரோக்ய யோஜனா (ஒடிசா)",
+    "te": "బిజు స్వాస్థ్య కల్యాణ్ యోజన / గోపబంధు జన ఆరోగ్య యోజన (ఒడిశా)",
+    "mr": "बीजू स्वास्थ्य कल्याण योजना / गोपबंधु जन आरोग्य योजना (ओडिशा)",
+    "gu": "બિજુ સ્વાસ્થ્ય કલ્યાણ યોજના / ગોપબંધુ જન આરોગ્ય યોજના (ઓડિશા)",
+    "kn": "ಬಿಜು ಸ್ವಾಸ್ಥ್ಯ ಕಲ್ಯಾಣ ಯೋಜನೆ / ಗೋಪಬಂಧು ಜನ ಆರೋಗ್ಯ ಯೋಜನೆ (ಒಡಿಶಾ)",
+    "ml": "ബിജു സ്വാസ്ഥ്യ കല്യാണ്‍ യോജന / ഗോപബന്ധു ജന്‍ ആരോഗ്യ യോജന (ഒഡിഷ)",
+    "pa": "ਬੀਜੂ ਸਵਾਸਥ ਕਲਿਆਣ ਯੋਜਨਾ / ਗੋਪਬੰਧੂ ਜਨ ਆਰੋਗਿਆ ਯੋਜਨਾ (ਓਡੀਸ਼ਾ)",
+    "or": "ବିଜୁ ସ୍ୱାସ୍ଥ୍ୟ କଲ୍ୟାଣ ଯୋଜନା / ଗୋପବନ୍ଧୁ ଜନ ଆରୋଗ୍ୟ ଯୋଜନା (ଓଡ଼ିଶା)"
+  },
+  "state_variant_of": null,
+  "jurisdiction": "state",
+  "state_code": "OD",
+  "income_thresholds": [
+    {
+      "max_income_inr": 0,
+      "unit": "per_annum",
+      "applies_to": "family",
+      "description": "No income threshold for NFSA/SFSS ration card holders who are auto-enrolled. Covers ~90% of Odisha population. Non-NFSA families can also enroll.",
+      "source": "BSKY / Gopabandhu Jan Arogya Guidelines / Odisha Government Notification"
+    }
+  ],
+  "secc_categories": [],
+  "occupation_included": [
+    "daily_wage",
+    "farmer",
+    "construction_worker",
+    "street_vendor",
+    "domestic_worker",
+    "fisherman",
+    "tribal",
+    "government_employee",
+    "private_sector_employee",
+    "self_employed",
+    "all_occupations"
+  ],
+  "occupation_excluded": [],
+  "exclusion_rules": [
+    {
+      "rule_id": "BSKY-EX-001",
+      "exclusion_type": "hard",
+      "field": "residency",
+      "condition": "state_of_residence != 'OD'",
+      "description": "Only residents of Odisha with valid state-issued ration card or domicile proof are eligible",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "BSKY-EX-002",
+      "exclusion_type": "soft",
+      "field": "ration_card",
+      "condition": "ration_card_type == 'none'",
+      "description": "Families without NFSA/SFSS ration card need to apply through district administration for enrollment",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "BSKY-EX-003",
+      "exclusion_type": "soft",
+      "field": "card_issuance",
+      "condition": "card_name != 'woman'",
+      "description": "BSKY card is issued in the name of the woman head of household; male-headed households need to designate a woman member",
+      "override_by_state": false
+    }
+  ],
+  "age_criteria": null,
+  "family_criteria": {
+    "max_family_size": null,
+    "family_definition": "All members listed on the NFSA/SFSS ration card are covered. No cap on family size. BSKY card issued in the name of the woman head of household. Women members get enhanced coverage of Rs 10 lakh per year.",
+    "head_of_family_required": false
+  },
+  "geographic_restrictions": [],
+  "coverage_amount_inr": 500000,
+  "coverage_type": "per_family_per_year",
+  "covered_procedures": [
+    "Hospitalization expenses (room, nursing, ICU)",
+    "Pre-hospitalization (up to 7 days before admission)",
+    "Post-hospitalization (up to 10 days after discharge)",
+    "Cardiology (bypass surgery, angioplasty, valve replacement, pacemaker)",
+    "Orthopedic (knee replacement, hip replacement, spinal surgery, fracture fixation)",
+    "Oncology (chemotherapy, radiation therapy, surgical oncology, bone marrow transplant)",
+    "Neurosurgery (brain tumor surgery, craniotomy, spinal cord procedures)",
+    "Nephrology (dialysis, renal transplant)",
+    "Liver transplant",
+    "Burns treatment and reconstructive surgery",
+    "Neonatal and pediatric care",
+    "Ophthalmology (cataract surgery, retinal procedures, glaucoma)",
+    "ENT surgeries (cochlear implant, tympanoplasty)",
+    "Polytrauma and emergency care",
+    "Gynecological and obstetric procedures",
+    "General surgical procedures",
+    "Diagnostics and lab tests during hospitalization",
+    "Medicines and consumables during treatment",
+    "Enhanced coverage for women members: Rs 10 lakh (Rs 1000000) for all listed procedures"
+  ],
+  "excluded_procedures": [
+    "OPD (Out-Patient Department) consultation",
+    "Fertility treatment and IVF",
+    "Cosmetic surgery",
+    "Drug rehabilitation",
+    "Dental treatment (unless requiring hospitalization)",
+    "Spectacles and hearing aids (standalone purchase)",
+    "Vaccination (routine immunization)"
+  ],
+  "required_documents": [
+    {
+      "name": "Aadhaar Card",
+      "category": "identity",
+      "mandatory": true,
+      "alternatives": ["Aadhaar Enrollment ID"],
+      "local_name_hi": "आधार कार्ड",
+      "notes": "Required for biometric/OTP-based e-KYC at empanelled hospital"
+    },
+    {
+      "name": "Ration Card (Odisha NFSA/SFSS)",
+      "category": "eligibility_proof",
+      "mandatory": true,
+      "alternatives": ["Certificate from District Administration"],
+      "local_name_hi": "राशन कार्ड (ओडिशा NFSA/SFSS)",
+      "notes": "NFSA or SFSS ration card for auto-enrollment; other ration card types also accepted. Covers ~90% state population."
+    },
+    {
+      "name": "BSKY Smart Health Card",
+      "category": "eligibility_proof",
+      "mandatory": false,
+      "alternatives": ["Aadhaar-based verification at hospital"],
+      "local_name_hi": "बीएसकेवाई स्मार्ट हेल्थ कार्ड",
+      "notes": "BSKY smart card issued in woman's name; Aadhaar-based e-KYC also accepted"
+    },
+    {
+      "name": "Mobile Number",
+      "category": "contact",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "मोबाइल नंबर",
+      "notes": "For OTP verification and scheme communication"
+    },
+    {
+      "name": "Address Proof",
+      "category": "address",
+      "mandatory": false,
+      "alternatives": ["Ration Card", "Voter ID", "Electricity Bill"],
+      "local_name_hi": "पता प्रमाण",
+      "notes": "Odisha residency verification; ration card usually serves this purpose"
+    }
+  ],
+  "enrollment_channels": [
+    "BSKY empanelled hospital help desk",
+    "District hospital BSKY counter",
+    "Mo Seva Kendra (Common Service Centre)",
+    "Block Development Office",
+    "BSKY official portal (bsky.odisha.gov.in)",
+    "Odisha helpline (155369)"
+  ],
+  "enrollment_steps": [
+    "Step 1: NFSA/SFSS ration card holders are auto-enrolled; check status on bsky.odisha.gov.in or call 155369",
+    "Step 2: Collect BSKY Smart Health Card (issued in woman's name) from nearest distribution camp or Mo Seva Kendra",
+    "Step 3: If not auto-enrolled, visit Block office or Mo Seva Kendra with Aadhaar and ration card",
+    "Step 4: Complete Aadhaar-based e-KYC for card generation",
+    "Step 5: BSKY Smart Card generated with QR code for all family members",
+    "Step 6: For treatment, visit any BSKY-empanelled hospital (in Odisha or designated out-of-state hospitals)",
+    "Step 7: Cashless treatment after pre-authorization; women automatically get Rs 10 lakh coverage; scheme now joined PM-JAY since Jan 2025"
+  ],
+  "processing_time_days": 1,
+  "helpline_number": "155369",
+  "portal_url": "https://bsky.odisha.gov.in",
+  "version": "1.0",
+  "effective_date": "2018-08-15",
+  "expiry_date": null,
+  "last_verified": "2026-04-15",
+  "source_url": "https://bsky.odisha.gov.in/",
+  "confidence_level": "provisional",
+  "description_for_embedding": "Biju Swasthya Kalyan Yojana (BSKY) / Gopabandhu Jan Arogya Yojana is Odisha's near-universal health insurance scheme providing Rs 5 lakh (Rs 500000) per family per year for hospitalization, with enhanced coverage of Rs 10 lakh (Rs 1000000) per year for WOMEN members. NFSA/SFSS ration card holders (~90% of the state population) are auto-enrolled with no income threshold. The BSKY card is issued in the woman's name. Odisha joined PM-JAY in January 2025 integrating both central and state benefits. The scheme covers over 1000 medical and surgical procedures at empanelled hospitals within Odisha and designated out-of-state hospitals. Completely free with no premium. Helpline: 155369. Portal: bsky.odisha.gov.in.",
+  "keywords": [
+    "bsky", "biju swasthya kalyan", "odisha health insurance", "OD health scheme",
+    "gopabandhu jan arogya", "GJAY",
+    "5 lakh", "500000", "10 lakh women", "1000000",
+    "universal coverage", "90% population", "NFSA", "SFSS",
+    "ration card", "free treatment", "no income threshold",
+    "hospitalization", "surgery", "cashless treatment", "smart health card",
+    "woman card", "card in woman name", "pm-jay jan 2025",
+    "ବିଜୁ ସ୍ୱାସ୍ଥ୍ୟ", "ଓଡ଼ିଶା", "ସ୍ୱାସ୍ଥ୍ୟ କଲ୍ୟାଣ", "ଗୋପବନ୍ଧୁ",
+    "बीजू स्वास्थ्य", "ओडिशा", "गोपबंधु", "स्वास्थ्य बीमा", "मुफ्त इलाज",
+    "सरकारी योजना", "महिला 10 लाख", "राशन कार्ड", "अस्पताल",
+    "155369", "bsky.odisha.gov.in",
+    "biju health scheme", "odisha health card", "BSKY card", "state scheme odisha"
+  ]
+}

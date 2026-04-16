@@ -1,0 +1,181 @@
+{
+  "scheme_id": "ATAL-UK-2024-v1",
+  "canonical_name": "Atal Ayushman Uttarakhand Yojana",
+  "aliases": [
+    "Atal Ayushman",
+    "AAUY",
+    "Uttarakhand Ayushman",
+    "UK Health Scheme",
+    "Atal Ayushman Uttarakhand"
+  ],
+  "local_names": {
+    "hi": "अटल आयुष्मान उत्तराखंड योजना",
+    "bn": "অটল আয়ুষ্মান উত্তরাখণ্ড যোজনা",
+    "ta": "அடல் ஆயுஷ்மான் உத்தரகண்ட் யோஜனா",
+    "te": "అటల్ ఆయుష్మాన్ ఉత్తరాఖండ్ యోజన",
+    "mr": "अटल आयुष्मान उत्तराखंड योजना",
+    "gu": "અટલ આયુષ્માન ઉત્તરાખંડ યોજના",
+    "kn": "ಅಟಲ್ ಆಯುಷ್ಮಾನ್ ಉತ್ತರಾಖಂಡ್ ಯೋಜನೆ",
+    "ml": "അടൽ ആയുഷ്മാൻ ഉത്തരാഖണ്ഡ് യോജന",
+    "pa": "ਅਟਲ ਆਯੁਸ਼ਮਾਨ ਉੱਤਰਾਖੰਡ ਯੋਜਨਾ",
+    "or": "ଅଟଳ ଆୟୁଷ୍ମାନ ଉତ୍ତରାଖଣ୍ଡ ଯୋଜନା"
+  },
+  "state_variant_of": null,
+  "jurisdiction": "state",
+  "state_code": "UK",
+  "income_thresholds": [
+    {
+      "max_income_inr": 0,
+      "unit": "per_annum",
+      "applies_to": "family",
+      "description": "UNIVERSAL COVERAGE — NO income limit. ALL permanent residents of Uttarakhand are eligible regardless of income. First state in India to provide universal health coverage to all residents.",
+      "source": "Uttarakhand State Government GO 2018 / AAUY Portal"
+    }
+  ],
+  "secc_categories": [],
+  "occupation_included": [
+    "all_uttarakhand_permanent_residents",
+    "farmer",
+    "daily_wage",
+    "self_employed",
+    "salaried_private",
+    "student",
+    "homemaker",
+    "retired",
+    "tribal",
+    "construction_worker"
+  ],
+  "occupation_excluded": [],
+  "exclusion_rules": [
+    {
+      "rule_id": "ATAL-UK-EX-001",
+      "exclusion_type": "hard",
+      "field": "state",
+      "condition": "state != 'UK'",
+      "description": "Only permanent residents of Uttarakhand are eligible. Must have valid Uttarakhand domicile or residence proof.",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "ATAL-UK-EX-002",
+      "exclusion_type": "hard",
+      "field": "existing_coverage",
+      "condition": "existing_coverage == 'CGHS'",
+      "description": "Families covered under CGHS (Central Government Health Scheme) are excluded",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "ATAL-UK-EX-003",
+      "exclusion_type": "hard",
+      "field": "existing_coverage",
+      "condition": "has_other_govt_health_insurance == true",
+      "description": "Families already covered under any other government health insurance scheme are excluded to avoid duplication",
+      "override_by_state": false
+    }
+  ],
+  "age_criteria": null,
+  "family_criteria": {
+    "max_family_size": null,
+    "family_definition": "Family as defined in ration card or Aadhaar-linked family unit. All members are covered. Coverage is floater across all family members. No cap on family size.",
+    "head_of_family_required": false
+  },
+  "geographic_restrictions": [],
+  "coverage_amount_inr": 500000,
+  "coverage_type": "per_family_per_year",
+  "covered_procedures": [
+    "Hospitalization expenses (room, nursing, ICU)",
+    "Pre-hospitalization (up to 3 days before admission)",
+    "Post-hospitalization (up to 15 days after discharge)",
+    "Surgical procedures across 26 specialties",
+    "Cardiology (bypass surgery, angioplasty, valve replacement)",
+    "Orthopedic (knee replacement, hip replacement)",
+    "Oncology (chemotherapy, radiation, surgical oncology)",
+    "Neurosurgery",
+    "Burns treatment",
+    "Dialysis",
+    "Emergency care",
+    "Neonatal and pediatric care",
+    "Cataract surgery",
+    "Cochlear implant",
+    "Mental health treatment",
+    "Day-care procedures",
+    "Diagnostics and lab tests during hospitalization",
+    "Medicines and consumables during treatment"
+  ],
+  "excluded_procedures": [
+    "OPD (Out-Patient Department) consultation",
+    "Fertility treatment and IVF",
+    "Cosmetic surgery",
+    "Organ transplantation (except cornea and renal)",
+    "Drug rehabilitation",
+    "Vaccination (routine immunization)"
+  ],
+  "required_documents": [
+    {
+      "name": "Aadhaar Card",
+      "category": "identity",
+      "mandatory": true,
+      "alternatives": ["Aadhaar Enrollment ID"],
+      "local_name_hi": "आधार कार्ड",
+      "notes": "Required for e-KYC verification at empanelled hospital or CSC"
+    },
+    {
+      "name": "Uttarakhand Domicile / Residence Proof",
+      "category": "eligibility_proof",
+      "mandatory": true,
+      "alternatives": ["Ration Card issued in UK", "Voter ID with UK address", "Utility bill with UK address"],
+      "local_name_hi": "उत्तराखंड निवास प्रमाण पत्र",
+      "notes": "Must prove permanent residency in Uttarakhand. Ration card, voter ID, or utility bill with UK address accepted."
+    },
+    {
+      "name": "Mobile Number",
+      "category": "contact",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "मोबाइल नंबर",
+      "notes": "Linked to Aadhaar for OTP-based verification"
+    },
+    {
+      "name": "Family Photo",
+      "category": "identity",
+      "mandatory": false,
+      "alternatives": [],
+      "local_name_hi": "परिवार का फोटो",
+      "notes": "Required for new Atal Ayushman card generation"
+    }
+  ],
+  "enrollment_channels": [
+    "Atal Ayushman portal (ayushmanuttarakhand.org)",
+    "Common Service Centre (CSC)",
+    "Empanelled hospital Ayushman Mitra desk",
+    "District hospital help desk",
+    "Tehsil / Block-level enrollment camps"
+  ],
+  "enrollment_steps": [
+    "Step 1: Check eligibility at ayushmanuttarakhand.org or call 155368 / 104 with Aadhaar number",
+    "Step 2: Visit nearest CSC or empanelled hospital with Aadhaar and Uttarakhand residence proof",
+    "Step 3: Complete e-KYC verification (Aadhaar biometric or OTP)",
+    "Step 4: Operator verifies Uttarakhand residency in the system",
+    "Step 5: Family photograph taken and uploaded",
+    "Step 6: Atal Ayushman card (Golden Card) generated and printed",
+    "Step 7: Card valid immediately; present at any empanelled hospital in Uttarakhand for cashless treatment up to Rs 5 lakh"
+  ],
+  "processing_time_days": 1,
+  "helpline_number": "155368",
+  "portal_url": "https://ayushmanuttarakhand.org",
+  "version": "1.0",
+  "effective_date": "2019-03-01",
+  "expiry_date": null,
+  "last_verified": "2026-04-15",
+  "source_url": "https://ayushmanuttarakhand.org",
+  "confidence_level": "provisional",
+  "description_for_embedding": "Atal Ayushman Uttarakhand Yojana is a universal state health insurance scheme providing Rs 5 lakh per family per year to ALL permanent residents of Uttarakhand — with NO income limit. Uttarakhand was the first state in India to extend Ayushman Bharat coverage universally to all residents regardless of economic status. The only exclusion is families already covered under CGHS or other government health insurance. Covers hospitalization, surgery, and medical treatment across 26 specialties at empanelled hospitals. Enrollment via ayushmanuttarakhand.org or CSC. Helplines: 155368 and 104.",
+  "keywords": [
+    "atal ayushman", "uttarakhand", "UK health scheme", "universal coverage",
+    "no income limit", "all residents", "5 lakh", "state scheme",
+    "cashless treatment", "first universal state scheme",
+    "अटल आयुष्मान", "उत्तराखंड", "सभी निवासी", "कोई आय सीमा नहीं",
+    "5 लाख", "मुफ्त इलाज", "सार्वभौमिक कवरेज",
+    "ayushmanuttarakhand.org", "155368", "104", "UK state insurance",
+    "golden card", "aauy"
+  ]
+}

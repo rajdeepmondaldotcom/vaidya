@@ -1,0 +1,220 @@
+{
+  "scheme_id": "KASP-KL-2024-v1",
+  "canonical_name": "Karunya Arogya Suraksha Padhathi (Kerala)",
+  "aliases": [
+    "KASP",
+    "Karunya Health Scheme",
+    "Kerala Arogya Suraksha Padhathi",
+    "Karunya Benevolent Fund",
+    "Kerala Health Insurance Scheme",
+    "AB-PMJAY KASP",
+    "Kerala Ayushman"
+  ],
+  "local_names": {
+    "hi": "कारुण्य आरोग्य सुरक्षा पद्धति (केरल)",
+    "bn": "কারুণ্য আরোগ্য সুরক্ষা পদ্ধতি (কেরল)",
+    "ta": "காருண்ய ஆரோக்ய சுரக்ஷா பத்ததி (கேரளா)",
+    "te": "కారుణ్య ఆరోగ్య సురక్ష పద్ధతి (కేరళ)",
+    "mr": "कारुण्य आरोग्य सुरक्षा पद्धती (केरळ)",
+    "gu": "કારુણ્ય આરોગ્ય સુરક્ષા પદ્ધતિ (કેરળ)",
+    "kn": "ಕಾರುಣ್ಯ ಆರೋಗ್ಯ ಸುರಕ್ಷಾ ಪದ್ಧತಿ (ಕೇರಳ)",
+    "ml": "കാരുണ്യ ആരോഗ്യ സുരക്ഷ പദ്ധതി (കേരളം)",
+    "pa": "ਕਾਰੁਣਯ ਆਰੋਗਯ ਸੁਰੱਖਿਆ ਪੱਧਤੀ (ਕੇਰਲ)",
+    "or": "କାରୁଣ୍ୟ ଆରୋଗ୍ୟ ସୁରକ୍ଷା ପଦ୍ଧତି (କେରଳ)"
+  },
+  "state_variant_of": null,
+  "jurisdiction": "state",
+  "state_code": "KL",
+  "income_thresholds": [
+    {
+      "max_income_inr": 300000,
+      "unit": "per_annum",
+      "applies_to": "family",
+      "description": "Annual family income must be below Rs 3 lakh; BPL families with priority ration cards automatically eligible. Covers the lowest 40% families (~42 lakh families in Kerala).",
+      "source": "Kerala KASP Guidelines / Kerala Government Order"
+    }
+  ],
+  "secc_categories": ["D1", "D2", "D3", "D4", "D5"],
+  "occupation_included": [
+    "daily_wage",
+    "farmer",
+    "construction_worker",
+    "fisherman",
+    "coir_worker",
+    "cashew_worker",
+    "toddy_tapper",
+    "plantation_worker",
+    "domestic_worker",
+    "auto_rickshaw_driver",
+    "small_trader",
+    "landless_household"
+  ],
+  "occupation_excluded": [
+    "government_employee",
+    "income_tax_payer",
+    "employer_insured"
+  ],
+  "exclusion_rules": [
+    {
+      "rule_id": "KASP-EX-001",
+      "exclusion_type": "hard",
+      "field": "income_tax",
+      "condition": "pays_income_tax == true",
+      "description": "Any family member paying income tax disqualifies the household",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "KASP-EX-002",
+      "exclusion_type": "hard",
+      "field": "occupation_type",
+      "condition": "occupation_type == 'salaried_govt'",
+      "description": "Government employees and pensioners covered under separate Kerala govt medical schemes",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "KASP-EX-003",
+      "exclusion_type": "hard",
+      "field": "existing_coverage",
+      "condition": "existing_coverage == 'employer'",
+      "description": "Families with employer-provided health insurance are excluded",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "KASP-EX-004",
+      "exclusion_type": "soft",
+      "field": "ration_card_type",
+      "condition": "ration_card_type not in ['priority', 'AAY', 'BPL']",
+      "description": "Non-priority ration card holders may need additional income verification for eligibility",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "KASP-EX-005",
+      "exclusion_type": "soft",
+      "field": "pre_existing_conditions",
+      "condition": "false",
+      "description": "NO exclusion for pre-existing conditions; all pre-existing conditions are covered from day 1 with no waiting period",
+      "override_by_state": false
+    }
+  ],
+  "age_criteria": null,
+  "family_criteria": {
+    "max_family_size": null,
+    "family_definition": "All members listed on the ration card are covered. Includes head of family, spouse, children, and dependent parents. No cap on family size. Approximately 42 lakh families (lowest 40%) eligible.",
+    "head_of_family_required": false
+  },
+  "geographic_restrictions": [],
+  "coverage_amount_inr": 500000,
+  "coverage_type": "per_family_per_year",
+  "covered_procedures": [
+    "Hospitalization expenses (room, nursing, ICU)",
+    "Pre-hospitalization (up to 7 days before admission)",
+    "Post-hospitalization (up to 10 days after discharge)",
+    "Pre-existing conditions covered from day 1 (no waiting period)",
+    "Cardiology (bypass surgery, angioplasty, valve replacement, pacemaker)",
+    "Orthopedic (knee replacement, hip replacement, spinal surgery)",
+    "Oncology (chemotherapy, radiation, surgical oncology)",
+    "Neurosurgery (brain surgery, spinal cord procedures, craniotomy)",
+    "Nephrology (dialysis, renal transplant)",
+    "Burns treatment and reconstructive plastic surgery",
+    "Neonatal and pediatric surgical care",
+    "Ophthalmology (cataract, retinal surgery, glaucoma treatment)",
+    "ENT surgeries (cochlear implant, tonsillectomy)",
+    "Polytrauma and emergency care",
+    "Liver and gastrointestinal surgery",
+    "Gynecological and obstetric procedures",
+    "Pulmonology procedures",
+    "General surgical procedures",
+    "Diagnostics and lab tests during hospitalization",
+    "Medicines and consumables during treatment"
+  ],
+  "excluded_procedures": [
+    "OPD (Out-Patient Department) consultation",
+    "Fertility treatment and IVF",
+    "Cosmetic surgery",
+    "Drug rehabilitation",
+    "Dental treatment (unless requiring hospitalization)",
+    "Spectacles and hearing aids (standalone purchase)",
+    "Vaccination (routine immunization)"
+  ],
+  "required_documents": [
+    {
+      "name": "Aadhaar Card",
+      "category": "identity",
+      "mandatory": true,
+      "alternatives": ["Aadhaar Enrollment ID"],
+      "local_name_hi": "आधार कार्ड",
+      "notes": "Required for Aadhaar-based e-KYC verification at empanelled hospital or Akshaya centre"
+    },
+    {
+      "name": "Ration Card (Kerala)",
+      "category": "eligibility_proof",
+      "mandatory": true,
+      "alternatives": ["BPL Certificate from Kerala Revenue Department"],
+      "local_name_hi": "राशन कार्ड (केरल)",
+      "notes": "Priority (pink) or AAY (yellow) ration card required; primary eligibility proof"
+    },
+    {
+      "name": "Income Certificate",
+      "category": "eligibility_proof",
+      "mandatory": false,
+      "alternatives": ["BPL Certificate", "Village Officer Certificate"],
+      "local_name_hi": "आय प्रमाण पत्र",
+      "notes": "Needed if ration card type alone does not confirm BPL status or income below Rs 3 lakh"
+    },
+    {
+      "name": "Mobile Number",
+      "category": "contact",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "मोबाइल नंबर",
+      "notes": "For OTP verification and scheme notifications"
+    },
+    {
+      "name": "Referral Letter",
+      "category": "eligibility_proof",
+      "mandatory": false,
+      "alternatives": ["Emergency admission — referral waived"],
+      "local_name_hi": "रेफरल पत्र",
+      "notes": "Referral from government hospital/PHC preferred but not mandatory for emergencies"
+    }
+  ],
+  "enrollment_channels": [
+    "KASP empanelled hospital help desk",
+    "Akshaya centres (Common Service Centres in Kerala)",
+    "Kerala State Health Agency (SHA) office",
+    "District hospital help desk",
+    "Disha helpline (1056)",
+    "Primary Health Centre (PHC)"
+  ],
+  "enrollment_steps": [
+    "Step 1: Check eligibility at Akshaya centre or call Disha helpline 1056 with ration card details",
+    "Step 2: Visit nearest KASP-empanelled hospital or Akshaya centre with Aadhaar and ration card",
+    "Step 3: Complete Aadhaar-based e-KYC (biometric or OTP verification)",
+    "Step 4: Operator verifies ration card and BPL status against Kerala Civil Supplies database",
+    "Step 5: KASP beneficiary card generated under integrated AB-PMJAY umbrella linking Aadhaar to ration card family details",
+    "Step 6: For treatment, visit empanelled hospital; pre-authorization raised by hospital",
+    "Step 7: Cashless treatment provided after approval; pre-existing conditions covered from day 1 with no waiting period"
+  ],
+  "processing_time_days": 2,
+  "helpline_number": "1056",
+  "portal_url": "https://sha.kerala.gov.in",
+  "version": "1.0",
+  "effective_date": "2019-04-01",
+  "expiry_date": null,
+  "last_verified": "2026-04-15",
+  "source_url": "https://sha.kerala.gov.in/",
+  "confidence_level": "provisional",
+  "description_for_embedding": "Karunya Arogya Suraksha Padhathi (KASP) is Kerala's state health insurance scheme providing Rs 5 lakh (Rs 500000) per family per year for secondary and tertiary hospitalization. It covers the lowest 40% of families in Kerala (~42 lakh families) with annual income below Rs 3 lakh holding BPL/priority ration cards. KASP is integrated under the AB-PMJAY (Ayushman Bharat) umbrella and enrollment is done via Akshaya centres across Kerala. A key benefit is that all pre-existing conditions are covered from day 1 with no waiting period. The scheme covers over 900 medical and surgical procedures at empanelled government and private hospitals. Formerly known as RSBY and CHIS Plus, the scheme was restructured as KASP in 2019. Free cashless treatment for eligible families. Portal: sha.kerala.gov.in.",
+  "keywords": [
+    "kasp", "karunya", "kerala health insurance", "KL health scheme",
+    "karunya arogya suraksha", "5 lakh", "500000", "BPL", "ration card",
+    "free treatment", "hospitalization", "surgery", "cashless treatment",
+    "empanelled hospital", "pre-existing covered", "no waiting period",
+    "42 lakh families", "lowest 40%", "akshaya centre", "ab-pmjay",
+    "കാരുണ്യ", "ആരോഗ്യ സുരക്ഷ", "കേരളം",
+    "कारुण्य", "केरल", "स्वास्थ्य बीमा", "मुफ्त इलाज", "सरकारी योजना",
+    "राशन कार्ड", "अस्पताल", "1056 helpline",
+    "kerala arogya suraksha", "CHIS plus", "health insurance kerala",
+    "state scheme", "sha.kerala.gov.in"
+  ]
+}

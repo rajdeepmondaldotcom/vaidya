@@ -1,0 +1,194 @@
+{
+  "scheme_id": "HMDG-2024-v1",
+  "canonical_name": "Health Minister's Discretionary Grant",
+  "aliases": [
+    "HMDG",
+    "Health Minister Discretionary Fund",
+    "HMDG Scheme",
+    "Health Minister's Fund",
+    "Discretionary Medical Grant"
+  ],
+  "local_names": {
+    "hi": "स्वास्थ्य मंत्री विवेकाधीन अनुदान",
+    "bn": "স্বাস্থ্য মন্ত্রীর বিবেচনামূলক অনুদান",
+    "ta": "சுகாதார அமைச்சரின் விருப்பநிதி மானியம்",
+    "te": "ఆరోగ్య మంత్రి విచక్షణా నిధి",
+    "mr": "आरोग्य मंत्री विवेकाधीन अनुदान",
+    "gu": "આરોગ્ય મંત્રી વિવેકાધીન અનુદાન",
+    "kn": "ಆರೋಗ್ಯ ಸಚಿವರ ವಿವೇಚನಾ ಅನುದಾನ",
+    "ml": "ആരോഗ്യ മന്ത്രിയുടെ വിവേചനാധികാര ഗ്രാന്റ്",
+    "pa": "ਸਿਹਤ ਮੰਤਰੀ ਵਿਵੇਕਾਧੀਨ ਗ੍ਰਾਂਟ",
+    "or": "ସ୍ୱାସ୍ଥ୍ୟ ମନ୍ତ୍ରୀଙ୍କ ବିବେଚନାଧୀନ ଅନୁଦାନ"
+  },
+  "state_variant_of": null,
+  "jurisdiction": "central",
+  "state_code": null,
+  "income_thresholds": [
+    {
+      "max_income_inr": 125000,
+      "unit": "per_annum",
+      "applies_to": "family",
+      "description": "Annual family income must be below Rs 1,25,000 (Rs 1.25 lakh). BPL families are automatically eligible.",
+      "source": "Ministry of Health and Family Welfare / HMDG Guidelines"
+    }
+  ],
+  "secc_categories": ["D1", "D2", "D3", "D4", "D5", "D6", "D7"],
+  "occupation_included": [
+    "BPL_family",
+    "daily_wage",
+    "farmer",
+    "unorganized_sector_worker",
+    "destitute"
+  ],
+  "occupation_excluded": [
+    "government_employee",
+    "PSU_employee",
+    "income_tax_payer"
+  ],
+  "exclusion_rules": [
+    {
+      "rule_id": "HMDG-EX-001",
+      "exclusion_type": "hard",
+      "field": "income",
+      "condition": "family_income > 125000",
+      "description": "Family annual income must be Rs 1,25,000 or below to qualify",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "HMDG-EX-002",
+      "exclusion_type": "hard",
+      "field": "hospital_type",
+      "condition": "hospital_type != 'government'",
+      "description": "Treatment must be at a government hospital only. Private hospitals are NOT eligible.",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "HMDG-EX-003",
+      "exclusion_type": "hard",
+      "field": "employment_type",
+      "condition": "employment_type == 'government' or employment_type == 'PSU'",
+      "description": "Government employees and Public Sector Undertaking (PSU) employees and their dependents are NOT eligible",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "HMDG-EX-004",
+      "exclusion_type": "hard",
+      "field": "disease_type",
+      "condition": "disease == 'tuberculosis'",
+      "description": "TB patients are NOT eligible under HMDG as TB treatment is free under the National TB Elimination Programme (NTEP/RNTCP)",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "HMDG-EX-005",
+      "exclusion_type": "hard",
+      "field": "disease_severity",
+      "condition": "disease_is_life_threatening == false",
+      "description": "Only life-threatening diseases requiring urgent treatment are eligible",
+      "override_by_state": false
+    }
+  ],
+  "age_criteria": null,
+  "family_criteria": {
+    "max_family_size": null,
+    "family_definition": "Assistance is to the individual patient from a poor family. Family income (all earning members combined) must be below Rs 1.25 lakh per annum. Government and PSU employees' families are excluded.",
+    "head_of_family_required": false
+  },
+  "geographic_restrictions": [],
+  "coverage_amount_inr": 125000,
+  "coverage_type": "per_event",
+  "covered_procedures": [
+    "Heart surgery and cardiac procedures at government hospitals",
+    "Cancer treatment (surgery, chemotherapy, radiation) at government hospitals",
+    "Kidney disease treatment and transplant at government hospitals",
+    "Liver disease treatment at government hospitals",
+    "Neurosurgery for life-threatening conditions",
+    "Major burns treatment",
+    "Any life-threatening disease requiring treatment at government hospitals"
+  ],
+  "excluded_procedures": [
+    "Treatment at private hospitals",
+    "Tuberculosis treatment (free under NTEP)",
+    "Routine or non-life-threatening conditions",
+    "OPD expenses",
+    "Treatment for government employees or PSU employees",
+    "Cosmetic or elective surgery",
+    "Treatment already covered under CGHS, ESIC, PM-JAY, or other government schemes"
+  ],
+  "required_documents": [
+    {
+      "name": "BPL Certificate / Income Certificate",
+      "category": "eligibility_proof",
+      "mandatory": true,
+      "alternatives": ["Ration Card (BPL)", "SECC Inclusion Letter"],
+      "local_name_hi": "बीपीएल प्रमाण पत्र / आय प्रमाण पत्र",
+      "notes": "Income certificate from SDM/Tehsildar showing family income below Rs 1.25 lakh per annum"
+    },
+    {
+      "name": "Aadhaar Card",
+      "category": "identity",
+      "mandatory": true,
+      "alternatives": ["Voter ID with address proof"],
+      "local_name_hi": "आधार कार्ड",
+      "notes": "For identity verification"
+    },
+    {
+      "name": "Medical Report and Treatment Estimate",
+      "category": "medical",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "चिकित्सा रिपोर्ट और उपचार अनुमान",
+      "notes": "Medical report with diagnosis, treatment plan, and cost estimate from treating government hospital"
+    },
+    {
+      "name": "Application Letter to Health Minister",
+      "category": "enrollment",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "स्वास्थ्य मंत्री को आवेदन पत्र",
+      "notes": "Written application addressed to the Union Health Minister requesting financial assistance"
+    },
+    {
+      "name": "Declaration of No Other Coverage",
+      "category": "eligibility_proof",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "अन्य कवरेज न होने की घोषणा",
+      "notes": "Declaration that patient is not covered under CGHS, ESIC, or any employer-provided health scheme"
+    }
+  ],
+  "enrollment_channels": [
+    "Written application to Union Health Minister's office",
+    "Through treating government hospital",
+    "Through Member of Parliament (MP) referral",
+    "Ministry of Health and Family Welfare (postal/online)"
+  ],
+  "enrollment_steps": [
+    "Step 1: Get admitted at a government hospital for treatment of life-threatening disease",
+    "Step 2: Treating doctor prepares medical report with diagnosis and cost estimate",
+    "Step 3: Write application to Union Health Minister requesting financial assistance",
+    "Step 4: Attach BPL/income certificate, Aadhaar, medical report, and declaration of no other coverage",
+    "Step 5: Submit application through hospital, directly to Ministry, or through local MP",
+    "Step 6: Health Minister's office reviews and may approve grant of up to Rs 1,25,000",
+    "Step 7: Grant amount released to the government hospital for the patient's treatment",
+    "Step 8: Hospital provides treatment; utilization certificate submitted to Ministry"
+  ],
+  "processing_time_days": 45,
+  "helpline_number": "011-23061863",
+  "portal_url": "https://mohfw.gov.in",
+  "version": "1.0",
+  "effective_date": "1988-01-01",
+  "expiry_date": null,
+  "last_verified": "2026-04-15",
+  "source_url": "https://mohfw.gov.in/Major-Programmes/health-ministers-discretionary-grant",
+  "confidence_level": "provisional",
+  "description_for_embedding": "Health Minister's Discretionary Grant (HMDG) is a central government scheme providing up to Rs 1.25 lakh for poor patients with life-threatening diseases being treated at government hospitals. Family income must be below Rs 1.25 lakh per annum. Government employees and PSU employees are NOT eligible. TB patients are NOT eligible (TB treatment is free under NTEP). The grant is released at the discretion of the Union Health Minister based on application with medical documents and income proof. Only covers treatment at government hospitals, not private facilities.",
+  "keywords": [
+    "HMDG", "health minister grant", "discretionary grant", "Rs 1.25 lakh",
+    "BPL", "life-threatening", "government hospital", "poor patients",
+    "financial assistance", "medical grant", "health minister fund",
+    "स्वास्थ्य मंत्री अनुदान", "विवेकाधीन अनुदान", "गरीब मरीज",
+    "बीपीएल", "सरकारी अस्पताल", "जानलेवा बीमारी", "1.25 लाख",
+    "not for govt employees", "not for PSU", "not for TB",
+    "medical treatment fund", "central scheme", "income below 1.25 lakh"
+  ]
+}

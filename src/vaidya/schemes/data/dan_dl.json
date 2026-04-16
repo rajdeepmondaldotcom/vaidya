@@ -1,0 +1,195 @@
+{
+  "scheme_id": "DAN-DL-2024-v1",
+  "canonical_name": "Delhi Arogya Nidhi",
+  "aliases": [
+    "DAN",
+    "Arogya Nidhi",
+    "Delhi Health Fund Nidhi",
+    "Delhi Arogya Nidhi Scheme",
+    "Delhi Treatment Fund"
+  ],
+  "local_names": {
+    "hi": "दिल्ली आरोग्य निधि",
+    "bn": "দিল্লি আরোগ্য নিধি",
+    "ta": "டெல்லி ஆரோக்ய நிதி",
+    "te": "ఢిల్లీ ఆరోగ్య నిధి",
+    "mr": "दिल्ली आरोग्य निधी",
+    "gu": "દિલ્હી આરોગ્ય નિધિ",
+    "kn": "ದೆಹಲಿ ಆರೋಗ್ಯ ನಿಧಿ",
+    "ml": "ഡൽഹി ആരോഗ്യ നിധി",
+    "pa": "ਦਿੱਲੀ ਆਰੋਗਿਆ ਨਿਧੀ",
+    "or": "ଦିଲ୍ଲୀ ଆରୋଗ୍ୟ ନିଧି"
+  },
+  "state_variant_of": null,
+  "jurisdiction": "state",
+  "state_code": "DL",
+  "income_thresholds": [
+    {
+      "max_income_inr": 0,
+      "unit": "per_annum",
+      "applies_to": "family",
+      "description": "No direct income threshold. Targeted at NFSA ration card holders in Delhi who have resided in Delhi for at least 3 years. Covers treatment at Delhi government hospitals only.",
+      "source": "Delhi Government / DGEHS"
+    }
+  ],
+  "secc_categories": [],
+  "occupation_included": [
+    "nfsa_card_holder",
+    "bpl_family",
+    "daily_wage",
+    "domestic_worker",
+    "auto_rickshaw_driver",
+    "street_vendor",
+    "construction_worker",
+    "sanitation_worker"
+  ],
+  "occupation_excluded": [
+    "government_employee",
+    "income_tax_payer",
+    "employer_insured"
+  ],
+  "exclusion_rules": [
+    {
+      "rule_id": "DAN-DL-EX-001",
+      "exclusion_type": "hard",
+      "field": "state",
+      "condition": "state != 'DL'",
+      "description": "Only residents of Delhi are eligible",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "DAN-DL-EX-002",
+      "exclusion_type": "hard",
+      "field": "ration_card",
+      "condition": "nfsa_ration_card_delhi == false",
+      "description": "Must hold a valid NFSA ration card issued in Delhi. This is MANDATORY.",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "DAN-DL-EX-003",
+      "exclusion_type": "hard",
+      "field": "residency_duration",
+      "condition": "delhi_residence_years < 3",
+      "description": "Must have resided in Delhi for at least 3 years continuously. Proof of 3+ years residence required.",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "DAN-DL-EX-004",
+      "exclusion_type": "hard",
+      "field": "hospital_type",
+      "condition": "hospital_type == 'private'",
+      "description": "Treatment is covered ONLY at Delhi government hospitals. Private hospital treatment is not covered under this scheme.",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "DAN-DL-EX-005",
+      "exclusion_type": "hard",
+      "field": "existing_coverage",
+      "condition": "existing_coverage == 'CGHS' || existing_coverage == 'ESIC' || existing_coverage == 'employer'",
+      "description": "Families covered under CGHS, ESIC, or employer-provided insurance are excluded",
+      "override_by_state": false
+    }
+  ],
+  "age_criteria": null,
+  "family_criteria": {
+    "max_family_size": null,
+    "family_definition": "Family as per NFSA ration card issued in Delhi. All members listed on the ration card are eligible for treatment.",
+    "head_of_family_required": false
+  },
+  "geographic_restrictions": [],
+  "coverage_amount_inr": 150000,
+  "coverage_type": "per_family_per_year",
+  "covered_procedures": [
+    "Hospitalization expenses at Delhi govt hospitals only",
+    "Pre-hospitalization expenses",
+    "Post-hospitalization expenses",
+    "Surgical procedures at govt hospitals",
+    "Cardiology (bypass, angioplasty)",
+    "Orthopedic (knee replacement, hip replacement)",
+    "Oncology (chemotherapy, radiation)",
+    "Dialysis",
+    "Emergency care",
+    "Neonatal care",
+    "Cataract surgery",
+    "Burns treatment",
+    "Day-care procedures",
+    "Diagnostics during hospitalization",
+    "Medicines and consumables during treatment"
+  ],
+  "excluded_procedures": [
+    "OPD (Out-Patient Department) consultation",
+    "Treatment at private hospitals",
+    "Fertility treatment and IVF",
+    "Cosmetic surgery",
+    "Drug rehabilitation",
+    "Organ transplantation",
+    "Vaccination (routine immunization)"
+  ],
+  "required_documents": [
+    {
+      "name": "Aadhaar Card",
+      "category": "identity",
+      "mandatory": true,
+      "alternatives": ["Aadhaar Enrollment ID"],
+      "local_name_hi": "आधार कार्ड",
+      "notes": "Required for identity verification"
+    },
+    {
+      "name": "NFSA Ration Card (Delhi)",
+      "category": "eligibility_proof",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "NFSA राशन कार्ड (दिल्ली)",
+      "notes": "Must be valid NFSA ration card issued in Delhi. This is MANDATORY — no alternatives accepted."
+    },
+    {
+      "name": "Delhi Residence Proof (3+ years)",
+      "category": "eligibility_proof",
+      "mandatory": true,
+      "alternatives": ["Delhi Voter ID (3+ years)", "Delhi Electricity Bills (3 years)", "Delhi Rent Agreement (3 years)"],
+      "local_name_hi": "दिल्ली निवास प्रमाण (3+ वर्ष)",
+      "notes": "Must prove at least 3 years of continuous residence in Delhi. Voter ID, utility bills, or rent agreements accepted."
+    },
+    {
+      "name": "Mobile Number",
+      "category": "contact",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "मोबाइल नंबर",
+      "notes": "For communication and OTP verification"
+    }
+  ],
+  "enrollment_channels": [
+    "DGEHS Delhi portal (dgehs.delhi.gov.in/dghs/delhi-arogya-nidhi)",
+    "Delhi government hospital Medical Social Worker (MSW) office",
+    "District hospital help desk"
+  ],
+  "enrollment_steps": [
+    "Step 1: Visit a Delhi government hospital when hospitalization is needed",
+    "Step 2: Meet the Medical Social Worker (MSW) at the hospital",
+    "Step 3: Submit Aadhaar, Delhi NFSA ration card, and 3+ years residence proof",
+    "Step 4: MSW verifies NFSA card status and residency duration",
+    "Step 5: If eligible, treatment cost up to Rs 1.5 lakh covered under Delhi Arogya Nidhi",
+    "Step 6: Treatment must be at Delhi government hospital only",
+    "Step 7: No pre-enrollment needed — apply at time of hospitalization with required documents"
+  ],
+  "processing_time_days": 3,
+  "helpline_number": "1031",
+  "portal_url": "https://dgehs.delhi.gov.in/dghs/delhi-arogya-nidhi",
+  "version": "1.0",
+  "effective_date": "2019-04-01",
+  "expiry_date": null,
+  "last_verified": "2026-04-15",
+  "source_url": "https://dgehs.delhi.gov.in/dghs/delhi-arogya-nidhi",
+  "confidence_level": "provisional",
+  "description_for_embedding": "Delhi Arogya Nidhi (DAN) is a Delhi government health fund providing up to Rs 1.5 lakh per family for treatment at Delhi government hospitals. Distinct from Delhi Arogya Kosh which provides Rs 5 lakh. Targeted specifically at NFSA ration card holders who have resided in Delhi for at least 3 years. Treatment is covered ONLY at Delhi government hospitals — private hospitals are not included. Delhi opted out of PM-JAY, so DAN and DAK serve as state alternatives. Enrollment is at the point of hospitalization through the Medical Social Worker. Portal: dgehs.delhi.gov.in.",
+  "keywords": [
+    "delhi arogya nidhi", "DAN", "delhi", "DL health scheme",
+    "NFSA ration card", "1.5 lakh", "150000", "govt hospital only",
+    "3 years residence", "no pmjay", "delhi opted out",
+    "दिल्ली आरोग्य निधि", "दिल्ली", "NFSA राशन कार्ड",
+    "1.5 लाख", "सरकारी अस्पताल", "3 साल निवास",
+    "dgehs.delhi.gov.in", "1031", "delhi treatment fund",
+    "medical social worker", "MSW"
+  ]
+}

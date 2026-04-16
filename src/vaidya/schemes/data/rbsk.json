@@ -1,0 +1,136 @@
+{
+  "scheme_id": "RBSK-2024-v1",
+  "canonical_name": "Rashtriya Bal Swasthya Karyakram",
+  "aliases": [
+    "RBSK",
+    "Child Health Screening Programme",
+    "4D Screening",
+    "Bal Swasthya",
+    "National Child Health Programme",
+    "School Health Programme"
+  ],
+  "local_names": {
+    "hi": "राष्ट्रीय बाल स्वास्थ्य कार्यक्रम",
+    "bn": "রাষ্ট্রীয় বাল স্বাস্থ্য কার্যক্রম",
+    "ta": "ராஷ்ட்ரிய பால் சுவாஸ்த்ய கார்யக்ரம்",
+    "te": "రాష్ట్రీయ బాల స్వాస్థ్య కార్యక్రమం",
+    "mr": "राष्ट्रीय बाल स्वास्थ्य कार्यक्रम",
+    "gu": "રાષ્ટ્રીય બાળ સ્વાસ્થ્ય કાર્યક્રમ",
+    "kn": "ರಾಷ್ಟ್ರೀಯ ಬಾಲ ಸ್ವಾಸ್ಥ್ಯ ಕಾರ್ಯಕ್ರಮ",
+    "ml": "രാഷ്ട്രീയ ബാൽ സ്വാസ്ഥ്യ കാര്യക്രമം",
+    "pa": "ਰਾਸ਼ਟਰੀ ਬਾਲ ਸਵਾਸਥ ਕਾਰਿਆਕ੍ਰਮ",
+    "or": "ରାଷ୍ଟ୍ରୀୟ ବାଳ ସ୍ୱାସ୍ଥ୍ୟ କାର୍ଯ୍ୟକ୍ରମ"
+  },
+  "state_variant_of": null,
+  "jurisdiction": "central",
+  "state_code": null,
+  "income_thresholds": [],
+  "secc_categories": [],
+  "occupation_included": [
+    "all_children_0_to_18"
+  ],
+  "occupation_excluded": [],
+  "exclusion_rules": [
+    {
+      "rule_id": "RBSK-EX-001",
+      "exclusion_type": "hard",
+      "field": "age",
+      "condition": "age > 18",
+      "description": "Only children aged 0 to 18 years are eligible for screening and treatment under RBSK",
+      "override_by_state": false
+    }
+  ],
+  "age_criteria": {
+    "min_age": 0,
+    "max_age": 18,
+    "applies_to": "beneficiary"
+  },
+  "family_criteria": {
+    "max_family_size": null,
+    "family_definition": "Universal child health programme — every child aged 0-18 is eligible regardless of family income, caste, or location. Screening conducted at schools and anganwadi centres.",
+    "head_of_family_required": false
+  },
+  "geographic_restrictions": [],
+  "coverage_amount_inr": 0,
+  "coverage_type": "per_person_per_year",
+  "covered_procedures": [
+    "Screening for Birth Defects: Neural tube defects, Down syndrome, cleft lip/palate, club foot, congenital heart disease, developmental dysplasia of hip, congenital cataract, hearing impairment",
+    "Screening for Childhood Diseases: Rheumatic heart disease, reactive airway disease, dental caries, otitis media, skin conditions, convulsive disorders",
+    "Screening for Deficiencies: Anaemia, vitamin A/D deficiency, severe acute malnutrition, goitre/iodine deficiency, rickets",
+    "Screening for Development Delays: Motor delay, cognitive delay, language delay, behavioural disorders (autism, ADHD, learning disability)",
+    "Free treatment at District Early Intervention Centre (DEIC)",
+    "Free referral to tertiary hospitals for surgical conditions",
+    "Free corrective surgery for birth defects (cleft lip, club foot, congenital heart defects)",
+    "Free spectacles, hearing aids, and prosthetic devices",
+    "Free nutritional supplementation for deficiencies",
+    "Free follow-up and rehabilitation services"
+  ],
+  "excluded_procedures": [
+    "Treatment of adults or children above 18 years",
+    "Treatment at private hospitals (unless referred by DEIC)",
+    "Conditions not covered under the 4D framework",
+    "Cosmetic procedures unrelated to birth defects"
+  ],
+  "required_documents": [
+    {
+      "name": "School/Anganwadi Enrollment",
+      "category": "eligibility_proof",
+      "mandatory": false,
+      "alternatives": ["Parent declaration of child's age"],
+      "local_name_hi": "स्कूल/आंगनवाड़ी नामांकन",
+      "notes": "Screening happens at the institution. No document needed for screening. For treatment referral, age proof may be needed."
+    },
+    {
+      "name": "Aadhaar Card (Child/Parent)",
+      "category": "identity",
+      "mandatory": false,
+      "alternatives": ["Birth Certificate", "School ID"],
+      "local_name_hi": "आधार कार्ड (बच्चे/अभिभावक का)",
+      "notes": "For DEIC registration and referral tracking. Not required for initial screening."
+    },
+    {
+      "name": "RBSK Screening Card",
+      "category": "medical",
+      "mandatory": false,
+      "alternatives": [],
+      "local_name_hi": "आरबीएसके स्क्रीनिंग कार्ड",
+      "notes": "Issued by mobile health team after screening. Required for referral to DEIC."
+    }
+  ],
+  "enrollment_channels": [
+    "Anganwadi Centre (for children 0-6 years)",
+    "Government and government-aided schools (for children 6-18 years)",
+    "Mobile Health Teams visiting institutions",
+    "District Early Intervention Centre (DEIC)",
+    "Primary Health Centre (walk-in for out-of-school children)"
+  ],
+  "enrollment_steps": [
+    "Step 1: No enrollment needed — RBSK mobile health teams visit anganwadis and schools on schedule",
+    "Step 2: Dedicated RBSK mobile teams (2 per block: 1 male, 1 female AYUSH doctor) screen children",
+    "Step 3: Children screened for 30+ conditions across 4Ds (Defects, Diseases, Deficiencies, Delays)",
+    "Step 4: Children with identified conditions referred to District Early Intervention Centre (DEIC)",
+    "Step 5: DEIC provides free confirmatory diagnosis and treatment planning",
+    "Step 6: Complex cases referred to tertiary hospitals empanelled under RBSK for free surgery/treatment",
+    "Step 7: Follow-up tracked through RBSK portal and mobile health team visits"
+  ],
+  "processing_time_days": 0,
+  "helpline_number": "104",
+  "portal_url": "https://rbsk.gov.in",
+  "version": "1.0",
+  "effective_date": "2013-02-06",
+  "expiry_date": null,
+  "last_verified": "2026-04-15",
+  "source_url": "https://nhm.gov.in/index1.php?lang=1&level=4&sublinkid=1190&lid=583",
+  "confidence_level": "provisional",
+  "description_for_embedding": "Rashtriya Bal Swasthya Karyakram (RBSK) is a central government universal child health screening and treatment programme under the National Health Mission. It screens all children aged 0-18 years for 30+ conditions across 4Ds: Birth Defects, Childhood Diseases, Nutritional Deficiencies, and Development Delays — through mobile health teams visiting anganwadis and schools. Treatment including corrective surgery, spectacles, hearing aids, and nutritional supplements is completely free through District Early Intervention Centres (DEICs). No income criteria, no documents needed for screening.",
+  "keywords": [
+    "RBSK", "bal swasthya", "child health screening", "4D screening",
+    "birth defects", "childhood diseases", "nutritional deficiency", "developmental delay",
+    "DEIC", "mobile health team", "school screening", "anganwadi screening",
+    "free surgery", "cleft lip", "congenital heart", "club foot",
+    "बाल स्वास्थ्य", "बच्चों की जांच", "जन्म दोष", "कुपोषण",
+    "विकास विलंब", "मुफ्त इलाज", "स्कूल स्वास्थ्य जांच",
+    "child health", "NHM", "universal screening", "0 to 18 years",
+    "anaemia", "hearing impairment", "corrective surgery"
+  ]
+}

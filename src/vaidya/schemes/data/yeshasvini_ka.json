@@ -1,0 +1,223 @@
+{
+  "scheme_id": "YESHASVINI-KA-2024-v1",
+  "canonical_name": "Yeshasvini Co-operative Farmers Health Care Scheme (Karnataka)",
+  "aliases": [
+    "Yeshasvini",
+    "Yeshasvini Health Scheme",
+    "Karnataka Yeshasvini",
+    "Co-op Farmers Health Scheme",
+    "Yeshasvini Insurance",
+    "KA Yeshasvini",
+    "Yeshasvini Cooperative Scheme"
+  ],
+  "local_names": {
+    "hi": "यशस्विनी सहकारी किसान स्वास्थ्य योजना (कर्नाटक)",
+    "bn": "যশস্বিনী সমবায় কৃষক স্বাস্থ্য প্রকল্প (কর্ণাটক)",
+    "ta": "யசஸ்வினி கூட்டுறவு விவசாயிகள் சுகாதாரத் திட்டம் (கர்நாடகா)",
+    "te": "యశస్విని సహకార రైతు ఆరోగ్య పథకం (కర్ణాటక)",
+    "mr": "यशस्विनी सहकारी शेतकरी आरोग्य योजना (कर्नाटक)",
+    "gu": "યશસ્વિની સહકારી ખેડૂત આરોગ્ય યોજના (કર્ણાટક)",
+    "kn": "ಯಶಸ್ವಿನಿ ಸಹಕಾರ ರೈತ ಆರೋಗ್ಯ ಯೋಜನೆ (ಕರ್ನಾಟಕ)",
+    "ml": "യശസ്വിനി സഹകരണ കര്‍ഷക ആരോഗ്യ പദ്ധതി (കര്‍ണ്ണാടക)",
+    "pa": "ਯਸ਼ਸਵਿਨੀ ਸਹਿਕਾਰੀ ਕਿਸਾਨ ਸਿਹਤ ਯੋਜਨਾ (ਕਰਨਾਟਕ)",
+    "or": "ଯଶସ୍ୱିନୀ ସହକାରୀ କୃଷକ ସ୍ୱାସ୍ଥ୍ୟ ଯୋଜନା (କର୍ଣ୍ଣାଟକ)"
+  },
+  "state_variant_of": null,
+  "jurisdiction": "state",
+  "state_code": "KA",
+  "income_thresholds": [
+    {
+      "max_income_inr": 0,
+      "unit": "per_annum",
+      "applies_to": "individual",
+      "description": "No income threshold — eligibility is based on cooperative society membership, not income. Members pay annual premium: Rs 500/yr (rural) or Rs 1000/yr (urban).",
+      "source": "Yeshasvini Cooperative Farmers Health Care Trust / Karnataka Government"
+    }
+  ],
+  "secc_categories": [],
+  "occupation_included": [
+    "farmer",
+    "cooperative_society_member",
+    "weaver",
+    "fisherman",
+    "dairy_farmer",
+    "sericulture_worker",
+    "toddy_tapper",
+    "beedi_worker",
+    "plantation_worker",
+    "milk_cooperative_member",
+    "sugar_cooperative_member",
+    "credit_cooperative_member"
+  ],
+  "occupation_excluded": [
+    "non_cooperative_member",
+    "government_employee_not_in_cooperative",
+    "private_sector_not_in_cooperative"
+  ],
+  "exclusion_rules": [
+    {
+      "rule_id": "YESH-EX-001",
+      "exclusion_type": "hard",
+      "field": "cooperative_membership",
+      "condition": "is_cooperative_society_member == false",
+      "description": "ONLY registered cooperative society members and their families are eligible. Non-members are excluded regardless of income or occupation.",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "YESH-EX-002",
+      "exclusion_type": "hard",
+      "field": "age",
+      "condition": "age > 75",
+      "description": "Members above 75 years of age are excluded from coverage",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "YESH-EX-003",
+      "exclusion_type": "hard",
+      "field": "enrollment_period",
+      "condition": "enrollment_outside_may_june == true",
+      "description": "Annual enrollment window is May-June only; late enrollment not accepted outside this period",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "YESH-EX-004",
+      "exclusion_type": "hard",
+      "field": "premium_payment",
+      "condition": "premium_not_paid == true",
+      "description": "Members who have not paid the annual premium (Rs 500 rural / Rs 1000 urban) are excluded",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "YESH-EX-005",
+      "exclusion_type": "hard",
+      "field": "hospital_location",
+      "condition": "hospital_state != 'KA'",
+      "description": "Treatment is covered ONLY at Yeshasvini-empanelled hospitals within Karnataka; out-of-state treatment not covered",
+      "override_by_state": false
+    }
+  ],
+  "age_criteria": {
+    "min_age": 0,
+    "max_age": 75,
+    "applies_to": "beneficiary"
+  },
+  "family_criteria": {
+    "max_family_size": null,
+    "family_definition": "Cooperative society member plus their family members. Each family member must be separately enrolled and premium paid. Age 0-75 years only.",
+    "head_of_family_required": true
+  },
+  "geographic_restrictions": [],
+  "coverage_amount_inr": 500000,
+  "coverage_type": "per_family_per_year",
+  "covered_procedures": [
+    "823 listed surgical procedures",
+    "Cardiology (bypass surgery, angioplasty, valve replacement)",
+    "Orthopedic (knee replacement, hip replacement, spinal surgery, fracture fixation)",
+    "Oncology (surgical oncology, chemotherapy sessions)",
+    "Neurosurgery (brain tumor, craniotomy, spinal cord procedures)",
+    "Nephrology (dialysis, renal transplant)",
+    "Burns treatment and reconstructive surgery",
+    "Ophthalmology (cataract surgery, glaucoma, retinal procedures)",
+    "ENT surgeries",
+    "General surgical procedures (hernia, appendectomy, cholecystectomy)",
+    "Gynecological procedures (hysterectomy, caesarean section)",
+    "Pediatric surgical procedures",
+    "Polytrauma and emergency surgical care",
+    "Urology procedures",
+    "Diagnostics and lab tests during hospitalization",
+    "Medicines and consumables during treatment"
+  ],
+  "excluded_procedures": [
+    "OPD (Out-Patient Department) consultation",
+    "Medical management (non-surgical hospitalization for most conditions)",
+    "Fertility treatment and IVF",
+    "Cosmetic surgery",
+    "Drug rehabilitation",
+    "Dental treatment (unless requiring hospitalization)",
+    "Spectacles and hearing aids (standalone purchase)",
+    "Vaccination (routine immunization)",
+    "Pre-existing chronic disease management (dialysis excluded after initial coverage)"
+  ],
+  "required_documents": [
+    {
+      "name": "Aadhaar Card",
+      "category": "identity",
+      "mandatory": true,
+      "alternatives": ["Voter ID", "Ration Card"],
+      "local_name_hi": "आधार कार्ड",
+      "notes": "Required for identity verification at empanelled hospital"
+    },
+    {
+      "name": "Cooperative Society Membership Certificate",
+      "category": "eligibility_proof",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "सहकारी संस्था सदस्यता प्रमाण पत्र",
+      "notes": "Must be a registered member of a cooperative society in Karnataka (farmer, weaver, fisherman, dairy, etc.). This is the PRIMARY eligibility document."
+    },
+    {
+      "name": "Yeshasvini Premium Payment Receipt",
+      "category": "eligibility_proof",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "यशस्विनी प्रीमियम भुगतान रसीद",
+      "notes": "Proof of annual premium payment: Rs 500/year for rural members, Rs 1000/year for urban members. Paid via cooperative society."
+    },
+    {
+      "name": "Yeshasvini Health Card",
+      "category": "eligibility_proof",
+      "mandatory": false,
+      "alternatives": ["Cooperative membership + premium receipt at hospital"],
+      "local_name_hi": "यशस्विनी स्वास्थ्य कार्ड",
+      "notes": "Issued after enrollment and premium payment; present at hospital for cashless treatment"
+    },
+    {
+      "name": "Mobile Number",
+      "category": "contact",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "मोबाइल नंबर",
+      "notes": "For OTP verification and scheme notifications"
+    }
+  ],
+  "enrollment_channels": [
+    "Cooperative society office (primary enrollment point)",
+    "Yeshasvini Trust district office",
+    "District Cooperative Union office",
+    "Karnataka State Cooperative Federation",
+    "Empanelled hospital Yeshasvini desk",
+    "Taluk Cooperative office"
+  ],
+  "enrollment_steps": [
+    "Step 1: Ensure membership in a registered cooperative society in Karnataka (farmer, weaver, fisherman, dairy, etc.)",
+    "Step 2: During annual enrollment period (May-June), visit your cooperative society office",
+    "Step 3: Pay annual premium: Rs 500 for rural members or Rs 1000 for urban members",
+    "Step 4: Provide Aadhaar, cooperative membership certificate, and family member details",
+    "Step 5: Cooperative society submits enrollment to Yeshasvini Trust with premium collection",
+    "Step 6: Yeshasvini Health Card issued with member and family details",
+    "Step 7: For treatment, visit any Yeshasvini-empanelled hospital in Karnataka with card and Aadhaar for cashless surgical treatment"
+  ],
+  "processing_time_days": 7,
+  "helpline_number": "1800-425-9449",
+  "portal_url": "https://www.yeshasvini.karnataka.gov.in",
+  "version": "1.0",
+  "effective_date": "2003-06-01",
+  "expiry_date": null,
+  "last_verified": "2026-04-15",
+  "source_url": "https://www.yeshasvini.karnataka.gov.in/",
+  "confidence_level": "provisional",
+  "description_for_embedding": "Yeshasvini Co-operative Farmers Health Care Scheme is Karnataka's unique health insurance scheme exclusively for registered cooperative society members and their families. It provides Rs 5 lakh (Rs 500000) per family per year covering 823 surgical procedures at empanelled hospitals within Karnataka ONLY. Eligibility is based on cooperative society membership (farmers, weavers, fishermen, dairy workers, etc.) not income. Members pay a nominal annual premium of Rs 500 (rural) or Rs 1000 (urban). Enrollment window is May-June annually. Age limit is 0-75 years. Treatment is limited to Karnataka hospitals only. One of India's first and largest cooperative health insurance schemes, covering over 40 lakh members. Not linked to PM-JAY.",
+  "keywords": [
+    "yeshasvini", "karnataka health insurance", "KA health scheme",
+    "cooperative farmers", "co-op health", "surgical coverage",
+    "5 lakh", "500000", "823 procedures", "rs 500 premium", "rs 1000 premium",
+    "farmer", "weaver", "fisherman", "dairy",
+    "may june enrollment", "annual enrollment", "age 0-75",
+    "karnataka hospitals only",
+    "ಯಶಸ್ವಿನಿ", "ಕರ್ನಾಟಕ", "ಸಹಕಾರ", "ರೈತ",
+    "यशस्विनी", "कर्नाटक", "सहकारी", "किसान", "स्वास्थ्य बीमा",
+    "मुफ्त इलाज", "सरकारी योजना",
+    "cooperative society", "premium based", "surgical scheme",
+    "health insurance karnataka", "state scheme karnataka"
+  ]
+}

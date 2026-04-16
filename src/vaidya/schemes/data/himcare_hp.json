@@ -1,0 +1,197 @@
+{
+  "scheme_id": "HIMCARE-HP-2024-v1",
+  "canonical_name": "HIMCARE - Himachal Pradesh Health Care Scheme",
+  "aliases": [
+    "HIMCARE",
+    "HP HIMCARE",
+    "Himachal Health Scheme",
+    "Himachal Pradesh HIMCARE",
+    "HP Health Insurance"
+  ],
+  "local_names": {
+    "hi": "हिमकेयर - हिमाचल प्रदेश स्वास्थ्य सेवा योजना",
+    "bn": "হিমকেয়ার - হিমাচল প্রদেশ স্বাস্থ্য সেবা যোজনা",
+    "ta": "ஹிம்கேர் - இமாச்சல பிரதேச சுகாதார திட்டம்",
+    "te": "హిమ్‌కేర్ - హిమాచల్ ప్రదేశ్ ఆరోగ్య పథకం",
+    "mr": "हिमकेअर - हिमाचल प्रदेश आरोग्य सेवा योजना",
+    "gu": "હિમકેર - હિમાચલ પ્રદેશ આરોગ્ય સેવા યોજના",
+    "kn": "ಹಿಮ್‌ಕೇರ್ - ಹಿಮಾಚಲ ಪ್ರದೇಶ ಆರೋಗ್ಯ ಸೇವಾ ಯೋಜನೆ",
+    "ml": "ഹിംകെയർ - ഹിമാചൽ പ്രദേശ് ആരോഗ്യ സേവന പദ്ധതി",
+    "pa": "ਹਿਮਕੇਅਰ - ਹਿਮਾਚਲ ਪ੍ਰਦੇਸ਼ ਸਿਹਤ ਸੇਵਾ ਯੋਜਨਾ",
+    "or": "ହିମକେୟାର - ହିମାଚଳ ପ୍ରଦେଶ ସ୍ୱାସ୍ଥ୍ୟ ସେବା ଯୋଜନା"
+  },
+  "state_variant_of": null,
+  "jurisdiction": "state",
+  "state_code": "HP",
+  "income_thresholds": [
+    {
+      "max_income_inr": 0,
+      "unit": "per_annum",
+      "applies_to": "family",
+      "description": "Multi-tier premium: BPL families FREE; registered street vendors FREE; senior citizens 70+ FREE; widows FREE; disabled persons FREE; others pay Rs 365/year (1 member), Rs 565/year (2-3 members), or Rs 1,000/year (4+ members).",
+      "source": "HP State Government / HIMCARE HPSBYS Portal"
+    }
+  ],
+  "secc_categories": [],
+  "occupation_included": [
+    "all_himachal_residents",
+    "bpl_family",
+    "registered_street_vendor",
+    "senior_citizen_70_plus",
+    "widow",
+    "disabled_person",
+    "farmer",
+    "daily_wage",
+    "self_employed",
+    "student"
+  ],
+  "occupation_excluded": [],
+  "exclusion_rules": [
+    {
+      "rule_id": "HIMCARE-HP-EX-001",
+      "exclusion_type": "hard",
+      "field": "state",
+      "condition": "state != 'HP'",
+      "description": "Only residents of Himachal Pradesh are eligible",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "HIMCARE-HP-EX-002",
+      "exclusion_type": "hard",
+      "field": "existing_coverage",
+      "condition": "existing_coverage == 'CGHS'",
+      "description": "Families covered under CGHS are excluded",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "HIMCARE-HP-EX-003",
+      "exclusion_type": "soft",
+      "field": "enrollment_window",
+      "condition": "enrollment_outside_quarterly_window == true",
+      "description": "Enrollment is open only during quarterly windows (Jan-Mar, Apr-Jun, Jul-Sep, Oct-Dec). Applications outside the window may need to wait for the next quarter.",
+      "override_by_state": true
+    },
+    {
+      "rule_id": "HIMCARE-HP-EX-004",
+      "exclusion_type": "soft",
+      "field": "premium_payment",
+      "condition": "non_bpl_premium_not_paid == true",
+      "description": "Non-BPL families must pay annual premium (Rs 365-1000 based on family size). Coverage does not activate until premium is paid.",
+      "override_by_state": false
+    }
+  ],
+  "age_criteria": null,
+  "family_criteria": {
+    "max_family_size": null,
+    "family_definition": "Family as per ration card or Aadhaar-linked family unit. All listed members covered. Premium tier based on family size: 1 member Rs 365, 2-3 members Rs 565, 4+ members Rs 1,000 per year. BPL/vendor/senior 70+/widow/disabled: free.",
+    "head_of_family_required": false
+  },
+  "geographic_restrictions": [],
+  "coverage_amount_inr": 500000,
+  "coverage_type": "per_family_per_year",
+  "covered_procedures": [
+    "Hospitalization expenses (room, nursing, ICU)",
+    "Pre-hospitalization (up to 3 days before admission)",
+    "Post-hospitalization (up to 15 days after discharge)",
+    "Surgical procedures across multiple specialties",
+    "Cardiology (bypass surgery, angioplasty, valve replacement)",
+    "Orthopedic (knee replacement, hip replacement)",
+    "Oncology (chemotherapy, radiation, surgical oncology)",
+    "Neurosurgery",
+    "Burns treatment",
+    "Dialysis",
+    "Emergency care",
+    "Neonatal and pediatric care",
+    "Cataract surgery",
+    "Cochlear implant",
+    "Mental health treatment",
+    "Day-care procedures",
+    "Diagnostics and lab tests during hospitalization",
+    "Medicines and consumables during treatment"
+  ],
+  "excluded_procedures": [
+    "OPD (Out-Patient Department) consultation",
+    "Fertility treatment and IVF",
+    "Cosmetic surgery",
+    "Organ transplantation (except cornea and renal)",
+    "Drug rehabilitation",
+    "Vaccination (routine immunization)"
+  ],
+  "required_documents": [
+    {
+      "name": "Aadhaar Card",
+      "category": "identity",
+      "mandatory": true,
+      "alternatives": ["Aadhaar Enrollment ID"],
+      "local_name_hi": "आधार कार्ड",
+      "notes": "Required for e-KYC verification"
+    },
+    {
+      "name": "HP Ration Card / BPL Certificate",
+      "category": "eligibility_proof",
+      "mandatory": false,
+      "alternatives": ["Income Certificate from Tehsildar"],
+      "local_name_hi": "हिमाचल राशन कार्ड / BPL प्रमाण पत्र",
+      "notes": "BPL certificate required for free tier. Non-BPL families can enroll by paying premium."
+    },
+    {
+      "name": "Himachal Pradesh Residence Proof",
+      "category": "eligibility_proof",
+      "mandatory": true,
+      "alternatives": ["HP Voter ID", "HP Ration Card", "HP Domicile Certificate"],
+      "local_name_hi": "हिमाचल प्रदेश निवास प्रमाण",
+      "notes": "Must prove residency in Himachal Pradesh"
+    },
+    {
+      "name": "Street Vendor Certificate (for free tier)",
+      "category": "eligibility_proof",
+      "mandatory": false,
+      "alternatives": [],
+      "local_name_hi": "स्ट्रीट वेंडर प्रमाण पत्र",
+      "notes": "Required for registered street vendors to claim free enrollment"
+    },
+    {
+      "name": "Mobile Number",
+      "category": "contact",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "मोबाइल नंबर",
+      "notes": "Linked to Aadhaar for OTP-based verification"
+    }
+  ],
+  "enrollment_channels": [
+    "HIMCARE portal (hpsbys.in)",
+    "Common Service Centre (CSC / Lok Mitra Kendra)",
+    "Empanelled hospital help desk",
+    "District hospital help desk",
+    "Tehsil office"
+  ],
+  "enrollment_steps": [
+    "Step 1: Check eligibility and enrollment window at hpsbys.in or call 0177-2629-802",
+    "Step 2: Note: Enrollment is quarterly (Jan-Mar, Apr-Jun, Jul-Sep, Oct-Dec). Apply during open window.",
+    "Step 3: Visit nearest CSC or register online at hpsbys.in with Aadhaar and HP residence proof",
+    "Step 4: Complete e-KYC verification (Aadhaar biometric or OTP)",
+    "Step 5: For BPL/vendor/senior 70+/widow/disabled: no payment needed. For others: pay premium (Rs 365/565/1000 based on family size)",
+    "Step 6: HIMCARE card generated after verification",
+    "Step 7: Card activates 30 days after enrollment (waiting period). Present at empanelled hospital for cashless treatment up to Rs 5 lakh."
+  ],
+  "processing_time_days": 30,
+  "helpline_number": "0177-2629-802",
+  "portal_url": "https://hpsbys.in",
+  "version": "1.0",
+  "effective_date": "2019-01-01",
+  "expiry_date": null,
+  "last_verified": "2026-04-15",
+  "source_url": "https://hpsbys.in",
+  "confidence_level": "provisional",
+  "description_for_embedding": "HIMCARE is Himachal Pradesh's state health insurance scheme providing Rs 5 lakh per family per year. Unique multi-tier premium structure: BPL families, registered street vendors, senior citizens 70+, widows, and disabled persons get completely free enrollment. Other families pay a very low annual premium based on family size: Rs 365 (1 member), Rs 565 (2-3 members), or Rs 1,000 (4+ members). Enrollment is quarterly — open during Jan-Mar, Apr-Jun, Jul-Sep, Oct-Dec windows. 30-day waiting period after enrollment. Covers hospitalization and surgery at empanelled hospitals. Enrollment via hpsbys.in or CSC. Helpline 0177-2629-802.",
+  "keywords": [
+    "himcare", "himachal pradesh", "HP health scheme", "quarterly enrollment",
+    "multi-tier premium", "BPL free", "senior citizen free", "365 rupees",
+    "565 rupees", "1000 rupees", "5 lakh", "state scheme",
+    "vendor free", "widow free", "disabled free",
+    "हिमकेयर", "हिमाचल प्रदेश", "BPL मुफ्त", "बुजुर्ग मुफ्त",
+    "365 रुपये", "5 लाख", "तिमाही नामांकन",
+    "hpsbys.in", "0177-2629-802", "HP state insurance", "himcare scheme"
+  ]
+}

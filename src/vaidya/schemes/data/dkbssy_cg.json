@@ -1,0 +1,189 @@
+{
+  "scheme_id": "DKBSSY-CG-2024-v1",
+  "canonical_name": "Dr. Khubchand Baghel Swasthya Sahayata Yojana (Chhattisgarh)",
+  "aliases": [
+    "DKBSSY",
+    "Khubchand Baghel Yojana",
+    "CG Health Scheme",
+    "Chhattisgarh Swasthya Sahayata",
+    "CG Swasthya Yojana"
+  ],
+  "local_names": {
+    "hi": "डॉ. खूबचंद बघेल स्वास्थ्य सहायता योजना (छत्तीसगढ़)",
+    "bn": "ড. খুবচাঁদ বাঘেল স্বাস্থ্য সাহায্য যোজনা (ছত্তিসগড়)",
+    "ta": "டாக்டர் குப்சந்த் பகேல் சுவாஸ்த்ய சகாயதா யோஜனா (சத்தீஸ்கர்)",
+    "te": "డా. ఖుబ్‌చంద్ బఘేల్ స్వాస్థ్య సహాయతా యోజన (ఛత్తీస్‌గఢ్)",
+    "mr": "डॉ. खूबचंद बघेल स्वास्थ्य सहाय्यता योजना (छत्तीसगड)",
+    "gu": "ડૉ. ખૂબચંદ બઘેલ સ્વાસ્થ્ય સહાયતા યોજના (છત્તીસગઢ)",
+    "kn": "ಡಾ. ಖೂಬ್‌ಚಂದ್ ಬಘೇಲ್ ಸ್ವಾಸ್ಥ್ಯ ಸಹಾಯತಾ ಯೋಜನೆ (ಛತ್ತೀಸ್‌ಗಢ್)",
+    "ml": "ഡോ. ഖൂബ്‌ചന്ദ് ബഘേൽ സ്വാസ്ഥ്യ സഹായതാ യോജന (ഛത്തീസ്ഗഡ്)",
+    "pa": "ਡਾ. ਖੂਬਚੰਦ ਬਘੇਲ ਸਿਹਤ ਸਹਾਇਤਾ ਯੋਜਨਾ (ਛੱਤੀਸਗੜ੍ਹ)",
+    "or": "ଡ. ଖୁବଚନ୍ଦ ବଘେଲ ସ୍ୱାସ୍ଥ୍ୟ ସହାୟତା ଯୋଜନା (ଛତ୍ତିସଗଡ଼)"
+  },
+  "state_variant_of": null,
+  "jurisdiction": "state",
+  "state_code": "CG",
+  "income_thresholds": [
+    {
+      "max_income_inr": 0,
+      "unit": "per_annum",
+      "applies_to": "family",
+      "description": "Two-tier system: Tier 1 (Rs 5 lakh) for Priority/Antyodaya ration card holders; Tier 2 (Rs 50,000) for all other ration card holders in Chhattisgarh. No direct income ceiling — eligibility is ration card category based.",
+      "source": "Chhattisgarh State Government / DKBSSY Portal"
+    }
+  ],
+  "secc_categories": [],
+  "occupation_included": [
+    "priority_ration_card_holder",
+    "antyodaya_ration_card_holder",
+    "other_ration_card_holder",
+    "daily_wage",
+    "farmer",
+    "tribal",
+    "construction_worker",
+    "forest_worker",
+    "tendu_patta_collector"
+  ],
+  "occupation_excluded": [
+    "government_employee",
+    "income_tax_payer",
+    "employer_insured"
+  ],
+  "exclusion_rules": [
+    {
+      "rule_id": "DKBSSY-CG-EX-001",
+      "exclusion_type": "hard",
+      "field": "state",
+      "condition": "state != 'CG'",
+      "description": "Only residents of Chhattisgarh are eligible",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "DKBSSY-CG-EX-002",
+      "exclusion_type": "hard",
+      "field": "ration_card",
+      "condition": "cg_ration_card == false",
+      "description": "Must hold a valid ration card issued in Chhattisgarh. Ration card category determines coverage tier.",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "DKBSSY-CG-EX-003",
+      "exclusion_type": "hard",
+      "field": "existing_coverage",
+      "condition": "existing_coverage == 'CGHS' || existing_coverage == 'ESIC'",
+      "description": "Families covered under CGHS or ESIC are excluded",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "DKBSSY-CG-EX-004",
+      "exclusion_type": "hard",
+      "field": "income_tax",
+      "condition": "pays_income_tax == true",
+      "description": "Income tax paying families are excluded from Tier 1 (Rs 5 lakh) but may access Tier 2 (Rs 50,000) with valid ration card",
+      "override_by_state": false
+    }
+  ],
+  "age_criteria": null,
+  "family_criteria": {
+    "max_family_size": null,
+    "family_definition": "Family as defined in Chhattisgarh ration card. All members listed on the ration card are covered. Coverage is floater across all family members.",
+    "head_of_family_required": false
+  },
+  "geographic_restrictions": [],
+  "coverage_amount_inr": 500000,
+  "coverage_type": "per_family_per_year",
+  "covered_procedures": [
+    "Hospitalization expenses (room, nursing, ICU)",
+    "Pre-hospitalization (up to 3 days before admission)",
+    "Post-hospitalization (up to 15 days after discharge)",
+    "Surgical procedures across multiple specialties",
+    "Cardiology (bypass surgery, angioplasty, valve replacement)",
+    "Orthopedic (knee replacement, hip replacement)",
+    "Oncology (chemotherapy, radiation, surgical oncology)",
+    "Neurosurgery",
+    "Burns treatment",
+    "Dialysis",
+    "Emergency care",
+    "Neonatal and pediatric care",
+    "Cataract surgery",
+    "Day-care procedures",
+    "Diagnostics and lab tests during hospitalization",
+    "Medicines and consumables during treatment"
+  ],
+  "excluded_procedures": [
+    "OPD (Out-Patient Department) consultation",
+    "Fertility treatment and IVF",
+    "Cosmetic surgery",
+    "Organ transplantation (except cornea and renal)",
+    "Drug rehabilitation",
+    "Vaccination (routine immunization)"
+  ],
+  "required_documents": [
+    {
+      "name": "Aadhaar Card",
+      "category": "identity",
+      "mandatory": true,
+      "alternatives": ["Aadhaar Enrollment ID"],
+      "local_name_hi": "आधार कार्ड",
+      "notes": "Required for e-KYC verification"
+    },
+    {
+      "name": "Chhattisgarh Ration Card",
+      "category": "eligibility_proof",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "छत्तीसगढ़ राशन कार्ड",
+      "notes": "Must be valid CG ration card. Priority/Antyodaya card = Rs 5 lakh tier. Other ration cards = Rs 50,000 tier. This is MANDATORY."
+    },
+    {
+      "name": "Mobile Number",
+      "category": "contact",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "मोबाइल नंबर",
+      "notes": "Linked to Aadhaar for OTP-based verification"
+    },
+    {
+      "name": "Family Photo",
+      "category": "identity",
+      "mandatory": false,
+      "alternatives": [],
+      "local_name_hi": "परिवार का फोटो",
+      "notes": "Required for new card generation"
+    }
+  ],
+  "enrollment_channels": [
+    "DKBSSY portal (dkbssy.cg.nic.in)",
+    "Common Service Centre (CSC / Lok Seva Kendra)",
+    "Empanelled hospital help desk",
+    "District hospital help desk",
+    "Block-level health camps"
+  ],
+  "enrollment_steps": [
+    "Step 1: Check eligibility at dkbssy.cg.nic.in with Aadhaar or ration card number",
+    "Step 2: Visit nearest CSC or empanelled hospital with Aadhaar card and Chhattisgarh ration card",
+    "Step 3: Complete e-KYC verification (Aadhaar biometric or OTP)",
+    "Step 4: Operator verifies ration card category (Priority/Antyodaya for Tier 1, others for Tier 2)",
+    "Step 5: Family photograph taken and uploaded",
+    "Step 6: DKBSSY card generated with appropriate coverage tier",
+    "Step 7: Card valid immediately; present at any empanelled hospital in CG for cashless treatment"
+  ],
+  "processing_time_days": 1,
+  "helpline_number": "14555",
+  "portal_url": "https://dkbssy.cg.nic.in",
+  "version": "1.0",
+  "effective_date": "2019-01-01",
+  "expiry_date": null,
+  "last_verified": "2026-04-15",
+  "source_url": "https://dkbssy.cg.nic.in",
+  "confidence_level": "provisional",
+  "description_for_embedding": "Dr. Khubchand Baghel Swasthya Sahayata Yojana (DKBSSY) is Chhattisgarh's state health insurance scheme with a unique two-tier coverage structure. Tier 1 provides Rs 5 lakh per family per year for Priority and Antyodaya ration card holders. Tier 2 provides Rs 50,000 per family per year for all other ration card holders. Named after Dr. Khubchand Baghel, the first Chief Minister of CG. All CG ration card holders are eligible — the ration card category determines the coverage tier. Covers hospitalization, surgery, and medical treatment at empanelled hospitals. Enrollment via dkbssy.cg.nic.in or CSC.",
+  "keywords": [
+    "dkbssy", "khubchand baghel", "chhattisgarh", "CG health scheme",
+    "two tier", "5 lakh", "50000", "priority ration card", "antyodaya",
+    "state scheme", "cashless treatment", "swasthya sahayata",
+    "डॉ. खूबचंद बघेल", "छत्तीसगढ़", "स्वास्थ्य सहायता", "5 लाख",
+    "50 हजार", "राशन कार्ड", "मुफ्त इलाज",
+    "dkbssy.cg.nic.in", "14555", "CG state insurance"
+  ]
+}

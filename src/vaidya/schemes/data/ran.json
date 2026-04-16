@@ -1,0 +1,188 @@
+{
+  "scheme_id": "RAN-2024-v1",
+  "canonical_name": "Rashtriya Arogya Nidhi",
+  "aliases": [
+    "RAN",
+    "National Health Fund",
+    "Rashtriya Arogya Nidhi Scheme",
+    "Financial Assistance for Medical Treatment",
+    "Central Health Fund"
+  ],
+  "local_names": {
+    "hi": "राष्ट्रीय आरोग्य निधि",
+    "bn": "রাষ্ট্রীয় আরোগ্য নিধি",
+    "ta": "ராஷ்ட்ரிய ஆரோக்கிய நிதி",
+    "te": "రాష్ట్రీయ ఆరోగ్య నిధి",
+    "mr": "राष्ट्रीय आरोग्य निधी",
+    "gu": "રાષ્ટ્રીય આરોગ્ય નિધિ",
+    "kn": "ರಾಷ್ಟ್ರೀಯ ಆರೋಗ್ಯ ನಿಧಿ",
+    "ml": "രാഷ്ട്രീയ ആരോഗ്യ നിധി",
+    "pa": "ਰਾਸ਼ਟਰੀ ਆਰੋਗਿਆ ਨਿਧੀ",
+    "or": "ରାଷ୍ଟ୍ରୀୟ ଆରୋଗ୍ୟ ନିଧି"
+  },
+  "state_variant_of": null,
+  "jurisdiction": "central",
+  "state_code": null,
+  "income_thresholds": [
+    {
+      "max_income_inr": 125000,
+      "unit": "per_annum",
+      "applies_to": "family",
+      "description": "Annual family income must be below Rs 1,25,000 (Rs 1.25 lakh). BPL families are automatically eligible.",
+      "source": "Ministry of Health and Family Welfare / RAN Guidelines"
+    }
+  ],
+  "secc_categories": ["D1", "D2", "D3", "D4", "D5", "D6", "D7"],
+  "occupation_included": [
+    "BPL_family",
+    "daily_wage",
+    "farmer",
+    "unorganized_sector_worker",
+    "destitute"
+  ],
+  "occupation_excluded": [
+    "government_employee",
+    "income_tax_payer"
+  ],
+  "exclusion_rules": [
+    {
+      "rule_id": "RAN-EX-001",
+      "exclusion_type": "hard",
+      "field": "income",
+      "condition": "family_income > 125000",
+      "description": "Family annual income must be Rs 1,25,000 or below to qualify",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "RAN-EX-002",
+      "exclusion_type": "hard",
+      "field": "hospital_type",
+      "condition": "hospital_type != 'government_super_specialty'",
+      "description": "Treatment must be at a government super-specialty hospital or institute (AIIMS, PGIMER, JIPMER, NIMHANS, etc.). Private hospitals are NOT eligible.",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "RAN-EX-003",
+      "exclusion_type": "hard",
+      "field": "disease_type",
+      "condition": "disease_is_life_threatening == false",
+      "description": "Only life-threatening diseases requiring super-specialty treatment are eligible. Routine or minor treatments do not qualify.",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "RAN-EX-004",
+      "exclusion_type": "hard",
+      "field": "doctor_recommendation",
+      "condition": "treating_doctor_recommendation == false",
+      "description": "Application must be recommended by the Head of Department and Medical Superintendent of the treating government hospital",
+      "override_by_state": false
+    }
+  ],
+  "age_criteria": null,
+  "family_criteria": {
+    "max_family_size": null,
+    "family_definition": "Assistance is to the individual patient from a BPL family. Family income (all earning members combined) must be below Rs 1.25 lakh per annum.",
+    "head_of_family_required": false
+  },
+  "geographic_restrictions": [],
+  "coverage_amount_inr": 1500000,
+  "coverage_type": "per_event",
+  "covered_procedures": [
+    "Heart surgery (open heart, valve replacement, bypass, congenital heart repair)",
+    "Kidney transplant",
+    "Liver transplant (at select government centres)",
+    "Cancer treatment (surgery, chemotherapy, radiation at government hospitals)",
+    "Cochlear implant",
+    "Neurosurgery for life-threatening conditions",
+    "Bone marrow transplant",
+    "Major burns treatment",
+    "Any life-threatening disease requiring super-specialty intervention at government hospitals"
+  ],
+  "excluded_procedures": [
+    "Treatment at private hospitals",
+    "Routine surgery or non-life-threatening conditions",
+    "OPD expenses",
+    "Treatment already covered under PM-JAY or CGHS",
+    "Cosmetic or elective surgery",
+    "Organ transplant at non-government hospitals",
+    "Treatment for which other government scheme coverage is available"
+  ],
+  "required_documents": [
+    {
+      "name": "BPL Certificate / Income Certificate",
+      "category": "eligibility_proof",
+      "mandatory": true,
+      "alternatives": ["Ration Card (BPL)", "SECC Inclusion Letter"],
+      "local_name_hi": "बीपीएल प्रमाण पत्र / आय प्रमाण पत्र",
+      "notes": "Income certificate from SDM/Tehsildar showing family income below Rs 1.25 lakh per annum"
+    },
+    {
+      "name": "Aadhaar Card",
+      "category": "identity",
+      "mandatory": true,
+      "alternatives": ["Voter ID with address proof"],
+      "local_name_hi": "आधार कार्ड",
+      "notes": "For identity verification and DBT payment"
+    },
+    {
+      "name": "Medical Report and Treatment Estimate",
+      "category": "medical",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "चिकित्सा रिपोर्ट और उपचार अनुमान",
+      "notes": "Detailed medical report with diagnosis, treatment plan, and cost estimate from the treating government hospital"
+    },
+    {
+      "name": "Recommendation from Medical Superintendent",
+      "category": "medical",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "चिकित्सा अधीक्षक की अनुशंसा",
+      "notes": "Recommendation from HoD and Medical Superintendent of the government super-specialty hospital confirming need for financial assistance"
+    },
+    {
+      "name": "Bank Account Details",
+      "category": "financial",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "बैंक खाता विवरण",
+      "notes": "For fund transfer; account can be of patient or hospital (for direct transfer to hospital)"
+    }
+  ],
+  "enrollment_channels": [
+    "Government super-specialty hospital (AIIMS, PGIMER, JIPMER, etc.)",
+    "Medical Superintendent's office at treating hospital",
+    "Ministry of Health and Family Welfare (online/postal application)",
+    "District Collector's office (for forwarding applications)"
+  ],
+  "enrollment_steps": [
+    "Step 1: Get admitted at a government super-specialty hospital for life-threatening disease",
+    "Step 2: Treating doctor prepares medical report with diagnosis, treatment plan, and cost estimate",
+    "Step 3: Head of Department and Medical Superintendent recommend the case for RAN funding",
+    "Step 4: Patient/family submits application with BPL/income certificate, Aadhaar, and medical documents",
+    "Step 5: Hospital forwards application to Ministry of Health and Family Welfare or RAN Committee",
+    "Step 6: RAN Standing Committee reviews and approves the application",
+    "Step 7: Fund of up to Rs 15 lakh released directly to the hospital or patient's bank account",
+    "Step 8: Hospital provides treatment; any remaining amount returned to the fund"
+  ],
+  "processing_time_days": 30,
+  "helpline_number": "011-23061863",
+  "portal_url": "https://mohfw.gov.in",
+  "version": "1.0",
+  "effective_date": "1997-03-27",
+  "expiry_date": null,
+  "last_verified": "2026-04-15",
+  "source_url": "https://mohfw.gov.in/Major-Programmes/rashtriya-arogya-nidhi-ran",
+  "confidence_level": "provisional",
+  "description_for_embedding": "Rashtriya Arogya Nidhi (RAN) is a central government financial assistance scheme providing up to Rs 15 lakh for BPL patients with life-threatening diseases requiring super-specialty treatment at government hospitals (AIIMS, PGIMER, JIPMER, etc.). Family annual income must be below Rs 1.25 lakh. Only for life-threatening conditions like heart surgery, cancer, kidney transplant, and neurosurgery. Requires recommendation from the Medical Superintendent of the treating government hospital. Does not cover private hospital treatment. Application processed through the hospital and approved by the RAN Standing Committee at the Ministry of Health.",
+  "keywords": [
+    "RAN", "rashtriya arogya nidhi", "national health fund", "Rs 15 lakh",
+    "BPL", "life-threatening", "super-specialty", "government hospital",
+    "AIIMS", "PGIMER", "heart surgery", "cancer treatment", "kidney transplant",
+    "financial assistance", "medical treatment fund",
+    "राष्ट्रीय आरोग्य निधि", "बीपीएल", "गरीब मरीज", "सरकारी अस्पताल",
+    "15 लाख", "जानलेवा बीमारी", "हृदय शल्य", "कैंसर",
+    "poor patients", "medical fund", "central scheme",
+    "income below 1.25 lakh", "doctor recommendation"
+  ]
+}

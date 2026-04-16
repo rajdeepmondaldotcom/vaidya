@@ -1,0 +1,222 @@
+{
+  "scheme_id": "AAROGYASRI-TS-2024-v1",
+  "canonical_name": "Rajiv Aarogyasri Health Care Trust (Telangana)",
+  "aliases": [
+    "Rajiv Aarogyasri",
+    "Telangana Aarogyasri",
+    "TS Aarogyasri",
+    "AB-PMJAY Rajiv Aarogyasri",
+    "Aarogyasri Trust",
+    "Aarogyasri Telangana",
+    "Co-branded AB-PMJAY Rajiv Aarogyasri"
+  ],
+  "local_names": {
+    "hi": "राजीव आरोग्यश्री स्वास्थ्य योजना (तेलंगाना)",
+    "bn": "রাজীব আরোগ্যশ্রী স্বাস্থ্য প্রকল্প (তেলেঙ্গানা)",
+    "ta": "ராஜீவ் ஆரோக்யஸ்ரீ சுகாதாரத் திட்டம் (தெலங்கானா)",
+    "te": "రాజీవ్ ఆరోగ్యశ్రీ ఆరోగ్య సంరక్షణ ట్రస్ట్ (తెలంగాణ)",
+    "mr": "राजीव आरोग्यश्री आरोग्य योजना (तेलंगाणा)",
+    "gu": "રાજીવ આરોગ્યશ્રી આરોગ્ય યોજના (તેલંગાણા)",
+    "kn": "ರಾಜೀವ್ ಆರೋಗ್ಯಶ್ರೀ ಆರೋಗ್ಯ ಯೋಜನೆ (ತೆಲಂಗಾಣ)",
+    "ml": "രാജീവ് ആരോഗ്യശ്രീ ആരോഗ്യ പദ്ധതി (തെലങ്കാന)",
+    "pa": "ਰਾਜੀਵ ਆਰੋਗਯਸ਼੍ਰੀ ਸਿਹਤ ਯੋਜਨਾ (ਤੇਲੰਗਾਨਾ)",
+    "or": "ରାଜୀବ ଆରୋଗ୍ୟଶ୍ରୀ ସ୍ୱାସ୍ଥ୍ୟ ଯୋଜନା (ତେଲେଙ୍ଗାନା)"
+  },
+  "state_variant_of": null,
+  "jurisdiction": "state",
+  "state_code": "TS",
+  "income_thresholds": [
+    {
+      "max_income_inr": 500000,
+      "unit": "per_annum",
+      "applies_to": "family",
+      "description": "Annual family income must be below Rs 5 lakh; white ration card holders are automatically eligible",
+      "source": "Telangana Aarogyasri Trust Guidelines / TS Government GO"
+    }
+  ],
+  "secc_categories": ["D1", "D2", "D3", "D4", "D5", "D6", "D7"],
+  "occupation_included": [
+    "daily_wage",
+    "farmer",
+    "construction_worker",
+    "street_vendor",
+    "domestic_worker",
+    "handloom_weaver",
+    "beedi_worker",
+    "auto_rickshaw_driver",
+    "small_trader",
+    "landless_household",
+    "agricultural_labourer",
+    "tribal"
+  ],
+  "occupation_excluded": [
+    "government_employee",
+    "income_tax_payer",
+    "employer_insured"
+  ],
+  "exclusion_rules": [
+    {
+      "rule_id": "AARTS-EX-001",
+      "exclusion_type": "hard",
+      "field": "income_tax",
+      "condition": "pays_income_tax == true",
+      "description": "Any family member paying income tax disqualifies the household",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "AARTS-EX-002",
+      "exclusion_type": "hard",
+      "field": "ration_card_type",
+      "condition": "ration_card_type != 'white'",
+      "description": "Only white ration card holders are eligible; families with other ration card types are excluded",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "AARTS-EX-003",
+      "exclusion_type": "hard",
+      "field": "occupation_type",
+      "condition": "occupation_type == 'salaried_govt'",
+      "description": "Government employees covered under separate TS government health schemes are excluded",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "AARTS-EX-004",
+      "exclusion_type": "hard",
+      "field": "existing_coverage",
+      "condition": "existing_coverage == 'employer'",
+      "description": "Families with employer-provided health insurance are excluded",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "AARTS-EX-005",
+      "exclusion_type": "hard",
+      "field": "income",
+      "condition": "annual_income > 500000",
+      "description": "Families with annual income exceeding Rs 5 lakh are excluded even if holding any ration card",
+      "override_by_state": false
+    }
+  ],
+  "age_criteria": null,
+  "family_criteria": {
+    "max_family_size": null,
+    "family_definition": "All members listed on the white ration card are covered. No cap on family size. Coverage is floater across all listed family members.",
+    "head_of_family_required": false
+  },
+  "geographic_restrictions": [],
+  "coverage_amount_inr": 1000000,
+  "coverage_type": "per_family_per_year",
+  "covered_procedures": [
+    "Hospitalization expenses (room, nursing, ICU)",
+    "Pre-hospitalization (up to 7 days before admission)",
+    "Post-hospitalization (up to 10 days after discharge)",
+    "1835 listed medical and surgical procedures",
+    "Cardiology (bypass surgery, angioplasty, valve replacement, pacemaker implant)",
+    "Orthopedic (knee replacement, hip replacement, spinal surgery, fracture fixation)",
+    "Oncology (chemotherapy, radiation, surgical oncology, bone marrow transplant)",
+    "Neurosurgery (brain tumor, craniotomy, spinal cord procedures)",
+    "Nephrology (dialysis, renal transplant)",
+    "Liver transplant",
+    "Heart transplant",
+    "Bone marrow transplant",
+    "Burn treatment and plastic surgery (reconstructive)",
+    "Neonatal and pediatric surgical care",
+    "Ophthalmology (cataract, retinal surgery, glaucoma)",
+    "ENT surgeries (cochlear implant, tympanoplasty)",
+    "Polytrauma and emergency surgical procedures",
+    "Liver and gastrointestinal surgery",
+    "Gynecological and obstetric procedures",
+    "General surgical procedures",
+    "Diagnostics and lab tests during hospitalization",
+    "Medicines and consumables during treatment"
+  ],
+  "excluded_procedures": [
+    "OPD (Out-Patient Department) consultation",
+    "Fertility treatment and IVF",
+    "Cosmetic surgery",
+    "Drug rehabilitation",
+    "Dental treatment (unless requiring hospitalization)",
+    "Spectacles and hearing aids (standalone purchase)",
+    "Vaccination (routine immunization)",
+    "Alternative medicine (Ayurveda, Homeopathy) unless at empanelled hospital"
+  ],
+  "required_documents": [
+    {
+      "name": "Aadhaar Card",
+      "category": "identity",
+      "mandatory": true,
+      "alternatives": ["Aadhaar Enrollment ID"],
+      "local_name_hi": "आधार कार्ड",
+      "notes": "Required for biometric/OTP-based e-KYC at empanelled hospital"
+    },
+    {
+      "name": "White Ration Card (Telangana)",
+      "category": "eligibility_proof",
+      "mandatory": true,
+      "alternatives": ["BPL Certificate issued by Telangana Revenue Department"],
+      "local_name_hi": "सफेद राशन कार्ड (तेलंगाना)",
+      "notes": "Must be a valid white ration card issued by TS Civil Supplies department; primary eligibility document"
+    },
+    {
+      "name": "Aarogyasri Health Card",
+      "category": "eligibility_proof",
+      "mandatory": false,
+      "alternatives": ["Aadhaar-linked verification at hospital"],
+      "local_name_hi": "आरोग्यश्री स्वास्थ्य कार्ड",
+      "notes": "Previously issued Aarogyasri card; now Aadhaar-based verification is preferred"
+    },
+    {
+      "name": "Mobile Number",
+      "category": "contact",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "मोबाइल नंबर",
+      "notes": "For OTP verification and scheme communication"
+    },
+    {
+      "name": "Address Proof",
+      "category": "address",
+      "mandatory": false,
+      "alternatives": ["Ration Card", "Electricity Bill", "Voter ID"],
+      "local_name_hi": "पता प्रमाण",
+      "notes": "Telangana residency verification; white ration card usually serves this purpose"
+    }
+  ],
+  "enrollment_channels": [
+    "Aarogyasri empanelled hospital help desk",
+    "Aarogyasri Trust district office",
+    "Aarogyasri call centre (104)",
+    "e-Seva / Mee Seva centres",
+    "District Collectorate",
+    "Primary Health Centre (PHC)"
+  ],
+  "enrollment_steps": [
+    "Step 1: Check eligibility via 104 helpline or visit Aarogyasri district office with white ration card",
+    "Step 2: Visit nearest Aarogyasri-empanelled hospital or district office with Aadhaar and white ration card",
+    "Step 3: Complete Aadhaar-based e-KYC (biometric or OTP verification)",
+    "Step 4: Hospital Aarogyasri coordinator verifies ration card details against TS Civil Supplies database",
+    "Step 5: Pre-authorization request submitted by hospital for the required procedure",
+    "Step 6: Aarogyasri Trust approves pre-authorization within 12-24 hours for listed procedures",
+    "Step 7: Cashless treatment at empanelled hospital under co-branded AB-PMJAY Rajiv Aarogyasri; coverage up to Rs 10 lakh per family per year"
+  ],
+  "processing_time_days": 1,
+  "helpline_number": "104",
+  "portal_url": "https://www.rajivaarogyasri.telangana.gov.in",
+  "version": "1.0",
+  "effective_date": "2014-06-02",
+  "expiry_date": null,
+  "last_verified": "2026-04-15",
+  "source_url": "https://www.rajivaarogyasri.telangana.gov.in/",
+  "confidence_level": "provisional",
+  "description_for_embedding": "Rajiv Aarogyasri is Telangana's flagship state health insurance scheme providing Rs 10 lakh (Rs 1000000) per family per year for secondary and tertiary hospitalization — one of the highest state-level coverages in India. The scheme is co-branded as AB-PMJAY Rajiv Aarogyasri, integrating both central and state benefits. It covers BPL families holding white ration cards with annual income below Rs 5 lakh across 1835 listed medical and surgical procedures including organ transplants. Beneficiaries receive cashless treatment at empanelled public and private hospitals across Telangana. Originally launched as Rajiv Aarogyasri in undivided AP, continued in Telangana post-bifurcation with enhanced coverage. Free for eligible families. Portal: rajivaarogyasri.telangana.gov.in.",
+  "keywords": [
+    "aarogyasri", "telangana health insurance", "TS health scheme", "rajiv aarogyasri",
+    "10 lakh", "1000000", "white ration card", "BPL", "free treatment",
+    "hospitalization", "surgery", "cashless treatment", "empanelled hospital",
+    "1835 procedures", "ab-pmjay rajiv aarogyasri", "co-branded",
+    "ఆరోగ్యశ్రీ", "తెలంగాణ", "రాజీవ్", "ఆరోగ్య పథకం",
+    "आरोग्यश्री", "तेलंगाना", "राजीव", "स्वास्थ्य बीमा", "मुफ्त इलाज",
+    "सरकारी योजना", "सफेद राशन कार्ड", "अस्पताल", "10 लाख", "104 helpline",
+    "health insurance telangana", "aarogyasri trust", "telangana scheme",
+    "rajivaarogyasri.telangana.gov.in"
+  ]
+}

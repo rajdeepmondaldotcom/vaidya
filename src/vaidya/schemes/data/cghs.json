@@ -1,0 +1,206 @@
+{
+  "scheme_id": "CGHS-2024-v1",
+  "canonical_name": "Central Government Health Scheme",
+  "aliases": [
+    "CGHS",
+    "Central Health Scheme",
+    "CGHS Card",
+    "Government Health Scheme",
+    "CGHS Dispensary"
+  ],
+  "local_names": {
+    "hi": "केंद्रीय सरकार स्वास्थ्य योजना",
+    "bn": "কেন্দ্রীয় সরকার স্বাস্থ্য প্রকল্প",
+    "ta": "மத்திய அரசு சுகாதாரத் திட்டம்",
+    "te": "కేంద్ర ప్రభుత్వ ఆరోగ్య పథకం",
+    "mr": "केंद्रीय शासन आरोग्य योजना",
+    "gu": "કેન્દ્ર સરકાર આરોગ્ય યોજના",
+    "kn": "ಕೇಂದ್ರ ಸರ್ಕಾರ ಆರೋಗ್ಯ ಯೋಜನೆ",
+    "ml": "കേന്ദ്ര സർക്കാർ ആരോഗ്യ പദ്ധതി",
+    "pa": "ਕੇਂਦਰੀ ਸਰਕਾਰ ਸਿਹਤ ਯੋਜਨਾ",
+    "or": "କେନ୍ଦ୍ର ସରକାର ସ୍ୱାସ୍ଥ୍ୟ ଯୋଜନା"
+  },
+  "state_variant_of": null,
+  "jurisdiction": "central",
+  "state_code": null,
+  "income_thresholds": [
+    {
+      "max_income_inr": 0,
+      "unit": "per_annum",
+      "applies_to": "individual",
+      "description": "No income threshold — eligibility based on employment status (central govt employee/pensioner/judge/MP), not income",
+      "source": "CGHS Rules / Ministry of Health and Family Welfare"
+    }
+  ],
+  "secc_categories": [],
+  "occupation_included": [
+    "government_employee",
+    "pensioner",
+    "member_of_parliament",
+    "supreme_court_judge",
+    "high_court_judge",
+    "freedom_fighter",
+    "accredited_journalist",
+    "ex_MP",
+    "ex_governor"
+  ],
+  "occupation_excluded": [
+    "private_sector_employee",
+    "self_employed",
+    "daily_wage",
+    "farmer",
+    "unorganized_sector_worker"
+  ],
+  "exclusion_rules": [
+    {
+      "rule_id": "CGHS-EX-001",
+      "exclusion_type": "hard",
+      "field": "employment_type",
+      "condition": "employment_type != 'central_govt'",
+      "description": "Only central government employees, pensioners, and specified constitutional functionaries eligible",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "CGHS-EX-002",
+      "exclusion_type": "hard",
+      "field": "employment_status",
+      "condition": "employment_status == 'resigned' and pension_type == 'none'",
+      "description": "Employees who resigned without pension entitlement are not eligible",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "CGHS-EX-003",
+      "exclusion_type": "hard",
+      "field": "state_govt_employee",
+      "condition": "employment_type == 'state_govt'",
+      "description": "State government employees are not covered; they have separate state health schemes",
+      "override_by_state": false
+    }
+  ],
+  "age_criteria": null,
+  "family_criteria": {
+    "max_family_size": null,
+    "family_definition": "Covers employee/pensioner, spouse, dependent children (until age 25 or marriage), and dependent parents if ordinarily residing with the beneficiary. Dependent disabled children covered without age limit.",
+    "head_of_family_required": true
+  },
+  "geographic_restrictions": [],
+  "coverage_amount_inr": 0,
+  "coverage_type": "per_family_per_year",
+  "covered_procedures": [
+    "OPD consultation at CGHS dispensaries and empanelled clinics",
+    "OPD medicines from CGHS dispensary or empanelled chemist",
+    "Specialist consultation at empanelled hospitals",
+    "Hospitalization at government hospitals (free)",
+    "Hospitalization at empanelled private hospitals (as per CGHS rates)",
+    "Cardiology (bypass surgery, angioplasty, valve replacement)",
+    "Orthopedic (knee replacement, hip replacement, spinal surgery)",
+    "Oncology (chemotherapy, radiation, surgical oncology)",
+    "Neurosurgery",
+    "Nephrology (dialysis, renal transplant)",
+    "Organ transplant (liver, renal, corneal, bone marrow)",
+    "Burns treatment",
+    "Ophthalmology (cataract, retinal surgery)",
+    "ENT procedures",
+    "Day-care procedures",
+    "Diagnostic tests and imaging (X-ray, CT, MRI, PET scan)",
+    "Dental treatment",
+    "AYUSH treatment (Ayurveda, Yoga, Unani, Siddha, Homeopathy)",
+    "Physiotherapy and rehabilitation",
+    "Hearing aids, spectacles (with prescription)",
+    "Maternity and obstetric care",
+    "Mental health treatment",
+    "Emergency care"
+  ],
+  "excluded_procedures": [
+    "Cosmetic surgery (unless medically necessary)",
+    "Fertility treatment and IVF (limited coverage available)",
+    "Experimental or unproven treatments",
+    "Treatment at non-empanelled private hospitals (except emergencies)",
+    "Overseas treatment (unless pre-approved by CGHS)"
+  ],
+  "required_documents": [
+    {
+      "name": "CGHS Card / e-Card",
+      "category": "identity",
+      "mandatory": true,
+      "alternatives": ["CGHS Beneficiary ID with Aadhaar verification"],
+      "local_name_hi": "सीजीएचएस कार्ड",
+      "notes": "Plastic CGHS card or e-card issued by CGHS; required for all OPD and hospitalization services"
+    },
+    {
+      "name": "Aadhaar Card",
+      "category": "identity",
+      "mandatory": true,
+      "alternatives": ["Government-issued photo ID"],
+      "local_name_hi": "आधार कार्ड",
+      "notes": "For identity verification and e-KYC"
+    },
+    {
+      "name": "Service ID / Pension Payment Order",
+      "category": "eligibility_proof",
+      "mandatory": true,
+      "alternatives": ["Last Pay Certificate for new pensioners"],
+      "local_name_hi": "सेवा पहचान पत्र / पेंशन भुगतान आदेश",
+      "notes": "Government employee service card or PPO for pensioners; establishes employment eligibility"
+    },
+    {
+      "name": "Referral Letter from CGHS",
+      "category": "eligibility_proof",
+      "mandatory": true,
+      "alternatives": ["Emergency admission — referral obtained within 3 days"],
+      "local_name_hi": "सीजीएचएस रेफरल पत्र",
+      "notes": "Referral from CGHS Wellness Centre/dispensary needed for specialist or hospital treatment"
+    },
+    {
+      "name": "Mobile Number",
+      "category": "contact",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "मोबाइल नंबर",
+      "notes": "For appointment booking and scheme communications"
+    },
+    {
+      "name": "Dependency Certificate",
+      "category": "eligibility_proof",
+      "mandatory": false,
+      "alternatives": [],
+      "local_name_hi": "आश्रित प्रमाण पत्र",
+      "notes": "For adding dependent family members; issued by the employing department"
+    }
+  ],
+  "enrollment_channels": [
+    "CGHS Wellness Centre (formerly dispensary)",
+    "CGHS online portal (cghs.gov.in)",
+    "CGHS Additional Director office",
+    "Employer HR department (for serving employees)",
+    "Pension disbursing authority (for new pensioners)"
+  ],
+  "enrollment_steps": [
+    "Step 1: Serving employees — submit CGHS application through employing ministry/department HR",
+    "Step 2: For pensioners — apply at nearest CGHS city office with PPO and Aadhaar within 3 months of retirement",
+    "Step 3: Submit family member details and dependency certificates",
+    "Step 4: Monthly contribution deducted from salary/pension (Rs 250-1000 based on pay level)",
+    "Step 5: CGHS plastic card / e-card issued for beneficiary and each dependent",
+    "Step 6: Register at preferred CGHS Wellness Centre for primary OPD care",
+    "Step 7: For specialist/hospital treatment, obtain referral from CGHS Wellness Centre doctor"
+  ],
+  "processing_time_days": 15,
+  "helpline_number": "1800-11-1131",
+  "portal_url": "https://cghs.gov.in",
+  "version": "1.0",
+  "effective_date": "1954-01-01",
+  "expiry_date": null,
+  "last_verified": "2026-04-15",
+  "source_url": "https://cghs.gov.in/",
+  "confidence_level": "provisional",
+  "description_for_embedding": "Central Government Health Scheme (CGHS) is India's oldest and most comprehensive government healthcare scheme covering central government employees, pensioners, Members of Parliament, Supreme Court and High Court judges, freedom fighters, and accredited journalists. Unlike insurance-based schemes, CGHS provides direct healthcare through its network of Wellness Centres (dispensaries), government hospitals, and empanelled private hospitals in 83+ cities across India. Covers OPD, specialist consultation, hospitalization, diagnostics, medicines, dental, AYUSH, and rehabilitation. Beneficiaries pay a nominal monthly contribution from salary/pension. Referral from CGHS Wellness Centre required for specialist treatment. No coverage cap for government hospital treatment; empanelled private hospital rates capped at CGHS schedule.",
+  "keywords": [
+    "cghs", "central government health scheme", "government employee", "pensioner",
+    "CGHS card", "wellness centre", "dispensary", "hospitalization", "OPD",
+    "empanelled hospital", "CGHS rates", "referral",
+    "member of parliament", "judge", "freedom fighter",
+    "केंद्रीय स्वास्थ्य योजना", "सीजीएचएस", "सरकारी कर्मचारी", "पेंशनर",
+    "सीजीएचएस कार्ड", "डिस्पेंसरी", "अस्पताल", "ओपीडी", "रेफरल",
+    "central scheme", "cghs dispensary", "health scheme government", "1800-11-1131"
+  ]
+}

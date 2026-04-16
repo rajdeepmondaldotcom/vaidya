@@ -7,7 +7,11 @@
     "PMJAY",
     "Ayushman Card",
     "Modicare",
-    "National Health Protection Scheme"
+    "National Health Protection Scheme",
+    "NHPS",
+    "Ayushman Yojana",
+    "Ayushman Health Card",
+    "ABHA Card"
   ],
   "local_names": {
     "hi": "प्रधानमंत्री जन आरोग्य योजना",
@@ -48,7 +52,20 @@
     "landless_household",
     "destitute",
     "begging_for_alms",
-    "rag_picker"
+    "rag_picker",
+    "artisan",
+    "beedi_worker",
+    "quarry_worker",
+    "share_cropper",
+    "tribal_forest_worker",
+    "rickshaw_puller",
+    "cobbler",
+    "sweeper",
+    "porter",
+    "watchman",
+    "fisherman",
+    "handloom_weaver",
+    "mine_worker"
   ],
   "occupation_excluded": [
     "government_employee",
@@ -61,7 +78,7 @@
       "exclusion_type": "hard",
       "field": "existing_coverage",
       "condition": "existing_coverage == 'employer'",
-      "description": "Families where any member has employer-provided health insurance are excluded",
+      "description": "Families where any member has employer-provided or company-sponsored health insurance (including group mediclaim, ESIS coverage, or any coverage >=Rs 10,000/year) are excluded",
       "override_by_state": false
     },
     {
@@ -77,7 +94,7 @@
       "exclusion_type": "hard",
       "field": "income_tax",
       "condition": "pays_income_tax == true",
-      "description": "Any family member paying income tax disqualifies the entire household",
+      "description": "Any family member who has filed an Income Tax Return in any of the past 3 assessment years disqualifies the entire household, even if zero tax was paid",
       "override_by_state": false
     },
     {
@@ -85,7 +102,7 @@
       "exclusion_type": "hard",
       "field": "motorized_vehicle",
       "condition": "owns_motorized_vehicle == true",
-      "description": "Families owning motorized two-wheeler, three-wheeler, four-wheeler, or fishing boat are excluded",
+      "description": "Families owning any motorized two-wheeler, three-wheeler, four-wheeler, or mechanized fishing boat at any time in the past 24 months are excluded",
       "override_by_state": false
     },
     {
@@ -101,7 +118,7 @@
       "exclusion_type": "hard",
       "field": "kisan_credit",
       "condition": "kisan_credit_card_limit > 50000",
-      "description": "Families with Kisan Credit Card limit above Rs 50,000 are excluded",
+      "description": "Families with Kisan Credit Card with sanctioned limit (not utilized amount) above Rs 50,000 are excluded",
       "override_by_state": false
     },
     {
@@ -109,38 +126,47 @@
       "exclusion_type": "hard",
       "field": "land_ownership",
       "condition": "owns_land_more_than_2_5_acres_irrigated == true",
-      "description": "Families owning more than 2.5 acres of irrigated land with at least one irrigation equipment are excluded",
+      "description": "Families owning more than 2.5 acres of irrigated land with at least one irrigation equipment are excluded; threshold may vary by state (check BIS portal for state-specific rules)",
       "override_by_state": false
     }
   ],
   "age_criteria": null,
   "family_criteria": {
     "max_family_size": null,
-    "family_definition": "Family as defined in SECC 2011 database; no cap on family size. Coverage is floater across all family members listed in the Ayushman card.",
+    "family_definition": "Family as defined in SECC 2011 database; no cap on family size. Coverage is Rs 5 lakh floater across all family members listed in the Ayushman card. Any family member can use any amount up to Rs 5 lakh total per year. Coverage resets each year on the anniversary of card issuance.",
     "head_of_family_required": false
   },
   "geographic_restrictions": ["WB", "DL"],
   "coverage_amount_inr": 500000,
   "coverage_type": "per_family_per_year",
   "covered_procedures": [
-    "Hospitalization expenses (room, nursing, ICU)",
-    "Pre-hospitalization (up to 3 days before admission)",
-    "Post-hospitalization (up to 15 days after discharge)",
-    "Surgical procedures (1,393 packages across 26 specialties)",
-    "Cardiology (bypass surgery, valve replacement, angioplasty)",
-    "Orthopedic (knee replacement, hip replacement)",
-    "Oncology (chemotherapy, radiation, surgical oncology)",
-    "Neurosurgery",
-    "Burns treatment",
-    "Dialysis",
-    "Emergency care",
-    "Neonatal and pediatric care",
-    "Mental health treatment",
-    "Cataract surgery",
-    "Cochlear implant",
-    "Day-care procedures (no overnight stay needed)",
-    "Diagnostics and lab tests during hospitalization",
-    "Medicines and consumables during treatment"
+    "General Surgery (hernia, appendectomy, cholecystectomy, etc.)",
+    "Cardiology & Cardiothoracic (bypass, valve replacement, angioplasty, pacemaker)",
+    "Orthopedics (knee/hip replacement, fracture fixation, spine surgery)",
+    "Oncology (chemotherapy, radiation therapy, surgical oncology for all cancers)",
+    "Neurosurgery (brain tumour, aneurysm clipping, VP shunt)",
+    "Urology (kidney stone, prostatectomy, bladder surgery)",
+    "Nephrology (dialysis, renal transplant)",
+    "ENT / Otolaryngology (cochlear implant, tympanoplasty, tonsillectomy)",
+    "Gastroenterology (endoscopy, liver biopsy, ERCP)",
+    "Pulmonology (TB treatment, lung surgery, ventilator support)",
+    "Emergency & Trauma (polytrauma, acute care, snake/animal bite)",
+    "Pediatrics & Neonatal (NICU, pediatric surgery, congenital defects)",
+    "Obstetrics & Gynecology (C-section, hysterectomy, high-risk pregnancy)",
+    "Ophthalmology (cataract, glaucoma, retinal surgery, cornea transplant)",
+    "Dermatology (skin grafting, burn treatment)",
+    "Psychiatry & Mental Health (acute psychiatric hospitalization)",
+    "Vascular Surgery (varicose veins, AV fistula for dialysis)",
+    "Plastic & Reconstructive Surgery (post-burn reconstruction, cleft lip/palate)",
+    "Burns & Specialized ICU",
+    "Dental & Maxillofacial (jaw surgery, trauma, oral cancer)",
+    "Rheumatology (joint-related hospitalizations)",
+    "Infectious Diseases (TB, HIV/AIDS, Hepatitis treatment during hospitalization)",
+    "Pediatric Surgery (congenital anomalies, neonatal surgery)",
+    "Day-care procedures (no overnight stay - cataract, dialysis, chemotherapy sessions)",
+    "Pre-hospitalization diagnostics (up to 3 days before admission)",
+    "Post-hospitalization follow-up (up to 15 days after discharge including medicines)",
+    "Transport allowance (Rs 1,000 per hospitalization for travel to empanelled hospital)"
   ],
   "excluded_procedures": [
     "OPD (Out-Patient Department) consultation",
@@ -191,6 +217,22 @@
       "alternatives": [],
       "local_name_hi": "परिवार का फोटो",
       "notes": "Required for new Ayushman card generation at CSC or hospital"
+    },
+    {
+      "name": "Income Certificate",
+      "category": "eligibility_proof",
+      "mandatory": false,
+      "alternatives": ["SECC Inclusion Letter", "BPL Certificate"],
+      "local_name_hi": "आय प्रमाण पत्र",
+      "notes": "Alternative proof when SECC letter unavailable; issued by Tehsildar/SDM"
+    },
+    {
+      "name": "PAN Card or Form 60",
+      "category": "identity",
+      "mandatory": false,
+      "alternatives": ["Aadhaar Card"],
+      "local_name_hi": "पैन कार्ड",
+      "notes": "Used for income tax payer verification (exclusion rule PMJAY-EX-003 check)"
     }
   ],
   "enrollment_channels": [
@@ -199,16 +241,23 @@
     "PM-JAY official website (pmjay.gov.in)",
     "Ayushman App (Android/iOS)",
     "State Health Agency (SHA) office",
-    "District hospital help desk"
+    "District hospital help desk",
+    "Gram Panchayat office (rural areas)",
+    "ASHA / ANM health worker referral",
+    "Ayushman Mitra at empanelled hospital",
+    "Toll-free helpline 14555 (telephonic guidance)"
   ],
   "enrollment_steps": [
-    "Step 1: Check eligibility on pmjay.gov.in or call 14555 with Aadhaar number or ration card number",
+    "Step 1: Check eligibility on pmjay.gov.in or mera.pmjay.gov.in or call 14555 with Aadhaar/ration card number",
     "Step 2: Visit nearest CSC (Jan Seva Kendra) or empanelled hospital with Aadhaar card and ration card",
-    "Step 3: Complete e-KYC verification (Aadhaar biometric or OTP)",
-    "Step 4: Operator verifies SECC 2011 inclusion status in the BIS portal",
-    "Step 5: Family photograph taken and uploaded to the system",
-    "Step 6: Ayushman card (Golden Card) generated and printed on the spot",
-    "Step 7: Card is valid immediately; present at any empanelled hospital for cashless treatment"
+    "Step 3: Complete e-KYC verification (Aadhaar biometric fingerprint or OTP on linked mobile)",
+    "Step 4: Operator verifies SECC 2011 inclusion status in the BIS (Beneficiary Information System) portal",
+    "Step 5: If SECC-verified, family photograph taken and all member details entered",
+    "Step 6: Ayushman card (Golden Card) generated with unique ABHA (Ayushman Bharat Health Account) ID",
+    "Step 7: Card printed on the spot (digital copy also available on Ayushman App)",
+    "Step 8: Card is valid immediately across 27,000+ empanelled hospitals in all states (except WB and DL)",
+    "Step 9: For treatment, present Ayushman Card + Aadhaar at any empanelled hospital for 100% cashless admission",
+    "Step 10: No premium, no copayment, no deductible — treatment is completely free for the beneficiary"
   ],
   "processing_time_days": 1,
   "helpline_number": "14555",
@@ -216,10 +265,10 @@
   "version": "3.0",
   "effective_date": "2018-09-23",
   "expiry_date": null,
-  "last_verified": "2024-11-15",
+  "last_verified": "2025-05-01",
   "source_url": "https://pmjay.gov.in/about/pmjay",
   "confidence_level": "verified",
-  "description_for_embedding": "Pradhan Mantri Jan Arogya Yojana (PM-JAY) is India's flagship central government health insurance scheme under Ayushman Bharat. It provides Rs 5 lakh per family per year for secondary and tertiary hospitalization to over 55 crore beneficiaries from economically vulnerable families identified through SECC 2011 deprivation criteria. The scheme covers 1,393 medical packages across 26 specialties at empanelled public and private hospitals. Free for beneficiaries with no premium. Available in all states except West Bengal and Delhi. Enrollment via CSC, empanelled hospitals, or online.",
+  "description_for_embedding": "Pradhan Mantri Jan Arogya Yojana (PM-JAY / Ayushman Bharat) is India's flagship central government health insurance providing Rs 5 lakh per family per year for secondary and tertiary hospitalization. Covers 55 crore beneficiaries from economically vulnerable families identified through SECC 2011 deprivation criteria (D1-D7). Provides 1,393 medical packages across 26 specialties including surgery, cardiology, oncology, orthopedics, dialysis, and neonatal care at 27,000+ empanelled public and private hospitals. Completely free — no premium, copayment, or deductible. Includes 3-day pre-hospitalization and 15-day post-hospitalization coverage. Cashless and portable across all states except West Bengal and Delhi (which have their own schemes). Enrollment via CSC, hospital, app, or 14555 helpline. Golden Card/Ayushman Card issued on the spot with Aadhaar e-KYC. Excludes: government employees, income tax payers, employer-insured families, and asset-owning households per SECC criteria.",
   "keywords": [
     "ayushman bharat", "pmjay", "pm-jay", "jan arogya", "health insurance",
     "5 lakh", "free treatment", "government scheme", "hospital", "surgery",
@@ -227,6 +276,12 @@
     "cashless treatment", "empanelled hospital", "CSC", "14555",
     "आयुष्मान भारत", "जन आरोग्य योजना", "मुफ्त इलाज", "सरकारी योजना",
     "5 लाख", "अस्पताल", "गोल्डन कार्ड", "राशन कार्ड",
-    "pradhan mantri", "health scheme", "hospitalization", "central scheme"
+    "pradhan mantri", "health scheme", "hospitalization", "central scheme",
+    "modicare", "secc", "deprivation", "bpl card", "jan seva kendra", "csc",
+    "5 lakh insurance", "free hospital", "dialysis", "cancer treatment",
+    "heart surgery", "knee replacement", "nicu", "maternity",
+    "mera.pmjay.gov.in", "bis portal", "abha", "health account",
+    "no premium", "cashless", "portability", "empanelled",
+    "आयुष्मान कार्ड", "जन सेवा केंद्र", "कैशलेस इलाज"
   ]
 }

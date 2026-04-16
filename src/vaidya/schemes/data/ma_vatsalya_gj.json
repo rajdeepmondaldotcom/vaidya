@@ -1,0 +1,227 @@
+{
+  "scheme_id": "MA-GJ-2024-v1",
+  "canonical_name": "Mukhyamantri Amrutam / MA Vatsalya Yojana (Gujarat)",
+  "aliases": [
+    "MA Yojana",
+    "Mukhyamantri Amrutam",
+    "MA Card",
+    "MA Vatsalya",
+    "Gujarat Health Insurance",
+    "Mukhya Mantri Amrutam Yojana",
+    "Chief Minister Amrutam Gujarat"
+  ],
+  "local_names": {
+    "hi": "मुख्यमंत्री अमृतम / एमए वात्सल्य योजना (गुजरात)",
+    "bn": "মুখ্যমন্ত্রী অমৃতম / এমএ বাৎসল্য যোজনা (গুজরাট)",
+    "ta": "முக்கியமந்திரி அம்ருதம் / எம்ஏ வாத்சல்ய திட்டம் (குஜராத்)",
+    "te": "ముఖ్యమంత్రి అమృతం / ఎమ్ఏ వాత్సల్య యోజన (గుజరాత్)",
+    "mr": "मुख्यमंत्री अमृतम / एमए वात्सल्य योजना (गुजरात)",
+    "gu": "મુખ્યમંત્રી અમૃતમ / એમએ વાત્સલ્ય યોજના (ગુજરાત)",
+    "kn": "ಮುಖ್ಯಮಂತ್ರಿ ಅಮೃತಂ / ಎಂಎ ವಾತ್ಸಲ್ಯ ಯೋಜನೆ (ಗುಜರಾತ್)",
+    "ml": "മുഖ്യമന്ത്രി അമൃതം / എംഎ വാത്സല്യ യോജന (ഗുജറാത്ത്)",
+    "pa": "ਮੁੱਖ ਮੰਤਰੀ ਅੰਮ੍ਰਿਤਮ / ਐੱਮਏ ਵਾਤਸਲਯ ਯੋਜਨਾ (ਗੁਜਰਾਤ)",
+    "or": "ମୁଖ୍ୟମନ୍ତ୍ରୀ ଅମୃତମ / ଏମଏ ବାତ୍ସଲ୍ୟ ଯୋଜନା (ଗୁଜରାଟ)"
+  },
+  "state_variant_of": null,
+  "jurisdiction": "state",
+  "state_code": "GJ",
+  "income_thresholds": [
+    {
+      "max_income_inr": 400000,
+      "unit": "per_annum",
+      "applies_to": "family",
+      "description": "MA Yojana: Annual family income up to Rs 4 lakh (BPL + lower-middle income families with MA card). No premium required.",
+      "source": "Gujarat MA Yojana Guidelines / Gujarat Government GR"
+    },
+    {
+      "max_income_inr": 600000,
+      "unit": "per_annum",
+      "applies_to": "family",
+      "description": "MA Vatsalya seniors: Extended income limit of Rs 6 lakh per annum for senior citizens (60+ years)",
+      "source": "Gujarat MA Vatsalya Senior Extension Guidelines"
+    }
+  ],
+  "secc_categories": ["D1", "D2", "D3", "D4", "D5"],
+  "occupation_included": [
+    "daily_wage",
+    "farmer",
+    "construction_worker",
+    "street_vendor",
+    "domestic_worker",
+    "auto_rickshaw_driver",
+    "small_trader",
+    "landless_household",
+    "salt_worker",
+    "diamond_polisher",
+    "textile_worker",
+    "unorganized_sector_worker"
+  ],
+  "occupation_excluded": [
+    "income_tax_payer_above_threshold",
+    "employer_insured"
+  ],
+  "exclusion_rules": [
+    {
+      "rule_id": "MAGJ-EX-001",
+      "exclusion_type": "hard",
+      "field": "income",
+      "condition": "annual_income > 400000 and age < 60",
+      "description": "Families with income above Rs 4 lakh excluded from MA Yojana (seniors up to Rs 6 lakh allowed)",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "MAGJ-EX-002",
+      "exclusion_type": "hard",
+      "field": "existing_coverage",
+      "condition": "existing_coverage == 'employer'",
+      "description": "Families with employer-provided health insurance above Rs 5 lakh are excluded",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "MAGJ-EX-003",
+      "exclusion_type": "hard",
+      "field": "occupation_type",
+      "condition": "occupation_type == 'salaried_govt'",
+      "description": "Gujarat government employees and pensioners covered under separate GCS/GMAS schemes",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "MAGJ-EX-004",
+      "exclusion_type": "hard",
+      "field": "pmjay_overlap",
+      "condition": "false",
+      "description": "MA Yojana operates INDEPENDENTLY of PM-JAY; beneficiaries may hold both MA and Ayushman cards. No exclusion for PM-JAY holders.",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "MAGJ-EX-005",
+      "exclusion_type": "hard",
+      "field": "family_size",
+      "condition": "family_size > 5",
+      "description": "Coverage limited to up to 5 family members under MA Yojana card",
+      "override_by_state": false
+    }
+  ],
+  "age_criteria": null,
+  "family_criteria": {
+    "max_family_size": 5,
+    "family_definition": "Family of up to 5 members: head of family, spouse, and up to 3 dependents. Rs 300 travel allowance per hospital visit provided by the scheme.",
+    "head_of_family_required": true
+  },
+  "geographic_restrictions": [],
+  "coverage_amount_inr": 500000,
+  "coverage_type": "per_family_per_year",
+  "covered_procedures": [
+    "Hospitalization expenses (room, nursing, ICU)",
+    "Pre-hospitalization (up to 7 days before admission)",
+    "Post-hospitalization (up to 10 days after discharge)",
+    "2000+ listed medical and surgical procedures",
+    "Cardiology (bypass surgery, angioplasty, valve replacement, pacemaker implant)",
+    "Orthopedic (knee replacement, hip replacement, spinal surgery)",
+    "Oncology (chemotherapy, radiation therapy, surgical oncology)",
+    "Neurosurgery (brain surgery, spinal cord procedures)",
+    "Nephrology (dialysis, renal transplant)",
+    "Burns treatment and reconstructive surgery",
+    "Neonatal and pediatric surgical care",
+    "Ophthalmology (cataract surgery, retinal surgery, glaucoma)",
+    "ENT surgeries",
+    "Polytrauma and emergency care",
+    "Gynecological and obstetric procedures",
+    "General surgical procedures",
+    "Diagnostics and lab tests during hospitalization",
+    "Medicines and consumables during treatment",
+    "Organ transplant (renal, corneal)",
+    "Rs 300 travel allowance per hospital visit"
+  ],
+  "excluded_procedures": [
+    "OPD (Out-Patient Department) consultation",
+    "Fertility treatment and IVF",
+    "Cosmetic surgery",
+    "Drug rehabilitation",
+    "Dental treatment (unless requiring hospitalization)",
+    "Spectacles and hearing aids (standalone)",
+    "Vaccination (routine immunization)"
+  ],
+  "required_documents": [
+    {
+      "name": "Aadhaar Card",
+      "category": "identity",
+      "mandatory": true,
+      "alternatives": ["Aadhaar Enrollment ID"],
+      "local_name_hi": "आधार कार्ड",
+      "notes": "Required for e-KYC verification"
+    },
+    {
+      "name": "BPL Ration Card (Gujarat)",
+      "category": "eligibility_proof",
+      "mandatory": true,
+      "alternatives": ["APL-1 Ration Card", "Antyodaya Anna Yojana Card"],
+      "local_name_hi": "बीपीएल राशन कार्ड (गुजरात)",
+      "notes": "BPL or APL-1 ration card issued by Gujarat Civil Supplies; establishes income eligibility"
+    },
+    {
+      "name": "MA Card / MA Vatsalya Card",
+      "category": "eligibility_proof",
+      "mandatory": false,
+      "alternatives": ["Aadhaar-based verification at hospital"],
+      "local_name_hi": "एमए कार्ड",
+      "notes": "Issued after enrollment; Aadhaar-based verification is now the primary method"
+    },
+    {
+      "name": "Income Certificate",
+      "category": "eligibility_proof",
+      "mandatory": false,
+      "alternatives": ["BPL Certificate from Mamlatdar office"],
+      "local_name_hi": "आय प्रमाण पत्र",
+      "notes": "For applicants with income between Rs 4-6 lakh (senior citizen extension)"
+    },
+    {
+      "name": "Mobile Number",
+      "category": "contact",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "मोबाइल नंबर",
+      "notes": "For OTP-based verification and scheme communication"
+    }
+  ],
+  "enrollment_channels": [
+    "MA Yojana empanelled hospital help desk",
+    "District hospital MA desk",
+    "e-Gram Centre / Common Service Centre (CSC)",
+    "Mamlatdar / Taluka Development Office",
+    "MA Yojana official portal (ma.gujarat.gov.in)",
+    "Helpline 1800-233-1022"
+  ],
+  "enrollment_steps": [
+    "Step 1: Check eligibility at nearest e-Gram centre or call 1800-233-1022 with ration card and Aadhaar details",
+    "Step 2: Visit e-Gram centre or empanelled hospital MA desk with Aadhaar and BPL ration card",
+    "Step 3: Complete Aadhaar-based e-KYC (biometric or OTP verification)",
+    "Step 4: Operator verifies ration card and income eligibility against Gujarat Civil Supplies database",
+    "Step 5: Family members enrolled (up to 5) and MA card generated with Aadhaar linkage",
+    "Step 6: For treatment, visit empanelled hospital; pre-authorization raised and approved by MA Trust",
+    "Step 7: Cashless treatment at empanelled hospital; Rs 300 travel allowance per visit; no premium for BPL families"
+  ],
+  "processing_time_days": 3,
+  "helpline_number": "1800-233-1022",
+  "portal_url": "https://ma.gujarat.gov.in",
+  "version": "1.0",
+  "effective_date": "2012-09-04",
+  "expiry_date": null,
+  "last_verified": "2026-04-15",
+  "source_url": "https://ma.gujarat.gov.in/",
+  "confidence_level": "provisional",
+  "description_for_embedding": "Mukhyamantri Amrutam (MA) / MA Vatsalya Yojana is Gujarat's state health insurance scheme providing Rs 5 lakh (Rs 500000) per family per year for secondary and tertiary hospitalization. It covers BPL and lower-middle income families with annual income up to Rs 4 lakh, with extended eligibility up to Rs 6 lakh for senior citizens (60+ years). The scheme is entirely state-funded with NO premium for BPL families and operates INDEPENDENTLY of PM-JAY. Over 2000 surgical and therapeutic procedures are covered at empanelled hospitals across Gujarat. Each visit includes Rs 300 travel allowance. Up to 5 family members covered per card. Enrollment via e-Gram centres and empanelled hospitals. Helpline: 1800-233-1022. Portal: ma.gujarat.gov.in.",
+  "keywords": [
+    "ma yojana", "mukhyamantri amrutam", "gujarat health insurance", "GJ health scheme",
+    "MA card", "ma vatsalya", "5 lakh", "500000", "BPL", "ration card",
+    "free treatment", "no premium", "state funded",
+    "hospitalization", "surgery", "cashless treatment", "empanelled hospital",
+    "2000 procedures", "rs 300 travel", "independent of pmjay",
+    "seniors 6 lakh", "5 family members",
+    "મુખ્યમંત્રી અમૃતમ", "ગુજરાત", "આરોગ્ય વીમા", "વાત્સલ્ય",
+    "मुख्यमंत्री अमृतम", "गुजरात", "स्वास्थ्य बीमा", "मुफ्त इलाज",
+    "सरकारी योजना", "राशन कार्ड", "अस्पताल", "एमए कार्ड",
+    "1800-233-1022", "ma.gujarat.gov.in",
+    "ma gujarat", "health insurance gujarat", "state scheme gujarat"
+  ]
+}
