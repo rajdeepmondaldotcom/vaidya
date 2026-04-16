@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -29,6 +30,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     from vaidya.knowledge.loader import load_schemes_into_store
     from vaidya.knowledge.store import KnowledgeStore
     from vaidya.pipeline.conversation import ConversationManager
+    from vaidya.pipeline.degradation import DegradationManager
     from vaidya.pipeline.translator import Translator
     from vaidya.sarvam.client import SarvamClient
     from vaidya.schemes.registry import get_schemes
@@ -36,7 +38,49 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     settings = Settings()
 
-    # Configure logging
+    # Bug 5: Validate Sarvam API key at startup
+    if not settings.sarvam_api_key:
+        raise RuntimeError(
+            "SARVAM_API_KEY environment variable is required. "
+            "Get one free at https://dashboard.sarvam.ai"
+        )
+
+    # Bug 11: Optional Sentry error tracking
+    if settings.sentry_dsn:
+        try:
+            import sentry_sdk
+
+            sentry_sdk.init(
+                dsn=settings.sentry_dsn,
+                environment=settings.environment,
+                traces_sample_rate=0.1 if settings.environment == "production" else 1.0,
+            )
+            logger.info("Sentry error tracking enabled")
+        except ImportError:
+            logger.warning("sentry-sdk not installed, error tracking disabled")
+
+    # Configure structured logging
+    try:
+        import structlog
+
+        structlog.configure(
+            processors=[
+                structlog.contextvars.merge_contextvars,
+                structlog.processors.add_log_level,
+                structlog.processors.TimeStamper(fmt="iso"),
+                structlog.dev.ConsoleRenderer()
+                if settings.environment == "development"
+                else structlog.processors.JSONRenderer(),
+            ],
+            wrapper_class=structlog.make_filtering_bound_logger(
+                getattr(logging, settings.log_level.upper())
+            ),
+            context_class=dict,
+            logger_factory=structlog.PrintLoggerFactory(),
+            cache_logger_on_first_use=True,
+        )
+    except ImportError:
+        pass  # structlog is optional; fall back to stdlib
     logging.basicConfig(
         level=getattr(logging, settings.log_level.upper()),
         format="%(asctime)s %(name)s %(levelname)s %(message)s",
@@ -45,27 +89,59 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger.info("Starting Vaidya v%s", __version__)
 
     # Initialize Sarvam client
-    client = SarvamClient(settings.sarvam_api_key)
+    client = SarvamClient(settings.sarvam_api_key, timeout=settings.llm_timeout_seconds)
 
     # Initialize knowledge store and load schemes
-    store = KnowledgeStore(settings.chromadb_path)
+    store = KnowledgeStore(
+        chromadb_path=settings.chromadb_path,
+        chromadb_host=settings.chromadb_host,
+        chromadb_port=settings.chromadb_port,
+    )
     scheme_count = load_schemes_into_store(store)
     logger.info("Loaded %d schemes into knowledge store", scheme_count)
+
+    # Bug 8: Health-check ChromaDB (warn, don't crash)
+    if not store.is_healthy():
+        logger.warning("ChromaDB health check failed - scheme search may be degraded")
 
     # Get scheme list for agents
     schemes = get_schemes()
 
     # Initialize session manager
-    session = SessionManager(settings.redis_url, settings.session_ttl_seconds)
+    session = SessionManager(
+        settings.redis_url, settings.session_ttl_seconds, settings.redis_max_connections
+    )
 
     # Initialize agents
-    intake = IntakeAgent(client, settings.intake_model)
-    eligibility = EligibilityAgent(client, settings.eligibility_model, schemes, store=store)
-    reviewer = ReviewerAgent(client, settings.reviewer_model, schemes)
-    guidance = GuidanceAgent(client, settings.guidance_model)
+    intake = IntakeAgent(
+        client,
+        settings.intake_model,
+        reasoning_effort=settings.intake_reasoning_effort,
+    )
+    eligibility = EligibilityAgent(
+        client,
+        settings.eligibility_model,
+        schemes,
+        store=store,
+        reasoning_effort=settings.eligibility_reasoning_effort,
+    )
+    reviewer = ReviewerAgent(
+        client,
+        settings.reviewer_model,
+        schemes,
+        reasoning_effort=settings.reviewer_reasoning_effort,
+    )
+    guidance = GuidanceAgent(
+        client,
+        settings.guidance_model,
+        reasoning_effort=settings.guidance_reasoning_effort,
+    )
     convergence = ConvergenceChecker()
 
     # Initialize orchestrator
+    audit = AuditTrail()
+    consent_tracker = ConsentTracker()
+    degradation_manager = DegradationManager()
     orchestrator = Orchestrator(
         client=client,
         intake=intake,
@@ -75,19 +151,20 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         convergence=convergence,
         fallback_model=settings.orchestrator_model,
         agent_timeout=settings.agent_timeout_seconds,
+        consent_tracker=consent_tracker,
+        degradation=degradation_manager,
     )
 
     # Initialize pipeline
     translator = Translator(client)
-    audit = AuditTrail()
-    consent_tracker = ConsentTracker()
     conversation_manager = ConversationManager(
         orchestrator=orchestrator,
         session_manager=session,
         translator=translator,
-        pii_masker=mask_pii,
         audit_trail=audit,
         consent_tracker=consent_tracker,
+        pii_masker=mask_pii,
+        sarvam_client=client,
     )
 
     # Store in app state for dependency injection
@@ -106,18 +183,45 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     yield
 
-    # Cleanup
-    await session.close()
+    # Graceful shutdown
+    logger.info("Shutting down Vaidya...")
+    try:
+        await asyncio.wait_for(session.close(), timeout=10.0)
+    except TimeoutError:
+        logger.warning("Redis close timed out during shutdown")
+    except Exception as exc:
+        logger.error("Error during shutdown: %s", exc)
     logger.info("Vaidya shutdown complete")
 
 
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
+    from fastapi.middleware.cors import CORSMiddleware
+
+    from vaidya.api.middleware import RateLimitMiddleware, RequestIdMiddleware
+
     app = FastAPI(
         title="Vaidya",
         description="Voice-first multi-agent healthcare scheme navigator for India",
         version=__version__,
         lifespan=lifespan,
+    )
+
+    # Middleware (outermost first)
+    app.add_middleware(RequestIdMiddleware)
+    app.add_middleware(RateLimitMiddleware)
+
+    # CORS: In dev (no origins configured), allow * without credentials.
+    # In prod (origins set), allow only those with credentials.
+    from vaidya.config import Settings as _CORSSettings
+
+    _cors_settings = _CORSSettings()
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_cors_settings.allowed_origins if _cors_settings.allowed_origins else ["*"],
+        allow_credentials=bool(_cors_settings.allowed_origins),
+        allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+        allow_headers=["Content-Type", "Authorization", "X-Request-ID"],
     )
 
     # Register routes
@@ -126,11 +230,13 @@ def create_app() -> FastAPI:
     from vaidya.api.routes.health import router as health_router
     from vaidya.api.routes.schemes import router as schemes_router
     from vaidya.api.routes.simulate import router as simulate_router
+    from vaidya.api.routes.voice import router as voice_router
 
     app.include_router(health_router, tags=["health"])
     app.include_router(conversation_router, prefix="/conversation", tags=["conversation"])
     app.include_router(simulate_router, prefix="/simulate", tags=["simulate"])
     app.include_router(schemes_router, prefix="/schemes", tags=["schemes"])
     app.include_router(compliance_router, prefix="/compliance", tags=["compliance"])
+    app.include_router(voice_router, prefix="/voice", tags=["voice"])
 
     return app
