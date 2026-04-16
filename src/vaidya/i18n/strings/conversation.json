@@ -1,0 +1,54 @@
+{
+  "resume": {
+    "hi-IN": "Aapka call pehle kat gaya tha. Wahin se shuru karein?",
+    "ta-IN": "Ungal azhappu munbu thunindhuviddu. Angirundhu thodarvomaa?",
+    "bn-IN": "Apnar call age kete gechilo. Oikhane theke shuru korbo?",
+    "te-IN": "Mee call mundu cut ayyindi. Akkada nundi modalupeddaamaa?",
+    "gu-IN": "Tamaaro call pehla cut thai gayo hato. Tyaathi sharu kariye?",
+    "kn-IN": "Nimma call modale cut aayitu. Allinda shuru maadona?",
+    "ml-IN": "Ningalude call munpil cut aayi. Avidunnu thudangaamoo?",
+    "mr-IN": "Tumcha call aadhi cut jhala hota. Tithe-pasun suru karuyat kaa?",
+    "pa-IN": "Tuhaada call pehlan cut ho gaya si. Othe toh shuru kariye?",
+    "od-IN": "Apananka call aage cut heithila. Seithi ru aarambha karibu ki?",
+    "en-IN": "Your previous call was disconnected. Shall we continue from where we left off?"
+  },
+  "default_welcome": {
+    "hi-IN": "Namaste! Main Vaidya hoon. Aapko kya jaanna hai?",
+    "ta-IN": "Vanakkam! Naan Vaidya. Ungalukku enna theriya vendum?",
+    "bn-IN": "Namaskar! Ami Vaidya. Apnar ki jante hobe?",
+    "te-IN": "Namaskaram! Nenu Vaidya. Meeku emi telusukovalanukuntunnaru?",
+    "gu-IN": "Namaste! Hu Vaidya chhu. Tamare shu jaanvu chhe?",
+    "kn-IN": "Namaskara! Naanu Vaidya. Nimge enu tiliyabeku?",
+    "ml-IN": "Namaskkaram! Njaan Vaidya. Ningalkku entha ariyaanam?",
+    "mr-IN": "Namaskar! Mi Vaidya. Tumhala kaay jaanun ghyaychay?",
+    "pa-IN": "Sat Sri Akaal! Mai Vaidya haan. Tuhaanu ki jaanna hai?",
+    "od-IN": "Namaskar! Mu Vaidya. Apananku ki jaanibaku achhi?",
+    "en-IN": "Hello! I am Vaidya. How can I help you?"
+  },
+  "session_expired": {
+    "hi-IN": "Aapka session khatam ho gaya. Kripya dubara call karein.",
+    "ta-IN": "Ungal session mudindhuviddu. Thayavu seythu meendum azhaikavum.",
+    "bn-IN": "Apnar session sesh hoye geche. Abar call korun.",
+    "te-IN": "Mee session mugipoindi. Dayachesi malli call cheyandi.",
+    "gu-IN": "Tamaaru session puru thai gayu. Maherbani kari fari call karo.",
+    "kn-IN": "Nimma session mugidide. Dayavittu matte call maadi.",
+    "ml-IN": "Ningalude session kazhinjhu. Dayavayi viiNdum vilikkuka.",
+    "mr-IN": "Tumcha session sampala. Krupaya punha call karaa.",
+    "pa-IN": "Tuhaada session khatam ho gaya. Kirpaya dubara call karo.",
+    "od-IN": "Apananka session shesa heigala. Dayakari punarvaar call karantu.",
+    "en-IN": "Your session has expired. Please call again."
+  },
+  "error": {
+    "hi-IN": "Maaf kijiye, thodi dikkat aa rahi hai. Kya aap phir se bata sakte hain?",
+    "ta-IN": "Mannikkavum, sila prachanai. Thayavu seythu meendum sollunga?",
+    "bn-IN": "Dukkhito, ektu somossa hocche. Abar bolben please?",
+    "te-IN": "Kshaminchaandi, kontha samasya vachindi. Malli cheppagalaraa?",
+    "gu-IN": "Maaf karo, thodi taklif aavi. Fari kahesho?",
+    "kn-IN": "Kshamisi, swalpa taandre aayitu. Matte heli?",
+    "ml-IN": "Kshamikku, oru prayaasam vannu. ViiNdum parayoo?",
+    "mr-IN": "Maaf karaa, thodi adchan aali. Punha saangaal kaa?",
+    "pa-IN": "Maafi, thodi dikkat aa gayi. Fir dassoge?",
+    "od-IN": "Kshama karantu, gotie samasya aasila. Punithare kahantu?",
+    "en-IN": "Sorry, something went wrong. Could you say that again?"
+  }
+}

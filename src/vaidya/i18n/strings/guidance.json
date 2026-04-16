@@ -1,0 +1,67 @@
+{
+  "no_match": {
+    "hi-IN": "Abhi jo bataya usse koi yojana match nahi ho rahi. Najdeeki Jan Seva Kendra mein sab check ho sakta hai.",
+    "ta-IN": "Neengal solliya thagavalil edhum porundhavilai. Arugil ulla Jan Seva Kendra-vil muzhumaiyaaga paarkkalaam.",
+    "bn-IN": "Apni ja bolelen tar sathe kono yojana match hocche na. Kachhakachhi Jan Seva Kendra-te sob check hote pare.",
+    "te-IN": "Meeru cheppina samachaaram to eemi paddhathi saripotledu. Daggaraloni Jan Seva Kendra lo purthi check cheyinchukovachu.",
+    "gu-IN": "Tamne je batavyu te pramane koi yojana match nathi thati. Najdeekna Jan Seva Kendra maa badhu check thei shake chhe.",
+    "kn-IN": "Neevu helida maahiti prade yaavude yojane hondikondilla. Hattirada Jan Seva Kendra dalli ellavoo check aagabahudu.",
+    "ml-IN": "Ningal paranjathu vech oru padhathiyum cherunnilla. Adutthulla Jan Seva Kendra yil muzhuvan check cheyyaam.",
+    "mr-IN": "Tumhi saangitlya pramane kahi yojana match hot nahi. Javalechya Jan Seva Kendra madhe sagla check hou shakte.",
+    "pa-IN": "Tusi jo dasseya usde naal koi yojana match nahi ho rahi. Najdeeki Jan Seva Kendra vich sab check ho sakda hai.",
+    "od-IN": "Apane je kahile tahare kichhi yojana match huenahin. Nikatavartii Jan Seva Kendra re sabu check hoipaariba.",
+    "en-IN": "Based on what you shared, no scheme matched right now. Your nearest Jan Seva Kendra can do a full check."
+  },
+  "no_match_sms": {
+    "hi-IN": "Vaidya: Koi yojana match nahi hui. Jan Seva Kendra jaayein.",
+    "ta-IN": "Vaidya: Edhum thittam porundhavilai. Jan Seva Kendra sellavum.",
+    "bn-IN": "Vaidya: Kono yojana match hoyni. Jan Seva Kendra-te jaan.",
+    "te-IN": "Vaidya: Eemi paddhathi match kaaledu. Jan Seva Kendra ki vellanda.",
+    "gu-IN": "Vaidya: Koi yojana match nahi thai. Jan Seva Kendra jaav.",
+    "kn-IN": "Vaidya: Yaav yojane match aagilla. Jan Seva Kendra ge hogi.",
+    "ml-IN": "Vaidya: Oru padhathiyum match aayilla. Jan Seva Kendra yil poi.",
+    "mr-IN": "Vaidya: Kahi yojana match nahi. Jan Seva Kendra la jaa.",
+    "pa-IN": "Vaidya: Koi yojana match nahi hoyi. Jan Seva Kendra jaao.",
+    "od-IN": "Vaidya: Kichhi yojana match hela nahin. Jan Seva Kendra ku jaantu.",
+    "en-IN": "Vaidya: No scheme matched. Visit Jan Seva Kendra."
+  },
+  "fallback_headline": {
+    "hi-IN": "Achi khabar hai. Aapko {scheme_name} mil sakti hai.",
+    "ta-IN": "Nalla seidhi. Ungalukku {scheme_name} kidaikkum.",
+    "bn-IN": "Bhalo khobar. Apni {scheme_name} pete paren.",
+    "te-IN": "Manchhi vaartha. Meeku {scheme_name} dorakavachu.",
+    "gu-IN": "Saaraa samaachaar. Tamaane {scheme_name} mali shake chhe.",
+    "kn-IN": "Olle sudi. Nimge {scheme_name} sigabahudu.",
+    "ml-IN": "Nalla vaarttha. Ningalkku {scheme_name} labhikkum.",
+    "mr-IN": "Changali baatmi. Tumhala {scheme_name} miluu shakte.",
+    "pa-IN": "Changee khabar. Tuhaanu {scheme_name} mil sakdi hai.",
+    "od-IN": "Bhala khabara. Apanankari {scheme_name} mili paariba.",
+    "en-IN": "Good news. You may be eligible for {scheme_name}."
+  },
+  "fallback_action": {
+    "hi-IN": "Apne najdeeki Jan Seva Kendra mein jaayein.",
+    "ta-IN": "Ungal arugil ulla Jan Seva Kendra-kku sellunga.",
+    "bn-IN": "Apnar kachhakachhi Jan Seva Kendra-te jaan.",
+    "te-IN": "Mee daggaraloni Jan Seva Kendra ki vellandi.",
+    "gu-IN": "Tamaara najdeekna Jan Seva Kendra maa jaav.",
+    "kn-IN": "Nimma hattirada Jan Seva Kendra ge hogi.",
+    "ml-IN": "Ningalude adutthulla Jan Seva Kendra yil pokuka.",
+    "mr-IN": "Tumchya javalechya Jan Seva Kendra la jaa.",
+    "pa-IN": "Tuhaade najdeeki Jan Seva Kendra vich jaao.",
+    "od-IN": "Apananka nikatavartii Jan Seva Kendra ku jaantu.",
+    "en-IN": "Visit your nearest Jan Seva Kendra."
+  },
+  "fallback_sms": {
+    "hi-IN": "Vaidya: {names} mil sakti hai. Jan Seva Kendra mein jaayein.",
+    "ta-IN": "Vaidya: {names} kidaikkum. Jan Seva Kendra-kku sellunga.",
+    "bn-IN": "Vaidya: {names} pete paren. Jan Seva Kendra-te jaan.",
+    "te-IN": "Vaidya: {names} dorakavachu. Jan Seva Kendra ki vellandi.",
+    "gu-IN": "Vaidya: {names} mali shake chhe. Jan Seva Kendra jaav.",
+    "kn-IN": "Vaidya: {names} sigabahudu. Jan Seva Kendra ge hogi.",
+    "ml-IN": "Vaidya: {names} labhikkum. Jan Seva Kendra yil poi.",
+    "mr-IN": "Vaidya: {names} miluu shakte. Jan Seva Kendra la jaa.",
+    "pa-IN": "Vaidya: {names} mil sakdi hai. Jan Seva Kendra jaao.",
+    "od-IN": "Vaidya: {names} mili paariba. Jan Seva Kendra ku jaantu.",
+    "en-IN": "Vaidya: {names} may be available. Visit Jan Seva Kendra."
+  }
+}
