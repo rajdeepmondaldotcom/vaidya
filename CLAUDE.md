@@ -2,7 +2,7 @@
 
 ## What is this?
 
-Vaidya is a voice-first multi-agent healthcare scheme navigator for India. A user calls a phone number, speaks in Hindi/Tamil/Bengali, answers 5 questions about their family and income, and hears — in their language — which government healthcare schemes they qualify for.
+Vaidya is a voice-first multi-agent healthcare scheme navigator for India. A user calls a phone number, speaks in any of 23 Indian languages, answers 5 questions about their family and income, and hears — in their language — which government healthcare schemes they qualify for.
 
 ## Architecture
 
@@ -37,17 +37,18 @@ User speech → STT → ORCHESTRATOR (state machine, NOT LLM) → AGENTS → TTS
 
 ```
 src/vaidya/
-├── agents/          # 5 agents + convergence checker + base protocol
+├── agents/          # 5 agents + convergence checker + shared scheme_utils + constants
 ├── models/          # Pydantic v2 data models (conversation, profile, scheme, api)
-├── schemes/data/    # 8 healthcare scheme JSON files
+├── schemes/data/    # 46 healthcare scheme JSON files (18 central + 28 state)
 ├── prompts/templates/  # 5 LLM prompt templates (.txt files)
 ├── knowledge/       # ChromaDB store, loader, embeddings
-├── pipeline/        # ConversationManager (turn orchestration), translator
+├── pipeline/        # ConversationManager (turn orchestration), translator, translation_terms
 ├── compliance/      # PII masking, consent tracking, audit trail
 ├── session/         # Redis-backed session state
 ├── voice/           # STT/TTS wrappers, language detection
-├── sarvam/          # Async SarvamClient wrapper
-├── api/routes/      # FastAPI endpoints (health, conversation, simulate, schemes, compliance)
+├── sarvam/          # Async SarvamClient wrapper with circuit breaker resilience
+├── telephony/       # Twilio + Pipecat voice pipeline (optional: pip install .[telephony])
+├── api/routes/      # FastAPI endpoints (health, conversation, simulate, schemes, compliance, voice)
 ├── app.py           # FastAPI factory with lifespan
 └── config.py        # Pydantic BaseSettings
 ```
@@ -65,7 +66,7 @@ make docker       # docker compose up
 ## Testing
 
 ```bash
-pytest tests/unit/ -v -p no:logfire     # 161+ unit tests, no external deps
+pytest tests/unit/ -v -p no:logfire     # 565+ unit tests, no external deps
 pytest tests/integration/ -v            # Integration tests with mocked LLM
 python -m eval --scenarios quick        # 5-scenario smoke test (needs running server)
 python -m eval --scenarios all          # Full 64-scenario eval suite
@@ -82,10 +83,10 @@ python -m eval --scenarios all          # Full 64-scenario eval suite
 ## Sarvam API Usage
 
 All AI calls go through `src/vaidya/sarvam/client.py`:
-- `chat()` / `chat_json()` — LLM (sarvam-m4, free tier)
+- `chat()` / `chat_json()` — LLM (sarvam-105b / sarvam-30b, free tier)
 - `translate()` — Mayura v1
-- `tts()` — Bulbul v2
-- `stt()` — Saarika v2 (Phase 2, placeholder in Phase 1)
+- `tts()` — Bulbul v3
+- `stt()` — Saaras v3
 
 ## Adding a New Scheme
 
@@ -94,13 +95,41 @@ All AI calls go through `src/vaidya/sarvam/client.py`:
 3. Add test scenarios in `eval/scenarios.py`
 4. Run eval to verify accuracy
 
-## Phase 1 Scope
+## Current Scope
 
-- 8 schemes (5 central + 3 state)
-- 3 languages (Hindi, Tamil, Bengali)
-- Text simulation mode (no telephony)
+- 46 schemes (18 central + 28 state) covering all Indian states/UTs
+- 23 languages: 11 voice (TTS + STT) + 12 text-only (STT + translate)
+- Voice languages: Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, English
+- Text simulation mode + real voice calls via Twilio telephony
+- Pipecat voice pipeline: Twilio WebSocket → Sarvam STT → Orchestrator → Sarvam TTS → caller
 - ChromaDB for knowledge store
-- Redis for session state
+- Redis for session state with atomic pipelines
+- Per-session turn locking, circuit breaker resilience, cost tracking
+- Railway deployment ready (railway.toml)
+
+## Voice Call Setup (Real Phone Calls)
+
+1. `pip install .[telephony]` -- installs pipecat-ai + twilio
+2. Get a Twilio account at twilio.com/try-twilio
+3. Run `python scripts/setup_twilio.py --configure --base-url https://your-app.up.railway.app`
+4. Set env vars: `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`, `VOICE_WEBSOCKET_URL`
+5. Deploy to Railway: `railway up` (or any host with WebSocket support)
+6. Call the number -- Twilio streams audio to our WebSocket, Pipecat handles STT/TTS
+
+## Deployment
+
+```bash
+# Local testing
+make run                              # Start server on localhost:8000
+
+# Railway (recommended for production)
+railway up                            # Deploy from Dockerfile
+railway add redis                     # Add managed Redis
+# Set SARVAM_API_KEY, TWILIO_*, VOICE_WEBSOCKET_URL in Railway dashboard
+
+# Docker
+docker compose up                     # Local with Redis + ChromaDB
+```
 
 ## PRD Reference
 
