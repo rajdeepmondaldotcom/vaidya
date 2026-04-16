@@ -2,48 +2,47 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import cast
 
 from fastapi import Request
 
-if TYPE_CHECKING:
-    from vaidya.compliance.audit import AuditTrail
-    from vaidya.compliance.consent import ConsentTracker
-    from vaidya.config import Settings
-    from vaidya.knowledge.store import KnowledgeStore
-    from vaidya.models.scheme import SchemeRecord
-    from vaidya.pipeline.conversation import ConversationManager
-    from vaidya.sarvam.client import SarvamClient
-    from vaidya.session.manager import SessionManager
+from vaidya.compliance.audit import AuditTrail
+from vaidya.compliance.consent import ConsentTracker
+from vaidya.config import Settings
+from vaidya.knowledge.store import KnowledgeStore
+from vaidya.models.scheme import SchemeRecord
+from vaidya.pipeline.conversation import ConversationManager
+from vaidya.sarvam.client import SarvamClient
+from vaidya.session.manager import SessionManager
 
 
 def get_settings(request: Request) -> Settings:
-    return request.app.state.settings  # type: ignore[no-any-return]
+    return cast(Settings, request.app.state.settings)
 
 
 def get_client(request: Request) -> SarvamClient:
-    return request.app.state.client  # type: ignore[no-any-return]
+    return cast(SarvamClient, request.app.state.client)
 
 
 def get_store(request: Request) -> KnowledgeStore:
-    return request.app.state.store  # type: ignore[no-any-return]
+    return cast(KnowledgeStore, request.app.state.store)
 
 
 def get_session(request: Request) -> SessionManager:
-    return request.app.state.session  # type: ignore[no-any-return]
+    return cast(SessionManager, request.app.state.session)
 
 
 def get_conversation_manager(request: Request) -> ConversationManager:
-    return request.app.state.conversation_manager  # type: ignore[no-any-return]
+    return cast(ConversationManager, request.app.state.conversation_manager)
 
 
 def get_schemes(request: Request) -> list[SchemeRecord]:
-    return request.app.state.schemes  # type: ignore[no-any-return]
+    return cast(list[SchemeRecord], request.app.state.schemes)
 
 
 def get_audit_trail(request: Request) -> AuditTrail:
-    return request.app.state.audit_trail  # type: ignore[no-any-return]
+    return cast(AuditTrail, request.app.state.audit_trail)
 
 
 def get_consent_tracker(request: Request) -> ConsentTracker:
-    return request.app.state.consent_tracker  # type: ignore[no-any-return]
+    return cast(ConsentTracker, request.app.state.consent_tracker)
