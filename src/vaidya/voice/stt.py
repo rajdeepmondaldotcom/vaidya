@@ -9,10 +9,12 @@ detected language metadata.
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from vaidya.sarvam.client import SarvamClient
 from vaidya.sarvam.models import STT_MODEL
+
+if TYPE_CHECKING:
+    from vaidya.sarvam.client import SarvamClient
 
 logger = logging.getLogger(__name__)
 
