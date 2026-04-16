@@ -1,7 +1,7 @@
 """Tests for scheme data loading and validation.
 
 Verifies:
-- All 8 scheme JSONs load successfully via get_schemes()
+- All 16 scheme JSONs load successfully via get_schemes()
 - Required fields present on every scheme
 - PM-JAY has exclusion rules
 - Swasthya Sathi is state=WB
@@ -26,9 +26,10 @@ from vaidya.schemes.registry import get_scheme_by_id, get_schemes, get_schemes_f
 
 
 class TestSchemeLoading:
-    def test_loads_all_8_schemes(self) -> None:
+    def test_loads_all_schemes(self) -> None:
         schemes = get_schemes()
-        assert len(schemes) == 8
+        # 8 original + 25+ new central and state schemes
+        assert len(schemes) >= 30, f"Expected 30+ schemes, got {len(schemes)}"
 
     def test_all_scheme_ids_unique(self) -> None:
         schemes = get_schemes()
@@ -62,9 +63,21 @@ class TestSchemeRequiredFields:
             assert s.coverage_amount_inr >= 0, f"Negative coverage for {s.scheme_id}"
 
     def test_most_have_positive_coverage(self) -> None:
-        """All schemes except ESIC have coverage_amount_inr > 0."""
+        """Most schemes have coverage_amount_inr > 0; free-service schemes have 0."""
+        # These are free-service/comprehensive schemes without a fixed
+        # coverage amount: ESIC, CGHS, AB-HWC, JSSK, RBSK, NPHCE, PMNDP
+        zero_coverage_ok = {
+            "ESIC-2024-v2",
+            "CGHS-2024-v1",
+            "AB-HWC-2024-v1",
+            "JSSK-2024-v1",
+            "RBSK-2024-v1",
+            "NPHCE-2024-v1",
+            "PMNDP-2024-v1",
+            "CMCHCS-SK-2024-v1",  # Sikkim: universal free healthcare
+        }
         for s in get_schemes():
-            if s.scheme_id != "ESIC-2024-v2":
+            if s.scheme_id not in zero_coverage_ok:
                 assert s.coverage_amount_inr > 0, f"Zero coverage for {s.scheme_id}"
 
     def test_all_have_description_for_embedding(self) -> None:

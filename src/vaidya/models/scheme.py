@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from enum import StrEnum
 
-from pydantic import BaseModel, ConfigDict, computed_field
+from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 # ---------------------------------------------------------------------------
 # Enums
@@ -228,10 +228,10 @@ class DisagreementRecord(BaseModel):
 class ConvergenceResult(BaseModel):
     """Merged output after the two agents converge."""
 
-    agreed_eligible: list[SchemeMatch]
-    agreed_ineligible: list[str]  # scheme_ids only
-    disagreements: list[DisagreementRecord]
-    conservative_eligible: list[SchemeMatch]
+    agreed_eligible: list[SchemeMatch] = Field(default_factory=list)
+    agreed_ineligible: list[str] = Field(default_factory=list)
+    disagreements: list[DisagreementRecord] = Field(default_factory=list)
+    conservative_eligible: list[SchemeMatch] = Field(default_factory=list)
 
     @computed_field  # type: ignore[prop-decorator]
     @property
