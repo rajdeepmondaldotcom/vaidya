@@ -520,6 +520,22 @@ class TestConvergenceResult:
         ids = [m.scheme_id for m in result.all_eligible]
         assert ids == ["A1", "A2", "C1"]
 
+    def test_default_factory_creates_empty_lists(self) -> None:
+        """Fields use default_factory=list, so missing args yield empty lists."""
+        result = ConvergenceResult()
+        assert result.agreed_eligible == []
+        assert result.agreed_ineligible == []
+        assert result.disagreements == []
+        assert result.conservative_eligible == []
+        assert result.all_eligible == []
+
+    def test_default_factory_independent_instances(self) -> None:
+        """Each instance gets its own list — no shared mutable default."""
+        r1 = ConvergenceResult()
+        r2 = ConvergenceResult()
+        r1.agreed_ineligible.append("X")
+        assert r2.agreed_ineligible == []
+
 
 # ---------------------------------------------------------------------------
 # AgentResponse

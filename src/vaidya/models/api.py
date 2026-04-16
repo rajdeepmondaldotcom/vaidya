@@ -23,6 +23,7 @@ class StartConversationRequest(BaseModel):
 
     phone_number_hash: str
     language: str = "hi-IN"
+    channel: str = "voice"  # voice | whatsapp | sms | web
 
 
 class StartConversationResponse(BaseModel):
@@ -47,6 +48,7 @@ class TurnResponse(BaseModel):
     text: str
     phase: str
     schemes_found: int | None = None
+    cost_so_far_inr: float | None = None
     metadata: dict = Field(default_factory=dict)
 
 
@@ -67,7 +69,10 @@ class SimulateResponse(BaseModel):
 
     conversation: list[dict]
     final_phase: str
-    eligible_schemes: list[str]
+    eligible_schemes: list[str]  # scheme IDs for eval scoring
+    eligible_scheme_names: list[str] = Field(default_factory=list)
+    session_cost_inr: float = 0.0
+    total_cost_inr: float | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -113,5 +118,6 @@ class AgentResponse(BaseModel):
     reviewer_result: ReviewerResult | None = None
     convergence_result: ConvergenceResult | None = None
     guidance_output: GuidanceOutput | None = None
+    already_localized: bool = False
     metadata: dict = Field(default_factory=dict)
     error: str | None = None

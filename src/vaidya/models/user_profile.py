@@ -54,6 +54,7 @@ class UserProfile(BaseModel):
     occupation_type: OccupationType = OccupationType.UNKNOWN
     existing_coverage: CoverageType = CoverageType.UNKNOWN
     health_need: str | None = None
+    health_need_en: str | None = None  # English translation for RAG queries
     age: int | None = None
     bpl_card: bool | None = None
     ration_card: bool | None = None
