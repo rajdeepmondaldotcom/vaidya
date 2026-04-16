@@ -30,13 +30,55 @@ RULES:
 5. Be CONSERVATIVE: "uncertain" is better than a false "eligible".
 6. At 55 crore beneficiary scale, a 2% false-positive rate = 1.1 crore people turned away at CSC centers. Precision matters.
 
-SPECIAL STATE RULES:
-- West Bengal (WB): opted OUT of PM-JAY entirely. WB residents get Swasthya Sathi instead.
-- Delhi (DL): not covered by PM-JAY. Has its own scheme.
-- Rajasthan (RJ): runs Chiranjeevi Yojana — SEPARATE from PM-JAY, not a variant.
-- ESIC: eligibility is employer-side. User may not know if employer is ESIC-registered. If salary <21K/month and salaried_pvt, mark ESIC as "uncertain" not "ineligible".
+SPECIAL STATE RULES (CRITICAL — apply these BEFORE general matching):
 
-PM-JAY 70+ EXPANSION: This is ADDITIONAL to base PM-JAY. A 72-year-old who qualifies for PM-JAY gets BOTH base (5L family) AND 70+ (additional 5L individual).
+PM-JAY OPT-OUT STATES:
+- West Bengal (WB): Opted OUT of PM-JAY entirely. WB residents get Swasthya Sathi instead (SS-WB). Do NOT mark PM-JAY eligible for WB residents.
+- Delhi (DL): Opted OUT of PM-JAY. Delhi has its own schemes: Delhi Arogya Kosh (DAK-DL, income <3L) and Delhi Arogya Nidhi (DAN-DL, NFSA card + 3yr residence). Do NOT mark PM-JAY eligible for DL residents.
+
+STATE-SPECIFIC SCHEME RULES:
+- Rajasthan (RJ): Chiranjeevi/MAAY (CHIR-RJ) is INDEPENDENT of PM-JAY, not a variant. Income <8L free, others Rs 850/yr. Rs 25L coverage (highest among state schemes after Jharkhand).
+- Tamil Nadu (TN): CMCHIS (CMCHIS-TN) is INDEPENDENT of PM-JAY. Income <1.2L, ration card required. Both PM-JAY and CMCHIS can apply simultaneously.
+- Andhra Pradesh (AP): Aarogyasri (AAROGYASRI-AP) auto-integrates with PM-JAY. Income <5L. Asset restrictions: max 35 acres land, max 1 vehicle.
+- Telangana (TS): Rajiv Aarogyasri (AAROGYASRI-TS) is co-branded AB-PMJAY. Rs 10L coverage (enhanced over PM-JAY). Income <5L, white ration card.
+- Karnataka (KA): Arogya Karnataka (AK-KA) merged with PM-JAY. BPL=free, APL=30% co-pay. Yeshasvini (YESHASVINI-KA) is SEPARATE — cooperative members only.
+- Kerala (KL): KASP (KASP-KL) is the umbrella for PM-JAY in Kerala. Income <3L. Via Akshaya centres.
+- Maharashtra (MH): MJPJAY (MJPJAY-MH) merged with PM-JAY. Ration card color determines tier.
+- Gujarat (GJ): MA Vatsalya (MA-GJ) is INDEPENDENT of PM-JAY. Income <4L (6L for seniors). No premium.
+- Odisha (OD): BSKY/G-JAY (BSKY-OD) joined PM-JAY Jan 2025. Women get Rs 10L (enhanced). NFSA auto-enrolled.
+- Punjab (PB): MMSY (MMSY-PB) enhanced PM-JAY to Rs 10L. UNIVERSAL — no income criteria.
+- Jharkhand (JH): Abua Swasthya (ABUA-JH) supplements PM-JAY. Rs 15L coverage. NFSA ration card required.
+- Uttarakhand (UK): Atal Ayushman (ATAL-UK) UNIVERSAL — all residents, no income limit. Converged with PM-JAY.
+- Haryana (HR): Chirayu (CHIRAYU-HR) extends PM-JAY. Tiered: free <3L, Rs 4K/yr for 3-6L. Linked to PPP.
+- Himachal Pradesh (HP): HIMCARE (HIMCARE-HP) supplements PM-JAY. BPL/vendors/70+ free, others Rs 365-1000/yr.
+- Jammu & Kashmir (JK): SEHAT (SEHAT-JK) extends PM-JAY universally to all JK residents.
+- Chhattisgarh (CG): DKBSSY (DKBSSY-CG) two-tier: Rs 5L for Priority/Antyodaya ration card, Rs 50K for other ration cards.
+- Madhya Pradesh (MP): Niramayam (NIRAMAYAM-MP) extends PM-JAY with Sambal Card expansion.
+- Uttar Pradesh (UP): MJAY (MJAY-UP) supplements PM-JAY for non-SECC families.
+- Bihar (BR): Standard PM-JAY implementation (PMJAY-BR).
+
+EMPLOYER/GOVERNMENT EMPLOYEE RULES:
+- ESIC: Eligibility is employer-side. User may not know if employer is ESIC-registered. If salary <21K/month and salaried_pvt, mark ESIC as "uncertain" not "ineligible".
+- CGHS: For central govt employees and pensioners ONLY. CGHS beneficiaries are EXCLUDED from PM-JAY.
+- Government employees: Excluded from PM-JAY, most state schemes. May qualify for CGHS, ESIC, or PMSBY.
+
+MATERNAL/CHILD/DISEASE-SPECIFIC SCHEMES:
+- JSY: BPL/SC/ST pregnant women, institutional delivery required. Cash assistance, not insurance.
+- JSSK: All pregnant women at govt facilities + newborns/infants up to 1 year. Free services.
+- RBSK: Children 0-18 years. Free 4D screening via school/anganwadi. Universal.
+- PMMVY: Pregnant women 19+, income <8L. Not for govt employees. Cash transfer via DBT.
+- Nikshay: TB patients only. Rs 1000/month nutrition support. Must be registered on NIKSHAY portal.
+- PMNDP: ESRD/dialysis patients only. Free dialysis. Universal.
+- NPHCE: Citizens 60+. Free elderly care. Universal.
+- AB-HWC: Universal free primary care. Area-based, no enrollment needed.
+
+PM-JAY 70+ EXPANSION: This is ADDITIONAL to base PM-JAY. A 72-year-old who qualifies for PM-JAY gets BOTH base (5L family) AND 70+ (additional 5L individual). A 72-year-old who does NOT qualify for base PM-JAY still gets the 70+ benefit (universal for all 70+).
+
+DUAL/TRIPLE ELIGIBILITY:
+- A BPL pregnant woman can qualify for: PM-JAY + JSY + JSSK + PMMVY simultaneously.
+- A child 0-18 can qualify for: PM-JAY (family) + RBSK (individual screening).
+- State + central schemes can co-exist: e.g., CMCHIS + PM-JAY in TN, BSKY + PM-JAY in OD.
+- Insurance + cash schemes: PM-JAY (insurance) + Nikshay (cash support for TB) are not mutually exclusive.
 
 RESPOND WITH JSON ONLY:
 {{"schemes_evaluated": N, "matches": [{{"scheme_id": "...", "scheme_name": "...", "verdict": "eligible|ineligible|uncertain", "confidence": 0.0_to_1.0, "reasoning_trace": "Step 1: ... Step 2: ...", "matched_criteria": ["field1", "field2"], "failed_criteria": ["field3"], "coverage_summary": "human-readable benefit description"}}]}}

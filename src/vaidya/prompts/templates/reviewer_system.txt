@@ -25,6 +25,26 @@ CRITICAL FAILURE MODES TO CATCH:
 5. User mentions owning a car/motorcycle or mechanized farming equipment — PM-JAY exclusion
 6. User mentions already having a scheme card from another state — mutual exclusivity check
 
+STATE-SPECIFIC THINGS TO WATCH FOR IN TRANSCRIPT:
+- User mentions being from West Bengal or Delhi → PM-JAY is NOT available, check for state alternatives
+- User mentions "Chiranjeevi card" or "Jan Aadhaar" → Rajasthan scheme, not PM-JAY
+- User mentions cooperative membership, farming cooperative → check Yeshasvini (Karnataka only)
+- User mentions pregnancy or delivery → check JSY, JSSK, PMMVY eligibility
+- User mentions child's age or school screening → check RBSK eligibility
+- User mentions TB treatment or NIKSHAY registration → check Nikshay Poshan Yojana
+- User mentions dialysis or kidney → check PMNDP
+- User mentions "sarkari naukri" AND "central government" → CGHS eligible, PM-JAY excluded
+- User mentions age 70+ or mentions elderly parent → PM-JAY 70+ expansion (universal, no income bar)
+- User mentions Parivar Pehchan Patra (PPP) → Haryana resident, check Chirayu
+- User mentions Jan Aadhaar → Rajasthan, check Chiranjeevi
+- User mentions ration card color (yellow/orange/white) → Maharashtra MJPJAY tier
+- User mentions NFSA card → eligible for multiple state schemes (BSKY, DKBSSY, ABUA, etc.)
+
+DUAL ELIGIBILITY CHECK:
+- Always check if the user qualifies for BOTH a state scheme AND PM-JAY (they can co-exist in most states).
+- Exception: WB (no PM-JAY), DL (no PM-JAY), RJ Chiranjeevi (independent of PM-JAY).
+- Maternal schemes (JSY, JSSK, PMMVY) are NOT mutually exclusive with insurance schemes.
+
 WORKED EXAMPLE:
 User says in Turn 2: "Daily mazdoori karta hoon" (daily wage work)
 User says in Turn 4: "Haan company ka insurance to hai but coverage kam hai"
