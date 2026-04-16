@@ -14,6 +14,11 @@ from __future__ import annotations
 
 import logging
 
+from vaidya.agents.constants import (
+    DISAGREEMENT_CONFIDENCE_PENALTY,
+    SINGLE_AGENT_CONFIDENCE_PENALTY,
+)
+from vaidya.agents.field_keywords import FIELD_KEYWORDS
 from vaidya.models.conversation import ConversationContext
 from vaidya.models.scheme import (
     ConvergenceResult,
@@ -25,122 +30,6 @@ from vaidya.models.scheme import (
 )
 
 logger = logging.getLogger(__name__)
-
-# ---------------------------------------------------------------------------
-# Field keywords used for heuristic transcript search
-# ---------------------------------------------------------------------------
-
-_FIELD_KEYWORDS: dict[str, list[str]] = {
-    "income": [
-        "income",
-        "kamai",
-        "amdani",
-        "salary",
-        "tankha",
-        "paisa",
-        "rupee",
-        "lakh",
-        "hazaar",
-        "maheena",
-        "month",
-        "saal",
-        "year",
-        "bpl",
-        "gareebi",
-        "below poverty",
-    ],
-    "age": [
-        "age",
-        "umar",
-        "saal",
-        "years old",
-        "baras",
-        "budha",
-        "baccha",
-        "child",
-        "senior",
-        "bujurg",
-    ],
-    "state": [
-        "state",
-        "rajya",
-        "pradesh",
-        "district",
-        "zila",
-        "gaon",
-        "village",
-        "city",
-        "shehar",
-    ],
-    "family_size": [
-        "family",
-        "parivar",
-        "ghar",
-        "member",
-        "bacche",
-        "children",
-        "log",
-        "sadasya",
-    ],
-    "occupation": [
-        "kaam",
-        "naukri",
-        "job",
-        "occupation",
-        "majdoor",
-        "kisan",
-        "farmer",
-        "daily wage",
-        "dihadi",
-        "salaried",
-        "self employed",
-        "rozgaar",
-        "vyapar",
-        "business",
-    ],
-    "bpl_card": [
-        "bpl",
-        "ration card",
-        "rashan",
-        "below poverty",
-        "gareebi rekha",
-        "antyodaya",
-        "priority household",
-    ],
-    "coverage": [
-        "insurance",
-        "bima",
-        "coverage",
-        "cashless",
-        "hospital",
-        "ayushman",
-        "scheme",
-        "yojana",
-        "card",
-    ],
-    "secc": [
-        "secc",
-        "deprivation",
-        "kachha",
-        "kutcha",
-        "sc",
-        "st",
-        "scheduled caste",
-        "scheduled tribe",
-        "obc",
-        "category",
-    ],
-    "documents": [
-        "aadhaar",
-        "aadhar",
-        "pan",
-        "document",
-        "dastavez",
-        "kaagaz",
-        "certificate",
-        "pramaan patra",
-    ],
-}
 
 
 class ConvergenceChecker:
@@ -163,7 +52,6 @@ class ConvergenceChecker:
         ``agreed_eligible``, ``agreed_ineligible``, ``disagreements``, and
         ``conservative_eligible``.
         """
-        # Build fast lookup maps keyed by scheme_id
         elig_map: dict[str, SchemeMatch] = {m.scheme_id: m for m in eligibility.matches}
         rev_map: dict[str, SchemeMatch] = {m.scheme_id: m for m in reviewer.matches}
 
@@ -175,55 +63,16 @@ class ConvergenceChecker:
         conservative_eligible: list[SchemeMatch] = []
 
         for sid in sorted(all_scheme_ids):
-            e_match = elig_map.get(sid)
-            r_match = rev_map.get(sid)
-
-            # Only one agent evaluated this scheme
-            if e_match is None and r_match is not None:
-                self._handle_single_verdict(
-                    r_match,
-                    "reviewer",
-                    agreed_eligible,
-                    agreed_ineligible,
-                    conservative_eligible,
-                )
-                continue
-            if r_match is None and e_match is not None:
-                self._handle_single_verdict(
-                    e_match,
-                    "eligibility",
-                    agreed_eligible,
-                    agreed_ineligible,
-                    conservative_eligible,
-                )
-                continue
-
-            # Both agents evaluated
-            assert e_match is not None and r_match is not None  # type guard
-
-            if e_match.verdict == r_match.verdict:
-                # Agreement
-                if e_match.verdict == EligibilityVerdict.ELIGIBLE:
-                    # Merge with the higher-confidence match
-                    best = e_match if e_match.confidence >= r_match.confidence else r_match
-                    agreed_eligible.append(best)
-                elif e_match.verdict == EligibilityVerdict.INELIGIBLE:
-                    agreed_ineligible.append(sid)
-                else:
-                    # Both say uncertain -- treat as conservative eligible
-                    conservative_eligible.append(
-                        self._as_uncertain_match(e_match, r_match),
-                    )
-            else:
-                # Disagreement -- attempt resolution
-                record = self._resolve_disagreement(e_match, r_match, context)
-                disagreements.append(record)
-
-                if record.final_verdict == EligibilityVerdict.ELIGIBLE:
-                    conservative_eligible.append(
-                        self._merge_into_match(e_match, r_match, record),
-                    )
-                # Ineligible and uncertain are not surfaced as eligible
+            self._classify_scheme(
+                sid,
+                elig_map.get(sid),
+                rev_map.get(sid),
+                context,
+                agreed_eligible,
+                agreed_ineligible,
+                disagreements,
+                conservative_eligible,
+            )
 
         logger.info(
             "Convergence complete",
@@ -243,9 +92,89 @@ class ConvergenceChecker:
             conservative_eligible=conservative_eligible,
         )
 
-    # ------------------------------------------------------------------
-    # Disagreement resolution
-    # ------------------------------------------------------------------
+    def _classify_scheme(
+        self,
+        sid: str,
+        e_match: SchemeMatch | None,
+        r_match: SchemeMatch | None,
+        context: ConversationContext,
+        agreed_eligible: list[SchemeMatch],
+        agreed_ineligible: list[str],
+        disagreements: list[DisagreementRecord],
+        conservative_eligible: list[SchemeMatch],
+    ) -> None:
+        """Classify a single scheme into the appropriate convergence bucket."""
+        if e_match is None and r_match is not None:
+            self._handle_single_verdict(
+                r_match,
+                "reviewer",
+                agreed_eligible,
+                agreed_ineligible,
+                conservative_eligible,
+            )
+            return
+        if r_match is None and e_match is not None:
+            self._handle_single_verdict(
+                e_match,
+                "eligibility",
+                agreed_eligible,
+                agreed_ineligible,
+                conservative_eligible,
+            )
+            return
+
+        if e_match is None or r_match is None:
+            return
+
+        if e_match.verdict == r_match.verdict:
+            self._handle_agreement(
+                sid,
+                e_match,
+                r_match,
+                agreed_eligible,
+                agreed_ineligible,
+                conservative_eligible,
+            )
+        else:
+            self._handle_disagreement(
+                e_match,
+                r_match,
+                context,
+                disagreements,
+                conservative_eligible,
+            )
+
+    def _handle_agreement(
+        self,
+        sid: str,
+        e_match: SchemeMatch,
+        r_match: SchemeMatch,
+        agreed_eligible: list[SchemeMatch],
+        agreed_ineligible: list[str],
+        conservative_eligible: list[SchemeMatch],
+    ) -> None:
+        """Route same-verdict schemes to the correct bucket."""
+        if e_match.verdict == EligibilityVerdict.ELIGIBLE:
+            best = e_match if e_match.confidence >= r_match.confidence else r_match
+            agreed_eligible.append(best)
+        elif e_match.verdict == EligibilityVerdict.INELIGIBLE:
+            agreed_ineligible.append(sid)
+        else:
+            conservative_eligible.append(self._as_uncertain_match(e_match, r_match))
+
+    def _handle_disagreement(
+        self,
+        e_match: SchemeMatch,
+        r_match: SchemeMatch,
+        context: ConversationContext,
+        disagreements: list[DisagreementRecord],
+        conservative_eligible: list[SchemeMatch],
+    ) -> None:
+        """Resolve a disagreement and route the result."""
+        record = self._resolve_disagreement(e_match, r_match, context)
+        disagreements.append(record)
+        if record.final_verdict == EligibilityVerdict.ELIGIBLE:
+            conservative_eligible.append(self._merge_into_match(e_match, r_match, record))
 
     def _resolve_disagreement(
         self,
@@ -253,36 +182,17 @@ class ConvergenceChecker:
         r: SchemeMatch,
         context: ConversationContext,
     ) -> DisagreementRecord:
-        """Attempt to resolve a disagreement between the two agents.
-
-        Strategy:
-        1. Identify the field that caused divergence.
-        2. Check the transcript for evidence about that field.
-        3. If found -> trust the reviewer (it is designed to catch transcript-level issues).
-        4. If not found -> conservative "uncertain" with a caveat.
-        """
+        """Identify the divergent field, check transcript, and build the record."""
         divergent_field = self._identify_divergent_field(e, r)
-        transcript_text = context.full_transcript_text
-
         resolved_from_transcript = self._check_transcript_for_field(
             divergent_field,
-            transcript_text,
+            context.full_transcript_text,
         )
-
-        if resolved_from_transcript:
-            # Trust the reviewer -- it validates against transcript evidence
-            final_verdict = r.verdict
-            caveat = (
-                f"Reviewer and eligibility disagreed on '{divergent_field}'. "
-                f"Transcript evidence found -- trusting reviewer verdict."
-            )
-        else:
-            # Cannot resolve -- be conservative
-            final_verdict = EligibilityVerdict.UNCERTAIN
-            caveat = (
-                f"Agents disagreed on '{divergent_field}'. "
-                f"No clear transcript evidence. Verify at Jan Seva Kendra."
-            )
+        final_verdict, caveat = self._determine_verdict(
+            divergent_field,
+            resolved_from_transcript,
+            r.verdict,
+        )
 
         logger.info(
             "Disagreement resolved",
@@ -294,6 +204,42 @@ class ConvergenceChecker:
             },
         )
 
+        return self._build_disagreement_record(
+            e,
+            r,
+            divergent_field,
+            resolved_from_transcript,
+            final_verdict,
+            caveat,
+        )
+
+    @staticmethod
+    def _determine_verdict(
+        divergent_field: str,
+        resolved_from_transcript: bool,
+        reviewer_verdict: EligibilityVerdict,
+    ) -> tuple[EligibilityVerdict, str]:
+        """Return (final_verdict, caveat) based on transcript resolution."""
+        if resolved_from_transcript:
+            return reviewer_verdict, (
+                f"Reviewer and eligibility disagreed on '{divergent_field}'. "
+                f"Transcript evidence found -- trusting reviewer verdict."
+            )
+        return EligibilityVerdict.UNCERTAIN, (
+            f"Agents disagreed on '{divergent_field}'. "
+            f"No clear transcript evidence. Verify at Jan Seva Kendra."
+        )
+
+    @staticmethod
+    def _build_disagreement_record(
+        e: SchemeMatch,
+        r: SchemeMatch,
+        divergent_field: str,
+        resolved_from_transcript: bool,
+        final_verdict: EligibilityVerdict,
+        caveat: str,
+    ) -> DisagreementRecord:
+        """Construct the DisagreementRecord from resolution data."""
         return DisagreementRecord(
             scheme_id=e.scheme_id,
             scheme_name=e.scheme_name,
@@ -308,56 +254,32 @@ class ConvergenceChecker:
         )
 
     def _identify_divergent_field(self, e: SchemeMatch, r: SchemeMatch) -> str:
-        """Compare failed_criteria between agents to find the disputed field.
+        """Find the field that differs between the two agents' failed_criteria."""
+        e_failed = {f.lower().strip() for f in e.failed_criteria}
+        r_failed = {f.lower().strip() for f in r.failed_criteria}
 
-        Heuristic: the field that appears in one agent's failed_criteria but
-        not the other's is the likely divergence point.
-        """
-        e_failed = set(f.lower().strip() for f in e.failed_criteria)
-        r_failed = set(f.lower().strip() for f in r.failed_criteria)
-
-        # Fields that only one agent flagged as failed
-        only_in_elig = e_failed - r_failed
-        only_in_rev = r_failed - e_failed
-
-        divergent_fields = only_in_elig | only_in_rev
-
+        divergent_fields = (e_failed - r_failed) | (r_failed - e_failed)
         if divergent_fields:
-            # Return the first one alphabetically for determinism
             return sorted(divergent_fields)[0]
 
-        # If failed_criteria don't differ, fall back to reasoning comparison
-        # Look for field keywords in the reasoning traces
         combined_reasoning = (e.reasoning_trace + " " + r.reasoning_trace).lower()
-        for field_name, keywords in _FIELD_KEYWORDS.items():
+        for field_name, keywords in FIELD_KEYWORDS.items():
             if any(kw in combined_reasoning for kw in keywords):
                 return field_name
 
         return "unknown_field"
 
     def _check_transcript_for_field(self, field: str, transcript: str) -> bool:
-        """Keyword-based heuristic: does the transcript mention the disputed field?
-
-        A match means the user *did* say something about the field, so the
-        reviewer (which reads the transcript) had more information than the
-        eligibility agent (which works from the structured profile).
-        """
+        """Check whether the transcript mentions the disputed field via keywords."""
         if not transcript:
             return False
 
         lower_transcript = transcript.lower()
-        keywords = _FIELD_KEYWORDS.get(field)
+        keywords = FIELD_KEYWORDS.get(field)
 
         if keywords is None:
-            # Unknown field -- try to match the field name itself
             return field.lower() in lower_transcript
-
-        # Require at least one keyword match
         return any(kw in lower_transcript for kw in keywords)
-
-    # ------------------------------------------------------------------
-    # Helpers
-    # ------------------------------------------------------------------
 
     @staticmethod
     def _handle_single_verdict(
@@ -369,15 +291,13 @@ class ConvergenceChecker:
     ) -> None:
         """Route a scheme evaluated by only one agent."""
         if match.verdict == EligibilityVerdict.ELIGIBLE:
-            # Single-source eligible -- treat as conservative (lower trust)
             lowered = match.model_copy(
-                update={"confidence": match.confidence * 0.8},
+                update={"confidence": match.confidence * SINGLE_AGENT_CONFIDENCE_PENALTY},
             )
             conservative_eligible.append(lowered)
         elif match.verdict == EligibilityVerdict.INELIGIBLE:
             agreed_ineligible.append(match.scheme_id)
         else:
-            # Uncertain from single source -- still surface as conservative
             conservative_eligible.append(match)
 
     @staticmethod
@@ -403,13 +323,12 @@ class ConvergenceChecker:
         record: DisagreementRecord,
     ) -> SchemeMatch:
         """Build a conservative SchemeMatch from a resolved disagreement."""
-        # Use the match from whichever agent's verdict won
         source = r if record.final_verdict == r.verdict else e
         return SchemeMatch(
             scheme_id=source.scheme_id,
             scheme_name=source.scheme_name,
             verdict=record.final_verdict,
-            confidence=source.confidence * 0.7,  # penalise for disagreement
+            confidence=source.confidence * DISAGREEMENT_CONFIDENCE_PENALTY,
             reasoning_trace=(
                 f"Convergence resolved: {record.caveat}. "
                 f"Original: E={e.verdict.value}, R={r.verdict.value}"

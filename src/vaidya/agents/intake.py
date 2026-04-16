@@ -3,9 +3,13 @@
 from __future__ import annotations
 
 import logging
+import re
+from collections.abc import Callable
 from typing import Any
 
 from vaidya.agents.base import BaseAgent
+from vaidya.agents.constants import MAX_INTAKE_QUESTIONS
+from vaidya.i18n import get_msg, get_msg_template
 from vaidya.models.api import AgentResponse
 from vaidya.models.conversation import ConversationContext
 from vaidya.models.user_profile import (
@@ -19,70 +23,14 @@ from vaidya.sarvam.client import SarvamClient
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# Intake question bank (ordered by sensitivity: easy first, income third)
-# ---------------------------------------------------------------------------
-
-_QUESTIONS: dict[int, dict[str, str]] = {
-    1: {
-        "hi-IN": "Sabse pehle, aap kahan rehte hain? Kaunsa state ya sheher?",
-        "ta-IN": "Mudhalil, neengal engae vasikireerkal? Enna maanilam allathu nagaram?",
-        "bn-IN": "Prothome, apni kothai thaken? Kon state ba shohor?",
-        "en-IN": "First of all, where do you live? Which state or city?",
-        "field": "state_district",
-        "fallback": {
-            "hi-IN": "Village ka naam samajh aaya. Kaunsa district ya state hai?",
-        },
-    },
-    2: {
-        "hi-IN": "Aapke ghar mein kitne log hain? Aap, bachche, bade — sab milakar?",
-        "ta-IN": "Ungal veetil ethanai per irukkiraargal? Neengal, kuzhanthaigal, periyavargal — ellarum serthu?",
-        "bn-IN": "Apnar barite kotojon achen? Apni, bacchara,boro ra — sob miliye?",
-        "en-IN": "How many people in your household? You, children, elders — everyone?",
-        "field": "family_composition",
-        "fallback": {
-            "hi-IN": "Aap, patni/pati, bachche — kitne sab milakar?",
-        },
-    },
-    3: {
-        "hi-IN": (
-            "Aapke ghar ka kharcha kaise chalta hai? Naukri, daily mazdoori, ya apna kaam? "
-            "Yeh sirf yojana dhundne ke liye hai. Kisi aur ko nahi bataya jaayega."
-        ),
-        "ta-IN": (
-            "Ungal veettu selavu eppadi nadakkiRadhu? Velai, dhina kooli, allathu sondha thozhil? "
-            "Idhu thittangalai kaNdupidikka mattum. Veeru yaaridalum sollappadaadhu."
-        ),
-        "bn-IN": (
-            "Apnar barir khoroch ki kore chole? Chakri, doinik mazdoori, na nijer kaaj? "
-            "Eta shudhu yojana khunje ber korar jonno. Aar kaauke bolaa hobe na."
-        ),
-        "en-IN": (
-            "How does your household manage expenses? Job, daily wage, or own business? "
-            "This is only for finding schemes. It won't be shared with anyone."
-        ),
-        "field": "income_livelihood",
-    },
-    4: {
-        "hi-IN": "Kya aapke ghar mein kisi ke paas health insurance hai? Company ka ho, ya koi sarkari card?",
-        "ta-IN": "Ungal veetil yaaridalaavathu sugadhara kaappeettu irukkiradhaa? Company-yudaiyatho, allathu arasaanga card-o?",
-        "bn-IN": "Apnar barite karo ki health insurance ache? Company-r hok, ba kono sorkari card?",
-        "en-IN": "Does anyone in your household have health insurance? From company, or any government card?",
-        "field": "existing_coverage",
-        "fallback": {
-            "hi-IN": "Kya company salary se koi paisa kaat-ti hai health ke liye?",
-        },
-    },
-    5: {
-        "hi-IN": "Kya koi khaas ilaaj ya bimari ke liye madad chahiye? Ya bas jaanna chahte hain ki kya milta hai?",
-        "ta-IN": "Edhaavathu kurippitta sikichai allathu noikku uthavi veNumaa? Allathu enna kidaikkum endru therindhu kolla virumbugireeRkalaa?",
-        "bn-IN": "Kono bishesh chikitsa ba roger jonno sahajjo chai? Na shudhu jaante chan ki ki paoa jaay?",
-        "en-IN": "Need help for specific treatment? Or just want to know what's available?",
-        "field": "health_need",
-    },
+_QUESTION_FIELDS: dict[int, str] = {
+    1: "state_district",
+    2: "family_composition",
+    3: "income_livelihood",
+    4: "existing_coverage",
+    5: "health_need",
 }
 
-# Mapping from LLM-extracted income descriptions to IncomeCategory
 _INCOME_MAP: dict[str, IncomeCategory] = {
     "below_1l": IncomeCategory.BELOW_1L,
     "1l_to_2.5l": IncomeCategory.L1_TO_2_5L,
@@ -105,12 +53,6 @@ _COVERAGE_MAP: dict[str, CoverageType] = {
     "private": CoverageType.PRIVATE,
 }
 
-# Maximum questions before we move on even with gaps
-_MAX_QUESTIONS = 5
-
-# Per-question expected JSON field examples for the prompt template.
-# These replace the static JSON example so the LLM returns the right fields
-# for each question instead of always returning Q1 fields (state/district).
 _FIELD_EXAMPLES: dict[int | str, str] = {
     0: '{"state": "value_or_null", "district": "value_or_null", "family_size": "integer_or_null", "occupation_type": "value_or_null", "income_bracket": "value_or_null", "existing_coverage": "value_or_null", "health_need": "value_or_null"}',
     1: '{"state": "value_or_null", "district": "value_or_null"}',
@@ -121,8 +63,6 @@ _FIELD_EXAMPLES: dict[int | str, str] = {
     "confirmation": '{"confirmed": "true_or_false", "correction_field": "field_name_or_null"}',
 }
 
-# Map profile field names back to the question that collects them,
-# used when the user wants to correct a specific part during confirmation.
 _FIELD_TO_QUESTION: dict[str, int] = {
     "state": 1,
     "district": 1,
@@ -139,13 +79,92 @@ _FIELD_TO_QUESTION: dict[str, int] = {
     "health_need": 5,
 }
 
-# Prompt to ask which part to correct, per language
-_CORRECTION_PROMPTS: dict[str, str] = {
-    "hi-IN": "Kaunsi baat galat hai? Jagah, ghar ke log, kaam, insurance, ya health?",
-    "ta-IN": "Endha thagaval thavaru? Idam, kudumbam, velai, kaappeettu, allathu sugaadharam?",
-    "bn-IN": "Kon tothyo bhul? Jayga, poribar, kaaj, insurance, na swasthyo?",
-    "en-IN": "Which part is wrong? Location, family, work, insurance, or health?",
-}
+
+_TRUE_WORDS = frozenset({"true", "yes", "haan", "ha", "1"})
+_FALSE_WORDS = frozenset({"false", "no", "nahi", "nah", "0"})
+
+_CONFIRMATION_WORDS = frozenset(
+    {"haan", "ha", "ji", "sahi", "theek", "yes", "correct", "aama", "hya"}
+)
+
+
+def _to_bool(value: Any) -> bool | None:
+    """Coerce various truthy representations to bool."""
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return value
+    s = str(value).lower().strip()
+    if s in _TRUE_WORDS:
+        return True
+    if s in _FALSE_WORDS:
+        return False
+    return None
+
+
+def _coerce_int(value: Any) -> int | None:
+    """Attempt int coercion, returning None on failure."""
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        return None
+
+
+def _coerce_enum(value: Any, mapping: dict[str, Any]) -> Any | None:
+    """Look up a string value in a mapping, returning None if not found."""
+    raw = str(value).lower().strip()
+    return mapping.get(raw) if raw else None
+
+
+_FIELD_MAPPINGS: list[tuple[str, str, Callable[[Any], Any]]] = [
+    ("state", "state", lambda v: v),
+    ("district", "district", lambda v: v),
+    ("family_size", "family_size", _coerce_int),
+    ("age", "age", _coerce_int),
+    ("income_bracket", "income_bracket", lambda v: _coerce_enum(v, _INCOME_MAP)),
+    ("occupation_type", "occupation_type", lambda v: _coerce_enum(v, _OCCUPATION_MAP)),
+    ("existing_coverage", "existing_coverage", lambda v: _coerce_enum(v, _COVERAGE_MAP)),
+    ("health_need", "health_need", lambda v: v),
+    ("bpl_card", "bpl_card", _to_bool),
+    ("ration_card", "ration_card", _to_bool),
+    ("secc_category", "secc_category", lambda v: v),
+]
+
+
+def _heuristic_confirmation(user_input: str) -> bool:
+    """Word-boundary matching fallback for confirmation detection."""
+    words = set(re.findall(r"\b\w+\b", user_input.lower().strip()))
+    return bool(words & _CONFIRMATION_WORDS)
+
+
+def _collect_confirmation_parts(profile: UserProfile, language: str) -> list[str]:
+    """Gather localized confirmation fragments from the profile."""
+    parts: list[str] = []
+    if profile.state:
+        parts.append(get_msg_template("intake", "confirm_state", language, state=profile.state))
+    if profile.family_size is not None:
+        parts.append(
+            get_msg_template("intake", "confirm_family", language, count=profile.family_size)
+        )
+    if profile.occupation_type != OccupationType.UNKNOWN:
+        parts.append(_format_occupation_label(profile.occupation_type, language))
+    return parts
+
+
+def _format_occupation_label(occupation: OccupationType, language: str) -> str:
+    """Resolve a localized occupation label, falling back to the default."""
+    occ_key = f"occ_{occupation.value}"
+    occ_label = get_msg("intake", occ_key, language)
+    if occ_label == occ_key:
+        return get_msg("intake", "occ_default", language)
+    return occ_label
+
+
+def _join_with_conjunction(parts: list[str], conjunction: str) -> str:
+    """Join parts with commas and a final conjunction."""
+    joined = ", ".join(parts[:-1])
+    separator = ", " if len(parts) > 2 else " "
+    return f"{joined}{separator}{conjunction} {parts[-1]}"
 
 
 class IntakeAgent(BaseAgent):
@@ -156,8 +175,9 @@ class IntakeAgent(BaseAgent):
     optional health-need question last (shows the system cares).
     """
 
-    def __init__(self, client: SarvamClient, model: str) -> None:
+    def __init__(self, client: SarvamClient, model: str, reasoning_effort: str = "low") -> None:
         super().__init__(client=client, model=model, agent_name="intake")
+        self._reasoning_effort = reasoning_effort
 
     async def process(
         self,
@@ -169,127 +189,134 @@ class IntakeAgent(BaseAgent):
         Returns an AgentResponse containing the next spoken question
         and any profile updates extracted from the user's answer.
         """
-        try:
-            return await self._process_turn(context, user_input)
-        except Exception as exc:
-            logger.error(
-                "Intake processing failed",
-                extra={"error": str(exc), "call_id": context.call_id},
-                exc_info=True,
-            )
-            return self._fallback_response(context.language)
-
-    # ------------------------------------------------------------------
-    # Internal logic
-    # ------------------------------------------------------------------
+        return await self._process_turn(context, user_input)
 
     async def _process_turn(
         self,
         context: ConversationContext,
         user_input: str,
     ) -> AgentResponse:
-        """Core turn logic: extract fields, update profile, ask next question.
-
-        After all intake questions are answered, a single confirmation pass
-        summarises what the user said and asks "Sahi hai?" before proceeding.
-        """
-        q_index = context.intake_question_index
+        """Route by intake state: confirmation, initial freeform, or Q&A."""
         profile = context.user_profile.model_copy(deep=True)
         language = context.language
 
-        # ------------------------------------------------------------------
-        # Handle confirmation response (user is answering "Sahi hai?")
-        # ------------------------------------------------------------------
         if context.metadata.get("confirmation_pending"):
             return await self._handle_confirmation_response(context, profile, user_input, language)
 
-        # ------------------------------------------------------------------
-        # Normal intake flow
-        # ------------------------------------------------------------------
+        q_index = context.intake_question_index
 
-        # Determine which question we are answering (0 = initial free-form)
         if q_index == 0 and user_input.strip():
-            # First turn: user gave a free-form statement. Extract whatever
-            # we can, then ask Q1 to fill the gaps.
-            extracted = await self._extract_freeform(user_input, language)
-            profile = self._apply_extracted(profile, extracted)
+            return await self._handle_initial_freeform(context, profile, user_input, language)
+        elif q_index == 0:
+            # Empty input at start - ask the first question
             context.intake_question_index = 1
-            next_q = self._get_question_text(1, language)
-        elif 1 <= q_index <= _MAX_QUESTIONS:
-            # Answering question q_index
-            extracted = await self._extract_answer(
+            return AgentResponse(
+                text=self._get_question_text(1, language),
+                updated_profile=profile,
+                metadata={"intake_q": 1},
+            )
+
+        if 1 <= q_index <= MAX_INTAKE_QUESTIONS:
+            return await self._handle_question_answer(
+                context,
+                profile,
                 user_input,
                 q_index,
-                profile,
                 language,
             )
 
-            # Check for emotional distress
-            if extracted.get("distress_detected"):
-                context.emotional_distress_detected = True
-                profile = self._apply_extracted(profile, extracted)
-                # Distress fast-track: skip remaining questions, go to confirmation
-                context.intake_question_index = _MAX_QUESTIONS + 1
-                empathy = extracted.get("spoken_text", "")
-                confirmation = self._build_confirmation(profile, language)
-                context.metadata["confirmation_pending"] = True
-                spoken = f"{empathy} {confirmation}".strip() if empathy else confirmation
-                return AgentResponse(
-                    text=spoken,
-                    updated_profile=profile,
-                    metadata={
-                        "intake_distress_detected": True,
-                        "confirmation_pending": True,
-                    },
-                )
+        return AgentResponse(
+            text="",
+            updated_profile=profile,
+            metadata={"intake_complete": True},
+        )
 
-            profile = self._apply_extracted(profile, extracted)
+    async def _handle_initial_freeform(
+        self,
+        context: ConversationContext,
+        profile: UserProfile,
+        user_input: str,
+        language: str,
+    ) -> AgentResponse:
+        """Extract from first free-form statement, then ask Q1."""
+        extracted = await self._extract_freeform(user_input, language)
+        profile = self._apply_extracted(profile, extracted)
+        context.intake_question_index = 1
+        next_q = self._get_question_text(1, language)
 
-            # Handle follow-up if the LLM asks for clarification
-            if extracted.get("needs_followup") and not extracted.get("question_complete"):
-                spoken = extracted.get("spoken_text", "")
-                return AgentResponse(
-                    text=spoken,
-                    updated_profile=profile,
-                    metadata={"intake_q": q_index, "followup": True},
-                )
+        return AgentResponse(
+            text=next_q,
+            updated_profile=profile,
+            metadata={
+                "intake_q": context.intake_question_index,
+                "fields_complete": not profile.missing_fields,
+            },
+        )
 
-            # Move to the next question
-            context.intake_question_index = q_index + 1
-            next_index = q_index + 1
+    async def _handle_question_answer(
+        self,
+        context: ConversationContext,
+        profile: UserProfile,
+        user_input: str,
+        q_index: int,
+        language: str,
+    ) -> AgentResponse:
+        """Extract answer, handle distress/followup, advance to next question or confirm."""
+        extracted = await self._extract_answer(user_input, q_index, profile, language)
 
-            # Check if all questions are done — enter confirmation pass
-            if next_index > _MAX_QUESTIONS or profile.required_fields_complete:
-                context.intake_question_index = _MAX_QUESTIONS + 1
-                ack = self._build_acknowledgement(extracted, language)
-                confirmation = self._build_confirmation(profile, language)
-                context.metadata["confirmation_pending"] = True
-                spoken = f"{ack} {confirmation}".strip() if ack else confirmation
-                return AgentResponse(
-                    text=spoken,
-                    updated_profile=profile,
-                    metadata={"confirmation_pending": True},
-                )
+        if extracted.get("distress_detected"):
+            return self._handle_distress_response(context, profile, extracted, language)
 
-            next_q = self._get_question_text(next_index, language)
-        else:
-            # Already past max questions — should not arrive here, but be safe
+        profile = self._apply_extracted(profile, extracted)
+
+        if extracted.get("needs_followup") and not extracted.get("question_complete"):
             return AgentResponse(
-                text="",
+                text=extracted.get("spoken_text", ""),
                 updated_profile=profile,
-                metadata={"intake_complete": True},
+                metadata={"intake_q": q_index, "followup": True},
             )
 
-        # Build the spoken response: the LLM's acknowledgement + next question
-        # The LLM response already contains the next question via the prompt,
-        # but we explicitly construct it to guarantee the right question is asked.
-        llm_spoken = ""
-        if q_index >= 1:
-            # We have an extracted answer; the LLM may have produced an ack line
-            llm_spoken = self._build_acknowledgement(extracted, language)
+        return self._advance_to_next_question(context, profile, extracted, q_index, language)
 
-        spoken_text = f"{llm_spoken} {next_q}".strip() if llm_spoken else next_q
+    def _handle_distress_response(
+        self,
+        context: ConversationContext,
+        profile: UserProfile,
+        extracted: dict[str, Any],
+        language: str,
+    ) -> AgentResponse:
+        """Fast-track to confirmation when emotional distress is detected."""
+        context.emotional_distress_detected = True
+        profile = self._apply_extracted(profile, extracted)
+        context.intake_question_index = MAX_INTAKE_QUESTIONS + 1
+        empathy = extracted.get("spoken_text", "")
+        confirmation = self._build_confirmation(profile, language)
+        context.metadata["confirmation_pending"] = True
+        spoken = f"{empathy} {confirmation}".strip() if empathy else confirmation
+        return AgentResponse(
+            text=spoken,
+            updated_profile=profile,
+            metadata={"intake_distress_detected": True, "confirmation_pending": True},
+        )
 
+    def _advance_to_next_question(
+        self,
+        context: ConversationContext,
+        profile: UserProfile,
+        extracted: dict[str, Any],
+        q_index: int,
+        language: str,
+    ) -> AgentResponse:
+        """Update question index and either enter confirmation or ask the next question."""
+        next_index = q_index + 1
+        context.intake_question_index = next_index
+
+        if next_index > MAX_INTAKE_QUESTIONS or profile.required_fields_complete:
+            return self._enter_confirmation(context, profile, extracted, language)
+
+        next_q = self._get_question_text(next_index, language)
+        ack = self._build_acknowledgement(extracted, language)
+        spoken_text = f"{ack} {next_q}".strip() if ack else next_q
         return AgentResponse(
             text=spoken_text,
             updated_profile=profile,
@@ -299,6 +326,25 @@ class IntakeAgent(BaseAgent):
             },
         )
 
+    def _enter_confirmation(
+        self,
+        context: ConversationContext,
+        profile: UserProfile,
+        extracted: dict[str, Any],
+        language: str,
+    ) -> AgentResponse:
+        """Transition to confirmation pass after all questions are done."""
+        context.intake_question_index = MAX_INTAKE_QUESTIONS + 1
+        ack = self._build_acknowledgement(extracted, language)
+        confirmation = self._build_confirmation(profile, language)
+        context.metadata["confirmation_pending"] = True
+        spoken = f"{ack} {confirmation}".strip() if ack else confirmation
+        return AgentResponse(
+            text=spoken,
+            updated_profile=profile,
+            metadata={"confirmation_pending": True},
+        )
+
     async def _handle_confirmation_response(
         self,
         context: ConversationContext,
@@ -306,40 +352,46 @@ class IntakeAgent(BaseAgent):
         user_input: str,
         language: str,
     ) -> AgentResponse:
-        """Handle the user's response to the confirmation summary.
-
-        If yes → mark intake complete and proceed to PROCESSING.
-        If no  → ask which part to correct and clear confirmation state.
-        """
-        # Use the LLM to determine if the user confirmed or denied
+        """Route the user's confirmation response to yes or no handler."""
         confirmation_result = await self._extract_confirmation(user_input, language)
+        context.metadata.pop("confirmation_pending", None)
 
         if confirmation_result.get("confirmed", False):
-            # User confirmed — intake is done
-            context.metadata.pop("confirmation_pending", None)
-            return AgentResponse(
-                text=confirmation_result.get("spoken_text", ""),
-                updated_profile=profile,
-                metadata={"intake_complete": True},
-            )
+            return self._handle_confirmation_yes(profile, confirmation_result)
 
-        # User wants to correct something
-        context.metadata.pop("confirmation_pending", None)
+        return self._handle_confirmation_no(context, profile, confirmation_result, language)
+
+    @staticmethod
+    def _handle_confirmation_yes(
+        profile: UserProfile,
+        confirmation_result: dict[str, Any],
+    ) -> AgentResponse:
+        """Mark intake complete after user confirms the summary."""
+        return AgentResponse(
+            text=confirmation_result.get("spoken_text", ""),
+            updated_profile=profile,
+            metadata={"intake_complete": True},
+        )
+
+    def _handle_confirmation_no(
+        self,
+        context: ConversationContext,
+        profile: UserProfile,
+        confirmation_result: dict[str, Any],
+        language: str,
+    ) -> AgentResponse:
+        """Re-ask the specific question or list correctable fields."""
         correction_field = confirmation_result.get("correction_field")
         spoken = confirmation_result.get("spoken_text", "")
 
         if correction_field and correction_field in _FIELD_TO_QUESTION:
-            # Re-ask the specific question
             re_q_num = _FIELD_TO_QUESTION[correction_field]
             context.intake_question_index = re_q_num
             re_q_text = self._get_question_text(re_q_num, language)
             spoken = f"{spoken} {re_q_text}".strip() if spoken else re_q_text
-        elif not spoken:
-            # Fallback: ask which part to correct
-            spoken = _CORRECTION_PROMPTS.get(
-                language,
-                _CORRECTION_PROMPTS["hi-IN"],
-            )
+        else:
+            correction_prompt = get_msg("intake", "correction", language)
+            spoken = f"{spoken} {correction_prompt}".strip() if spoken else correction_prompt
 
         return AgentResponse(
             text=spoken,
@@ -354,15 +406,13 @@ class IntakeAgent(BaseAgent):
     ) -> dict[str, Any]:
         """Determine whether the user confirmed or denied the summary.
 
-        Returns dict with:
-          confirmed: bool
-          spoken_text: str (acknowledgement or follow-up)
-          correction_field: str | None (which field to re-ask if denied)
+        Returns dict with confirmed (bool), spoken_text (str),
+        and correction_field (str | None).
         """
         system = prompts.render(
             "intake_system",
             question_number="confirmation",
-            current_question="Confirmation of intake summary — user should say yes or no.",
+            current_question="Confirmation of intake summary -- user should say yes or no.",
             profile_summary="(confirming previously collected data)",
             language=language,
             expected_fields_json=_FIELD_EXAMPLES["confirmation"],
@@ -371,20 +421,21 @@ class IntakeAgent(BaseAgent):
             result = await self._call_llm_json(
                 system,
                 user_input,
-                reasoning_effort="low",
+                reasoning_effort=self._reasoning_effort,
                 max_tokens=1024,
             )
-            # Ensure the confirmed key exists
             if "confirmed" not in result:
-                # Heuristic fallback: check for affirmative words
-                lower = user_input.lower().strip()
-                affirm = {"haan", "ha", "ji", "sahi", "theek", "yes", "correct", "aama", "hya"}
-                result["confirmed"] = any(w in lower for w in affirm)
+                result["confirmed"] = _heuristic_confirmation(user_input)
             return result
         except Exception as exc:
-            logger.warning("Confirmation extraction failed", extra={"error": str(exc)})
-            # Conservative: treat as confirmed to avoid infinite loops
-            return {"confirmed": True, "spoken_text": ""}
+            logger.debug(
+                "LLM confirmation parse failed, using heuristic",
+                extra={"error": str(exc)},
+            )
+            return {
+                "confirmed": _heuristic_confirmation(user_input),
+                "spoken_text": "",
+            }
 
     async def _extract_freeform(
         self,
@@ -396,7 +447,7 @@ class IntakeAgent(BaseAgent):
             "intake_system",
             question_number="0",
             current_question=(
-                "(Initial free-form statement — extract whatever information the user volunteers.)"
+                "(Initial free-form statement -- extract whatever information the user volunteers.)"
             ),
             profile_summary="No information yet.",
             language=language,
@@ -406,7 +457,7 @@ class IntakeAgent(BaseAgent):
             return await self._call_llm_json(
                 system,
                 user_input,
-                reasoning_effort="low",
+                reasoning_effort=self._reasoning_effort,
                 max_tokens=1024,
             )
         except Exception as exc:
@@ -421,8 +472,7 @@ class IntakeAgent(BaseAgent):
         language: str,
     ) -> dict[str, Any]:
         """Extract structured fields from the user's answer to a specific question."""
-        q_def = _QUESTIONS.get(question_number, {})
-        current_question = q_def.get(language, q_def.get("hi-IN", ""))
+        current_question = get_msg("intake", f"q{question_number}", language)
 
         profile_summary = self._summarize_profile(profile)
 
@@ -438,7 +488,7 @@ class IntakeAgent(BaseAgent):
             return await self._call_llm_json(
                 system,
                 user_input,
-                reasoning_effort="low",
+                reasoning_effort=self._reasoning_effort,
                 max_tokens=1024,
             )
         except Exception as exc:
@@ -454,10 +504,6 @@ class IntakeAgent(BaseAgent):
                 "spoken_text": "",
             }
 
-    # ------------------------------------------------------------------
-    # Profile mutation helpers
-    # ------------------------------------------------------------------
-
     def _apply_extracted(
         self,
         profile: UserProfile,
@@ -468,81 +514,47 @@ class IntakeAgent(BaseAgent):
         confidence = extracted.get("field_confidence", {})
 
         if not fields:
+            extracted = extracted or {}
+            if not any(
+                k in extracted
+                for k in (
+                    "state",
+                    "district",
+                    "family_size",
+                    "age",
+                    "income",
+                    "occupation",
+                    "coverage",
+                    "health_need",
+                )
+            ):
+                logger.debug(
+                    "LLM extraction returned no recognized fields",
+                    extra={"raw_keys": list(extracted.keys())},
+                )
             return profile
 
-        # State / district
-        if fields.get("state"):
-            profile.state = fields["state"]
-            profile.confidence_flags["state"] = confidence.get("state", 0.5)
-        if fields.get("district"):
-            profile.district = fields["district"]
-            profile.confidence_flags["district"] = confidence.get("district", 0.5)
+        for field_name, attr_name, transform_fn in _FIELD_MAPPINGS:
+            raw_value = fields.get(field_name)
+            if raw_value is None:
+                if field_name not in fields:
+                    continue
+                if field_name not in ("bpl_card", "ration_card"):
+                    continue
 
-        # Family size
-        if fields.get("family_size") is not None:
-            try:
-                profile.family_size = int(fields["family_size"])
-                profile.confidence_flags["family_size"] = confidence.get("family_size", 0.5)
-            except (ValueError, TypeError):
-                pass
+            transformed = transform_fn(raw_value)
+            if transformed is None:
+                continue
 
-        # Age
-        if fields.get("age") is not None:
-            try:
-                profile.age = int(fields["age"])
-                profile.confidence_flags["age"] = confidence.get("age", 0.5)
-            except (ValueError, TypeError):
-                pass
-
-        # Income bracket
-        raw_income = str(fields.get("income_bracket", "")).lower().strip()
-        if raw_income and raw_income in _INCOME_MAP:
-            profile.income_bracket = _INCOME_MAP[raw_income]
-            profile.confidence_flags["income_bracket"] = confidence.get("income_bracket", 0.5)
-
-        # Occupation type
-        raw_occ = str(fields.get("occupation_type", "")).lower().strip()
-        if raw_occ and raw_occ in _OCCUPATION_MAP:
-            profile.occupation_type = _OCCUPATION_MAP[raw_occ]
-            profile.confidence_flags["occupation_type"] = confidence.get("occupation_type", 0.5)
-
-        # Existing coverage
-        raw_cov = str(fields.get("existing_coverage", "")).lower().strip()
-        if raw_cov and raw_cov in _COVERAGE_MAP:
-            profile.existing_coverage = _COVERAGE_MAP[raw_cov]
-            profile.confidence_flags["existing_coverage"] = confidence.get(
-                "existing_coverage", 0.5
-            )
-
-        # Health need (free-text)
-        if fields.get("health_need"):
-            profile.health_need = fields["health_need"]
-            profile.confidence_flags["health_need"] = confidence.get("health_need", 0.5)
-
-        # BPL / ration card (booleans)
-        if fields.get("bpl_card") is not None:
-            profile.bpl_card = _to_bool(fields["bpl_card"])
-            profile.confidence_flags["bpl_card"] = confidence.get("bpl_card", 0.5)
-        if fields.get("ration_card") is not None:
-            profile.ration_card = _to_bool(fields["ration_card"])
-            profile.confidence_flags["ration_card"] = confidence.get("ration_card", 0.5)
-
-        # SECC category
-        if fields.get("secc_category"):
-            profile.secc_category = fields["secc_category"]
-            profile.confidence_flags["secc_category"] = confidence.get("secc_category", 0.5)
+            setattr(profile, attr_name, transformed)
+            profile.confidence_flags[field_name] = confidence.get(field_name, 0.5)
 
         return profile
-
-    # ------------------------------------------------------------------
-    # Presentation helpers
-    # ------------------------------------------------------------------
 
     @staticmethod
     def _get_question_text(question_number: int, language: str) -> str:
         """Retrieve the localized question text for a given question number."""
-        q_def = _QUESTIONS.get(question_number, {})
-        return q_def.get(language, q_def.get("hi-IN", ""))
+        return get_msg("intake", f"q{question_number}", language)
 
     @staticmethod
     def _summarize_profile(profile: UserProfile) -> str:
@@ -567,107 +579,22 @@ class IntakeAgent(BaseAgent):
 
     @staticmethod
     def _build_confirmation(profile: UserProfile, language: str) -> str:
-        """Build a single confirmation summary from the collected profile.
+        """Build a confirmation summary from the collected profile (PRD Section 3.2)."""
+        prefix = get_msg("intake", "confirm_prefix", language)
+        suffix = get_msg("intake", "confirm_suffix", language)
+        conjunction = get_msg("intake", "confirm_conjunction", language)
 
-        PRD Section 3.2: after ALL intake questions, present a summary
-        and ask "Sahi hai?" before proceeding to PROCESSING.
+        parts = _collect_confirmation_parts(profile, language)
 
-        Template (hi-IN):
-          "Aapne bataya ki aap [state] mein rehte hain, ghar mein [N] log hain,
-           aur aap [occupation] karte hain. Sahi hai?"
-        """
-        # -- Hindi (default) ------------------------------------------------
-        if language not in ("ta-IN", "bn-IN"):
-            parts: list[str] = []
-            if profile.state:
-                parts.append(f"aap {profile.state} mein rehte hain")
-            if profile.family_size is not None:
-                parts.append(f"ghar mein {profile.family_size} log hain")
-            if profile.occupation_type != OccupationType.UNKNOWN:
-                occ_labels_hi = {
-                    OccupationType.DAILY_WAGE: "daily mazdoori karte hain",
-                    OccupationType.SALARIED_GOVT: "sarkari naukri karte hain",
-                    OccupationType.SALARIED_PVT: "private naukri karte hain",
-                    OccupationType.SELF_EMPLOYED: "apna kaam karte hain",
-                    OccupationType.FARMER: "kheti karte hain",
-                }
-                parts.append(occ_labels_hi.get(profile.occupation_type, "kaam karte hain"))
-            if not parts:
-                return "Sahi hai?"
-            joined = ", ".join(parts[:-1])
-            if len(parts) > 1:
-                joined += f", aur aap {parts[-1]}" if len(parts) > 2 else f" aur aap {parts[-1]}"
-                return f"Aapne bataya ki {joined}. Sahi hai?"
-            return f"Aapne bataya ki aap {parts[0]}. Sahi hai?"
+        if not parts:
+            return suffix
+        if len(parts) == 1:
+            return f"{prefix} {parts[0]}. {suffix}"
 
-        # -- Tamil ----------------------------------------------------------
-        if language == "ta-IN":
-            parts_ta: list[str] = []
-            if profile.state:
-                parts_ta.append(f"neengal {profile.state}-il vasikireerkal")
-            if profile.family_size is not None:
-                parts_ta.append(f"veetil {profile.family_size} per irukkiraargal")
-            if profile.occupation_type != OccupationType.UNKNOWN:
-                occ_labels_ta = {
-                    OccupationType.DAILY_WAGE: "dhina kooli velai seygiReerkal",
-                    OccupationType.SALARIED_GOVT: "arasanga velai seygiReerkal",
-                    OccupationType.SALARIED_PVT: "private velai seygiReerkal",
-                    OccupationType.SELF_EMPLOYED: "sondha thozhil seygiReerkal",
-                    OccupationType.FARMER: "vivasaayam seygiReerkal",
-                }
-                parts_ta.append(occ_labels_ta.get(profile.occupation_type, "velai seygiReerkal"))
-            if not parts_ta:
-                return "Sari-yaa?"
-            summary = ", ".join(parts_ta)
-            return f"Neengal sonnadhu: {summary}. Sari-yaa?"
-
-        # -- Bengali --------------------------------------------------------
-        parts_bn: list[str] = []
-        if profile.state:
-            parts_bn.append(f"apni {profile.state}-e thaken")
-        if profile.family_size is not None:
-            parts_bn.append(f"barite {profile.family_size} jon achen")
-        if profile.occupation_type != OccupationType.UNKNOWN:
-            occ_labels_bn = {
-                OccupationType.DAILY_WAGE: "doinik mazdoori koren",
-                OccupationType.SALARIED_GOVT: "sorkari chakri koren",
-                OccupationType.SALARIED_PVT: "private chakri koren",
-                OccupationType.SELF_EMPLOYED: "nijer kaaj koren",
-                OccupationType.FARMER: "chash koren",
-            }
-            parts_bn.append(occ_labels_bn.get(profile.occupation_type, "kaaj koren"))
-        if not parts_bn:
-            return "Thik ache?"
-        summary = ", ".join(parts_bn)
-        return f"Apni bollen je {summary}. Thik ache?"
+        joined = _join_with_conjunction(parts, conjunction)
+        return f"{prefix} {joined}. {suffix}"
 
     @staticmethod
-    def _build_acknowledgement(extracted: dict[str, Any], language: str) -> str:
-        """Build a short acknowledgement from the LLM extraction.
-
-        If the LLM provided a spoken_text field, use that as the ack.
-        Otherwise return empty string (the next question will stand alone).
-        """
-        spoken = extracted.get("spoken_text", "")
-        if spoken:
-            return spoken
-        return ""
-
-
-# ---------------------------------------------------------------------------
-# Utilities
-# ---------------------------------------------------------------------------
-
-
-def _to_bool(value: Any) -> bool | None:
-    """Coerce various truthy representations to bool."""
-    if value is None:
-        return None
-    if isinstance(value, bool):
-        return value
-    s = str(value).lower().strip()
-    if s in ("true", "yes", "haan", "ha", "1"):
-        return True
-    if s in ("false", "no", "nahi", "nah", "0"):
-        return False
-    return None
+    def _build_acknowledgement(extracted: dict[str, Any], _language: str) -> str:
+        """Return the LLM's spoken_text if present, else empty string."""
+        return extracted.get("spoken_text", "")

@@ -7,11 +7,17 @@ import time
 from typing import TYPE_CHECKING, Any
 
 from vaidya.agents.base import BaseAgent
+from vaidya.agents.constants import RAG_TOP_K
+from vaidya.agents.scheme_utils import (
+    filter_schemes_by_state,
+    json_compact,
+    parse_verdict,
+    serialize_for_prompt,
+)
 from vaidya.models.api import AgentResponse
 from vaidya.models.conversation import ConversationContext
 from vaidya.models.scheme import (
     EligibilityResult,
-    EligibilityVerdict,
     Jurisdiction,
     SchemeMatch,
     SchemeRecord,
@@ -25,15 +31,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Fallback model used when the primary model call fails
 _DEFAULT_FALLBACK_MODEL = SARVAM_30B
-
-# Maximum number of schemes to send in a single LLM call to stay within
-# context limits and keep latency reasonable
-_MAX_SCHEMES_PER_CALL = 20
-
-# Default number of results to fetch from vector search
-_RAG_TOP_K = 10
 
 
 class EligibilityAgent(BaseAgent):
@@ -57,22 +55,20 @@ class EligibilityAgent(BaseAgent):
         schemes: list[SchemeRecord],
         store: KnowledgeStore | None = None,
         fallback_model: str = _DEFAULT_FALLBACK_MODEL,
+        reasoning_effort: str = "high",
     ) -> None:
         super().__init__(client=client, model=model, agent_name="eligibility")
         self._schemes = schemes
         self._store = store
         self._fallback_model = fallback_model
+        self._reasoning_effort = reasoning_effort
 
     async def process(
         self,
         context: ConversationContext,
         user_input: str,
     ) -> AgentResponse:
-        """Run eligibility evaluation against the scheme corpus.
-
-        The *user_input* argument is unused here (the orchestrator passes
-        an empty string); all data comes from context.user_profile.
-        """
+        """Run eligibility evaluation against the scheme corpus."""
         start_ms = time.perf_counter()
         model_used = self._model
 
@@ -88,17 +84,13 @@ class EligibilityAgent(BaseAgent):
                     "call_id": context.call_id,
                 },
             )
-            # Retry with the fallback model
             model_used = self._fallback_model
             try:
                 result = await self._evaluate(context, model_used)
             except Exception as fallback_exc:
                 logger.error(
                     "Eligibility evaluation failed on both models",
-                    extra={
-                        "error": str(fallback_exc),
-                        "call_id": context.call_id,
-                    },
+                    extra={"error": str(fallback_exc), "call_id": context.call_id},
                     exc_info=True,
                 )
                 return self._fallback_response(context.language)
@@ -108,7 +100,7 @@ class EligibilityAgent(BaseAgent):
         result.model_used = model_used
 
         return AgentResponse(
-            text="",  # Eligibility agent produces data, not spoken text
+            text="",
             eligibility_result=result,
             metadata={
                 "schemes_evaluated": result.schemes_evaluated,
@@ -117,56 +109,47 @@ class EligibilityAgent(BaseAgent):
             },
         )
 
-    # ------------------------------------------------------------------
-    # Core evaluation
-    # ------------------------------------------------------------------
+    def _get_candidate_schemes(
+        self,
+        context: ConversationContext,
+    ) -> list[SchemeRecord]:
+        """Get candidate schemes via RAG retrieval with state-filter fallback."""
+        if self._store is not None:
+            try:
+                candidates = self._retrieve_schemes(context)
+                logger.info(
+                    "RAG retrieval returned %d candidate schemes",
+                    len(candidates),
+                    extra={"call_id": context.call_id},
+                )
+                if candidates:
+                    return candidates
+            except Exception as exc:
+                logger.warning(
+                    "RAG retrieval failed, falling back to full scheme list",
+                    extra={"error": str(exc), "call_id": context.call_id},
+                )
+
+        candidates = self._filter_schemes(context.user_profile.state)
+        logger.info(
+            "Using fallback state-filter: %d candidate schemes",
+            len(candidates),
+            extra={"call_id": context.call_id},
+        )
+        return candidates
 
     async def _evaluate(
         self,
         context: ConversationContext,
         model: str,
     ) -> EligibilityResult:
-        """Build prompt, call LLM, parse result into EligibilityResult.
-
-        Retrieval strategy:
-        1. If a KnowledgeStore is available, use vector search with state
-           filtering plus forced inclusion of all central schemes.
-        2. If retrieval returns nothing or the store is unavailable, fall
-           back to the original ``_filter_schemes`` approach (serialize
-           all schemes matching the user's state).
-        """
-        profile = context.user_profile
-
-        # --- RAG retrieval path ---
-        candidate_schemes: list[SchemeRecord] | None = None
-        if self._store is not None:
-            try:
-                candidate_schemes = self._retrieve_schemes(context)
-                logger.info(
-                    "RAG retrieval returned %d candidate schemes",
-                    len(candidate_schemes),
-                    extra={"call_id": context.call_id},
-                )
-            except Exception as exc:
-                logger.warning(
-                    "RAG retrieval failed, falling back to full scheme list",
-                    extra={"error": str(exc), "call_id": context.call_id},
-                )
-                candidate_schemes = None
-
-        # --- Fallback: state-based filtering over the full list ---
-        if not candidate_schemes:
-            candidate_schemes = self._filter_schemes(profile.state)
-            logger.info(
-                "Using fallback state-filter: %d candidate schemes",
-                len(candidate_schemes),
-                extra={"call_id": context.call_id},
-            )
+        """Get candidates, build prompt, call LLM, and parse the result."""
+        candidate_schemes = self._get_candidate_schemes(context)
 
         if not candidate_schemes:
             logger.info(
                 "No candidate schemes after filtering",
-                extra={"state": profile.state, "call_id": context.call_id},
+                extra={"state": context.user_profile.state, "call_id": context.call_id},
             )
             return EligibilityResult(
                 matches=[],
@@ -175,128 +158,81 @@ class EligibilityAgent(BaseAgent):
                 schemes_evaluated=0,
             )
 
-        profile_dict = profile.model_dump(mode="json", exclude_none=True)
+        profile_dict = context.user_profile.model_dump(mode="json", exclude_none=True)
         schemes_payload = self._serialize_schemes(candidate_schemes)
 
         system = prompts.render(
             "eligibility_system",
-            user_profile=_json_str(profile_dict),
-            schemes=_json_str(schemes_payload),
+            user_profile=json_compact(profile_dict),
+            schemes=json_compact(schemes_payload),
         )
 
-        # Override the model on BaseAgent temporarily for this call
-        original_model = self._model
-        self._model = model
-        try:
-            raw = await self._call_llm_json(
-                system,
-                "Evaluate eligibility now.",
-                reasoning_effort="high",
-                max_tokens=4096,
-                wiki_grounding=True,
-            )
-        finally:
-            self._model = original_model
-
+        raw = await self._call_llm_json(
+            system,
+            "Evaluate eligibility now.",
+            model=model,
+            reasoning_effort=self._reasoning_effort,
+            max_tokens=4096,
+            wiki_grounding=True,
+        )
         return self._parse_result(raw, model, len(candidate_schemes))
 
-    # ------------------------------------------------------------------
-    # Scheme filtering
-    # ------------------------------------------------------------------
-
     def _filter_schemes(self, user_state: str | None) -> list[SchemeRecord]:
-        """Pre-filter schemes to those relevant to the user's state.
+        """Pre-filter schemes to those relevant to the user's state."""
+        return filter_schemes_by_state(self._schemes, user_state)
 
-        Central schemes apply to all states. State schemes apply only
-        if the state matches. When the user's state is unknown, all
-        schemes are included (the LLM will mark state-specific ones
-        as uncertain).
-        """
-        if not user_state:
-            return self._schemes
+    def _resolve_and_merge(
+        self,
+        candidates: list[SchemeRecord],
+    ) -> list[SchemeRecord]:
+        """Resolve vector hits against the registry and merge with central schemes."""
+        registry_map = {s.scheme_id: s for s in self._schemes}
 
-        user_state_lower = user_state.lower().strip()
-        filtered: list[SchemeRecord] = []
-
-        for scheme in self._schemes:
-            # Central schemes always apply
-            if scheme.jurisdiction == Jurisdiction.CENTRAL:
-                filtered.append(scheme)
-                continue
-
-            # State scheme: include if the state matches or if no
-            # geographic restriction is specified
-            if not scheme.geographic_restrictions:
-                filtered.append(scheme)
-                continue
-
-            state_match = any(
-                user_state_lower in r.lower() for r in scheme.geographic_restrictions
-            )
-            if state_match:
-                filtered.append(scheme)
-
-        return filtered
-
-    # ------------------------------------------------------------------
-    # RAG retrieval
-    # ------------------------------------------------------------------
-
-    def _retrieve_schemes(self, context: ConversationContext) -> list[SchemeRecord]:
-        """Retrieve relevant schemes using hybrid RAG retrieval.
-
-        Steps:
-        1. Build a natural-language query from the user profile.
-        2. Run state-filtered vector search via ChromaDB.
-        3. Force-include all central schemes (they apply everywhere)
-           so that embedding distance cannot accidentally exclude them.
-        4. Deduplicate and return the merged list.
-        """
-        retrieval_start = time.perf_counter()
-
-        query = self._build_retrieval_query(context)
-
-        # State-filtered vector search
-        state = context.user_profile.state
-        state_code = state[:2].upper() if state else None
-
-        candidates = self._store.search(query, n_results=_RAG_TOP_K, state_code=state_code)
-
-        # Force-include ALL central schemes — they apply to every user
+        resolved = [registry_map.get(stub.scheme_id, stub) for stub in candidates]
         central = [s for s in self._schemes if s.jurisdiction == Jurisdiction.CENTRAL]
 
-        # Merge and deduplicate, preserving vector-search ordering first
         seen: set[str] = set()
         merged: list[SchemeRecord] = []
-        for scheme in candidates + central:
+        for scheme in resolved + central:
             if scheme.scheme_id not in seen:
                 seen.add(scheme.scheme_id)
                 merged.append(scheme)
+        return merged
+
+    def _retrieve_schemes(self, context: ConversationContext) -> list[SchemeRecord]:
+        """Retrieve relevant schemes via hybrid RAG retrieval.
+
+        Combines state-filtered vector search with forced central-scheme
+        inclusion, resolving stubs against the authoritative registry.
+        """
+        from vaidya.utils.states import state_name_to_code
+
+        retrieval_start = time.perf_counter()
+        query = self._build_retrieval_query(context)
+
+        state = context.user_profile.state
+        state_code = state_name_to_code(state) if state else None
+        candidates = self._store.search(query, n_results=RAG_TOP_K, state_code=state_code)  # type: ignore[union-attr]
+
+        merged = self._resolve_and_merge(candidates)
 
         retrieval_ms = (time.perf_counter() - retrieval_start) * 1000
         logger.info(
             "Scheme retrieval completed",
             extra={
-                "query": query,
+                "query_length": len(query),
                 "state_code": state_code,
                 "vector_hits": len(candidates),
-                "central_added": len(central),
                 "merged_total": len(merged),
                 "retrieval_ms": round(retrieval_ms, 1),
                 "call_id": context.call_id,
             },
         )
-
         return merged
 
     @staticmethod
     def _build_retrieval_query(context: ConversationContext) -> str:
-        """Build a natural language query for scheme retrieval.
-
-        Combines available profile fields into a descriptive sentence
-        that ChromaDB's embedding function can match against
-        ``description_for_embedding`` text stored for each scheme.
-        """
+        """Build a natural language query from the user profile for vector search."""
         profile = context.user_profile
         parts: list[str] = []
 
@@ -311,45 +247,10 @@ class EligibilityAgent(BaseAgent):
 
         return " ".join(parts) if parts else "government healthcare scheme India"
 
-    # ------------------------------------------------------------------
-    # Serialization
-    # ------------------------------------------------------------------
-
     @staticmethod
     def _serialize_schemes(schemes: list[SchemeRecord]) -> list[dict[str, Any]]:
-        """Convert scheme records to a compact dict list for the LLM prompt.
-
-        We include only the fields the LLM needs for eligibility matching
-        to keep the prompt within context limits.
-        """
-        out: list[dict[str, Any]] = []
-        for s in schemes[:_MAX_SCHEMES_PER_CALL]:
-            out.append(
-                {
-                    "scheme_id": s.scheme_id,
-                    "canonical_name": s.canonical_name,
-                    "jurisdiction": s.jurisdiction.value,
-                    "state_code": s.state_code,
-                    "income_thresholds": [t.model_dump(mode="json") for t in s.income_thresholds],
-                    "secc_categories": s.secc_categories,
-                    "occupation_included": s.occupation_included,
-                    "occupation_excluded": s.occupation_excluded,
-                    "exclusion_rules": [r.model_dump(mode="json") for r in s.exclusion_rules],
-                    "age_criteria": (
-                        s.age_criteria.model_dump(mode="json") if s.age_criteria else None
-                    ),
-                    "family_criteria": s.family_criteria.model_dump(mode="json"),
-                    "geographic_restrictions": s.geographic_restrictions,
-                    "coverage_amount_inr": s.coverage_amount_inr,
-                    "coverage_type": s.coverage_type.value,
-                    "covered_procedures": s.covered_procedures[:10],  # truncate for brevity
-                }
-            )
-        return out
-
-    # ------------------------------------------------------------------
-    # Response parsing
-    # ------------------------------------------------------------------
+        """Convert scheme records to a compact dict list for the LLM prompt."""
+        return serialize_for_prompt(schemes, include_procedures=True)
 
     def _parse_result(
         self,
@@ -373,7 +274,7 @@ class EligibilityAgent(BaseAgent):
         for item in raw.get("matches", []):
             try:
                 verdict_str = str(item.get("verdict", "uncertain")).lower()
-                verdict = _parse_verdict(verdict_str)
+                verdict = parse_verdict(verdict_str)
                 match = SchemeMatch(
                     scheme_id=str(item.get("scheme_id", "")),
                     scheme_name=str(item.get("scheme_name", item.get("scheme_id", ""))),
@@ -397,25 +298,3 @@ class EligibilityAgent(BaseAgent):
             model_used=model_used,
             schemes_evaluated=raw.get("schemes_evaluated", schemes_evaluated),
         )
-
-
-# ---------------------------------------------------------------------------
-# Utilities
-# ---------------------------------------------------------------------------
-
-
-def _parse_verdict(raw: str) -> EligibilityVerdict:
-    """Map raw string to EligibilityVerdict, defaulting to UNCERTAIN."""
-    mapping = {
-        "eligible": EligibilityVerdict.ELIGIBLE,
-        "ineligible": EligibilityVerdict.INELIGIBLE,
-        "uncertain": EligibilityVerdict.UNCERTAIN,
-    }
-    return mapping.get(raw.strip().lower(), EligibilityVerdict.UNCERTAIN)
-
-
-def _json_str(obj: Any) -> str:
-    """Compact JSON string for prompt embedding."""
-    import json
-
-    return json.dumps(obj, ensure_ascii=False, default=str)

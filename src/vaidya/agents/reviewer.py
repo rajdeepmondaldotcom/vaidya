@@ -7,11 +7,15 @@ import time
 from typing import Any
 
 from vaidya.agents.base import BaseAgent
+from vaidya.agents.scheme_utils import (
+    filter_schemes_by_state,
+    json_compact,
+    parse_verdict,
+    serialize_for_prompt,
+)
 from vaidya.models.api import AgentResponse
 from vaidya.models.conversation import ConversationContext
 from vaidya.models.scheme import (
-    EligibilityVerdict,
-    Jurisdiction,
     ReviewerResult,
     SchemeMatch,
     SchemeRecord,
@@ -20,9 +24,6 @@ from vaidya.prompts import registry as prompts
 from vaidya.sarvam.client import SarvamClient
 
 logger = logging.getLogger(__name__)
-
-# Maximum number of schemes to include in the reviewer prompt
-_MAX_SCHEMES_PER_CALL = 20
 
 
 class ReviewerAgent(BaseAgent):
@@ -45,9 +46,11 @@ class ReviewerAgent(BaseAgent):
         client: SarvamClient,
         model: str,
         schemes: list[SchemeRecord],
+        reasoning_effort: str = "high",
     ) -> None:
         super().__init__(client=client, model=model, agent_name="reviewer")
         self._schemes = schemes
+        self._reasoning_effort = reasoning_effort
 
     async def process(
         self,
@@ -60,17 +63,7 @@ class ReviewerAgent(BaseAgent):
         an empty string); all data comes from context.full_transcript_text.
         """
         start_ms = time.perf_counter()
-
-        try:
-            result = await self._review(context)
-        except Exception as exc:
-            logger.error(
-                "Reviewer agent failed",
-                extra={"error": str(exc), "call_id": context.call_id},
-                exc_info=True,
-            )
-            return self._fallback_response(context.language)
-
+        result = await self._review(context)
         elapsed_ms = (time.perf_counter() - start_ms) * 1000
         result.processing_time_ms = round(elapsed_ms, 1)
 
@@ -115,47 +108,24 @@ class ReviewerAgent(BaseAgent):
         system = prompts.render(
             "reviewer_system",
             transcript=transcript_text,
-            schemes=_json_str(schemes_payload),
+            schemes=json_compact(schemes_payload),
         )
 
         raw = await self._call_llm_json(
             system,
             "Review the transcript now.",
-            reasoning_effort="high",
+            reasoning_effort=self._reasoning_effort,
             max_tokens=4096,
         )
         return self._parse_result(raw, candidate_schemes)
 
     # ------------------------------------------------------------------
-    # Scheme filtering (shared logic with eligibility, but intentionally
-    # duplicated — the reviewer is an independent agent)
+    # Scheme filtering
     # ------------------------------------------------------------------
 
     def _filter_schemes(self, user_state: str | None) -> list[SchemeRecord]:
-        """Return schemes relevant to the user's state.
-
-        Central schemes are always included. State schemes are included
-        only when the state matches or the state is unknown.
-        """
-        if not user_state:
-            return self._schemes
-
-        user_state_lower = user_state.lower().strip()
-        filtered: list[SchemeRecord] = []
-
-        for scheme in self._schemes:
-            if scheme.jurisdiction == Jurisdiction.CENTRAL:
-                filtered.append(scheme)
-                continue
-
-            if not scheme.geographic_restrictions:
-                filtered.append(scheme)
-                continue
-
-            if any(user_state_lower in r.lower() for r in scheme.geographic_restrictions):
-                filtered.append(scheme)
-
-        return filtered
+        """Return schemes relevant to the user's state."""
+        return filter_schemes_by_state(self._schemes, user_state)
 
     # ------------------------------------------------------------------
     # Serialization
@@ -163,33 +133,8 @@ class ReviewerAgent(BaseAgent):
 
     @staticmethod
     def _serialize_schemes(schemes: list[SchemeRecord]) -> list[dict[str, Any]]:
-        """Compact scheme representation for the reviewer prompt.
-
-        The reviewer needs enough detail to check exclusion rules but
-        does not need the full enrollment / document data.
-        """
-        out: list[dict[str, Any]] = []
-        for s in schemes[:_MAX_SCHEMES_PER_CALL]:
-            out.append(
-                {
-                    "scheme_id": s.scheme_id,
-                    "canonical_name": s.canonical_name,
-                    "jurisdiction": s.jurisdiction.value,
-                    "state_code": s.state_code,
-                    "income_thresholds": [t.model_dump(mode="json") for t in s.income_thresholds],
-                    "occupation_included": s.occupation_included,
-                    "occupation_excluded": s.occupation_excluded,
-                    "exclusion_rules": [r.model_dump(mode="json") for r in s.exclusion_rules],
-                    "age_criteria": (
-                        s.age_criteria.model_dump(mode="json") if s.age_criteria else None
-                    ),
-                    "family_criteria": s.family_criteria.model_dump(mode="json"),
-                    "geographic_restrictions": s.geographic_restrictions,
-                    "coverage_amount_inr": s.coverage_amount_inr,
-                    "coverage_type": s.coverage_type.value,
-                }
-            )
-        return out
+        """Compact scheme representation for the reviewer prompt."""
+        return serialize_for_prompt(schemes, include_procedures=False)
 
     # ------------------------------------------------------------------
     # Response parsing
@@ -222,7 +167,7 @@ class ReviewerAgent(BaseAgent):
         for item in raw.get("matches", []):
             try:
                 verdict_str = str(item.get("verdict", "uncertain")).lower()
-                verdict = _parse_verdict(verdict_str)
+                verdict = parse_verdict(verdict_str)
                 scheme_id = str(item.get("scheme_id", ""))
 
                 # Collect transcript evidence from this match
@@ -260,25 +205,3 @@ class ReviewerAgent(BaseAgent):
             model_used=self._model,
             transcript_evidence=all_evidence,
         )
-
-
-# ---------------------------------------------------------------------------
-# Utilities
-# ---------------------------------------------------------------------------
-
-
-def _parse_verdict(raw: str) -> EligibilityVerdict:
-    """Map raw string to EligibilityVerdict, defaulting to UNCERTAIN."""
-    mapping = {
-        "eligible": EligibilityVerdict.ELIGIBLE,
-        "ineligible": EligibilityVerdict.INELIGIBLE,
-        "uncertain": EligibilityVerdict.UNCERTAIN,
-    }
-    return mapping.get(raw.strip().lower(), EligibilityVerdict.UNCERTAIN)
-
-
-def _json_str(obj: Any) -> str:
-    """Compact JSON string for prompt embedding."""
-    import json
-
-    return json.dumps(obj, ensure_ascii=False, default=str)
