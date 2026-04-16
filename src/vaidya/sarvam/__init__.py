@@ -9,7 +9,6 @@ from vaidya.sarvam.models import (
     SARVAM_105B,
     STT_MODEL,
     TTS_MODEL,
-    TTS_SPEAKER,
     Language,
 )
 
@@ -24,5 +23,4 @@ __all__ = [
     "TTS_MODEL",
     "Language",
     "LANGUAGE_TO_SARVAM_CODE",
-    "TTS_SPEAKER",
 ]

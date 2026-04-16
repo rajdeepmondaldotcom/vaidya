@@ -6,8 +6,6 @@ Docs: https://docs.sarvam.ai/api-reference-docs/getting-started/models
 
 from __future__ import annotations
 
-from enum import StrEnum
-
 # ---------------------------------------------------------------------------
 # LLM Models (Chat Completions)
 # Endpoint: POST https://api.sarvam.ai/v1/chat/completions
@@ -66,34 +64,16 @@ DEFAULT_TRANSLATE_MODEL = TRANSLATE_MODEL_MAYURA
 VISION_MODEL = "sarvam-vision"
 
 # ---------------------------------------------------------------------------
-# Language support
+# Language support — canonical enum lives in voice.language, re-exported here
 # ---------------------------------------------------------------------------
 
+from vaidya.voice.language import (  # noqa: E402, I001
+    Language,
+    TTS_SPEAKERS as TTS_SPEAKER,  # noqa: F401
+)
 
-class Language(StrEnum):
-    """Languages supported by Vaidya voice calls (Phase 1)."""
-
-    HINDI = "hi"
-    TAMIL = "ta"
-    BENGALI = "bn"
-    ENGLISH = "en"
-
-
-# BCP-47 codes required by Sarvam APIs
-LANGUAGE_TO_SARVAM_CODE: dict[Language, str] = {
-    Language.HINDI: "hi-IN",
-    Language.TAMIL: "ta-IN",
-    Language.BENGALI: "bn-IN",
-    Language.ENGLISH: "en-IN",
-}
-
-# TTS speakers — bulbul:v3 has 45 voices, pick natural-sounding per language
-TTS_SPEAKER: dict[Language, str] = {
-    Language.HINDI: "priya",
-    Language.TAMIL: "kavitha",
-    Language.BENGALI: "priya",
-    Language.ENGLISH: "amelia",
-}
+# BCP-47 codes required by Sarvam APIs (same as Language enum values)
+LANGUAGE_TO_SARVAM_CODE: dict[Language, str] = {lang: lang.value for lang in Language}
 
 # STT modes for saaras:v3
 STT_MODE_TRANSCRIBE = "transcribe"
@@ -128,3 +108,28 @@ TTS_DEFAULT_PACE = 1.0  # speech speed
 TRANSLATE_MODE_FORMAL = "formal"
 TRANSLATE_MODE_COLLOQUIAL = "modern-colloquial"
 TRANSLATE_MODE_CLASSIC = "classic-colloquial"
+TRANSLATE_MODE_CODEMIXED = "code-mixed"
+
+TRANSLATE_MAX_CHARS_MAYURA = 1000  # mayura:v1
+TRANSLATE_MAX_CHARS_SARVAM = 2000  # sarvam-translate:v1
+
+
+def get_translate_model(lang_code: str) -> str:
+    """Return the appropriate translate model for a language code.
+
+    Mayura v1 supports 11 TTS languages (colloquial/spoken style).
+    Sarvam Translate v1 supports all 23 scheduled languages (formal style).
+    """
+    from vaidya.voice.language import is_voice_language
+
+    if is_voice_language(lang_code):
+        return TRANSLATE_MODEL_MAYURA
+    return TRANSLATE_MODEL_SARVAM
+
+
+# ---------------------------------------------------------------------------
+# Audio format support
+# ---------------------------------------------------------------------------
+
+TTS_SUPPORTED_CODECS = ["wav", "mp3", "linear16", "mulaw", "alaw", "opus", "flac", "aac"]
+STT_SUPPORTED_FORMATS = ["wav", "mp3", "aac", "flac", "ogg"]
