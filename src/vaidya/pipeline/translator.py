@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 
+from vaidya.pipeline.translation_terms import PRESERVE_RE
 from vaidya.sarvam.client import SarvamClient
 
 logger = logging.getLogger(__name__)
@@ -63,13 +64,22 @@ class Translator:
             return text
 
         try:
+            # Preserve domain terms through the translation round-trip
+            preserved: dict[str, str] = {}
+            protected = PRESERVE_RE.sub(lambda m: self._protect_term(m.group(), preserved), text)
+
             translated = await self._client.translate(
-                text,
+                protected,
                 source_lang,
                 target_lang,
                 speaker_gender=speaker_gender,
                 output_script=output_script,
             )
+
+            # Restore preserved terms
+            for token, original in preserved.items():
+                translated = translated.replace(token, original)
+
             logger.debug(
                 "Translation completed",
                 extra={
@@ -77,6 +87,7 @@ class Translator:
                     "target_lang": target_lang,
                     "input_length": len(text),
                     "output_length": len(translated),
+                    "terms_preserved": len(preserved),
                 },
             )
             return translated
@@ -90,3 +101,10 @@ class Translator:
                 },
             )
             return text
+
+    @staticmethod
+    def _protect_term(term: str, registry: dict[str, str]) -> str:
+        """Replace *term* with a unique token and record the mapping."""
+        token = f"__TERM{len(registry)}__"
+        registry[token] = term
+        return token

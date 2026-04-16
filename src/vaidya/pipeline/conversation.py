@@ -11,21 +11,31 @@ Sits between the HTTP/voice layer and the :class:`Orchestrator`.  Handles:
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from vaidya.agents.orchestrator import Orchestrator
 from vaidya.compliance.audit import AuditTrail
 from vaidya.compliance.consent import ConsentTracker
-from vaidya.compliance.pii import mask_pii
-from vaidya.models.conversation import ConversationContext
+from vaidya.compliance.pii import mask_pii as _default_mask_pii
+from vaidya.i18n import get_msg
+from vaidya.models.api import AgentResponse
+from vaidya.models.conversation import ConversationContext, ConversationPhase
 from vaidya.pipeline.translator import Translator
 from vaidya.session.manager import SessionManager
+
+if TYPE_CHECKING:
+    from vaidya.sarvam.client import SarvamClient
 
 logger = logging.getLogger(__name__)
 
 # Internal processing language for agents (English keeps prompts stable)
 _AGENT_LANG = "en-IN"
+
+PiiMaskerFn = Callable[[str], str]
 
 
 class ConversationManager:
@@ -45,16 +55,17 @@ class ConversationManager:
         translator: Translator,
         audit_trail: AuditTrail,
         consent_tracker: ConsentTracker | None = None,
+        pii_masker: PiiMaskerFn | None = None,
+        sarvam_client: SarvamClient | None = None,
     ) -> None:
         self._orchestrator = orchestrator
         self._session = session_manager
         self._translator = translator
         self._audit = audit_trail
         self._consent = consent_tracker
-
-    # ------------------------------------------------------------------
-    # Start
-    # ------------------------------------------------------------------
+        self._mask_pii = pii_masker or _default_mask_pii
+        self._sarvam_client = sarvam_client
+        self._turn_locks: dict[str, asyncio.Lock] = {}
 
     async def start_conversation(
         self,
@@ -63,18 +74,56 @@ class ConversationManager:
     ) -> tuple[str, str]:
         """Create a new session and return ``(call_id, welcome_message)``.
 
-        If a session for *phone_hash* already exists within the TTL, a
-        fresh session is created regardless (new call = new context).
+        Resumes an existing non-terminal session if one exists for
+        *phone_hash* (dropped-call recovery).
         """
-        call_id = SessionManager.generate_call_id(phone_hash)
+        recovered = await self._try_recover_session(phone_hash)
+        if recovered is not None:
+            return recovered
 
+        call_id, context = await self._create_new_session(phone_hash, language)
+        welcome_text = await self._generate_welcome(call_id, context, language)
+        return call_id, welcome_text
+
+    async def _try_recover_session(
+        self,
+        phone_hash: str,
+    ) -> tuple[str, str] | None:
+        """Check for an existing non-terminal session and resume it."""
+        existing_call_id = await self._session.find_by_phone(phone_hash)
+        if not existing_call_id:
+            return None
+
+        existing_ctx = await self._session.get(existing_call_id)
+        if existing_ctx is None or existing_ctx.phase == ConversationPhase.CLOSURE:
+            return None
+
+        logger.info(
+            "Dropped-call recovery: resuming session",
+            extra={"call_id": existing_call_id, "phase": existing_ctx.phase.value},
+        )
+        self._audit.log_event(
+            existing_call_id,
+            "session_resumed",
+            {"phone_hash": phone_hash, "language": existing_ctx.language},
+        )
+        return existing_call_id, get_msg("conversation", "resume", existing_ctx.language)
+
+    async def _create_new_session(
+        self,
+        phone_hash: str,
+        language: str,
+    ) -> tuple[str, ConversationContext]:
+        """Create a fresh session, record consent, and return (call_id, context)."""
+        call_id = SessionManager.generate_call_id(phone_hash)
         context = await self._session.create(
             call_id=call_id,
             phone_hash=phone_hash,
             language=language,
         )
+        if context is None:
+            raise RuntimeError("Failed to create session")
 
-        # Record initial consent for data processing (default for demo)
         if self._consent is not None:
             self._consent.record_consent(
                 call_id=call_id,
@@ -91,7 +140,15 @@ class ConversationManager:
                 },
             )
 
-        # Generate welcome via orchestrator (first "turn" with empty input)
+        return call_id, context
+
+    async def _generate_welcome(
+        self,
+        call_id: str,
+        context: ConversationContext,
+        language: str,
+    ) -> str:
+        """Generate welcome message, persist context, and log session start."""
         try:
             response = await self._orchestrator.handle_turn(
                 context,
@@ -106,24 +163,16 @@ class ConversationManager:
             )
             welcome_text = self._default_welcome(language)
 
-        # Persist the updated context (now has the welcome turn)
         await self._session.update(context)
-
-        # Audit
         self._audit.log_event(
             call_id,
             "session_start",
             {
-                "phone_hash": phone_hash,
+                "phone_hash": context.phone_number_hash,
                 "language": language,
             },
         )
-
-        return call_id, welcome_text
-
-    # ------------------------------------------------------------------
-    # Turn handling
-    # ------------------------------------------------------------------
+        return welcome_text
 
     async def handle_turn(
         self,
@@ -132,107 +181,92 @@ class ConversationManager:
         language: str | None = None,
         stt_confidence: float = 1.0,
     ) -> str:
-        """Process one user turn and return the agent's text response.
+        """Process one user turn and return the agent's text response."""
+        # Prune stale locks to prevent unbounded growth
+        if len(self._turn_locks) > 1000:
+            oldest_keys = list(self._turn_locks.keys())[:-500]
+            for k in oldest_keys:
+                del self._turn_locks[k]
+        if call_id not in self._turn_locks:
+            self._turn_locks[call_id] = asyncio.Lock()
+        async with self._turn_locks[call_id]:
+            return await self._handle_turn_locked(call_id, user_text, language, stt_confidence)
 
-        Steps:
-
-        1. Load context from Redis.
-        2. PII-mask the user text for storage.
-        3. Translate user text to agent language if needed.
-        4. Call ``orchestrator.handle_turn()``.
-        5. Translate response back to user language if needed.
-        6. Update context in Redis.
-        7. Log audit entry.
-        8. Return the response text.
-
-        Parameters
-        ----------
-        call_id:
-            Session identifier returned by :meth:`start_conversation`.
-        user_text:
-            The user's utterance (text from STT or direct text input).
-        language:
-            Override session language for this turn (e.g. if STT detected
-            a different language).  ``None`` keeps the session language.
-        stt_confidence:
-            Confidence score from STT (1.0 for text input).
-
-        Returns
-        -------
-        str
-            The agent's response text in the user's language.
-        """
-        start = time.perf_counter()
-
-        # 1. Load context
+    async def _load_context_or_fail(
+        self,
+        call_id: str,
+    ) -> ConversationContext | None:
+        """Load the session context, returning ``None`` if expired or missing."""
         context = await self._session.get(call_id)
         if context is None:
             logger.warning("Session not found", extra={"call_id": call_id})
-            return self._session_expired_message(language or "hi-IN")
+        return context
 
-        # Override language if provided
-        turn_language = language or context.language
-
-        # 2. PII-mask for storage (agents still get raw text)
-        masked_text = mask_pii(user_text)
-
-        # 3. Translate to agent processing language if user speaks non-English
-        agent_input = user_text
+    async def _translate_to_agent_language(
+        self,
+        user_text: str,
+        turn_language: str,
+    ) -> str:
+        """Translate user input to the internal agent language if needed."""
         if turn_language != _AGENT_LANG:
-            agent_input = await self._translator.translate_if_needed(
+            return await self._translator.translate_if_needed(
                 user_text,
                 turn_language,
                 _AGENT_LANG,
             )
+        return user_text
 
-        # 4. Call orchestrator
-        try:
-            response = await self._orchestrator.handle_turn(
-                context,
-                agent_input,
-                stt_confidence=stt_confidence,
-            )
-        except Exception as exc:
-            logger.error(
-                "Orchestrator failed",
-                extra={"call_id": call_id, "error": str(exc)},
-            )
-            elapsed = (time.perf_counter() - start) * 1000
-            self._audit.log_turn(
-                call_id=call_id,
-                phase=context.phase.value,
-                agent_name="orchestrator",
-                input_text=masked_text,
-                output_text="[error]",
-                latency_ms=elapsed,
-            )
-            return self._error_message(turn_language)
+    async def _execute_orchestrator(
+        self,
+        context: ConversationContext,
+        agent_input: str,
+        stt_confidence: float,
+    ) -> AgentResponse:
+        """Call the orchestrator and return its response (may raise)."""
+        return await self._orchestrator.handle_turn(
+            context,
+            agent_input,
+            stt_confidence=stt_confidence,
+        )
 
-        # 5. Translate response back to user language
-        response_text = response.text
-        if turn_language != _AGENT_LANG:
-            response_text = await self._translator.translate_if_needed(
+    async def _translate_to_user_language(
+        self,
+        response: AgentResponse,
+        turn_language: str,
+    ) -> str:
+        """Translate the agent response back to the user's language if needed."""
+        if turn_language != _AGENT_LANG and not response.already_localized:
+            return await self._translator.translate_if_needed(
                 response.text,
                 _AGENT_LANG,
                 turn_language,
             )
+        return response.text
 
-        # 6. Update context in Redis
-        await self._session.update(context)
+    def _audit_turn(
+        self,
+        call_id: str,
+        context: ConversationContext,
+        masked_text: str,
+        response_text: str,
+        response: AgentResponse | None,
+        elapsed_ms: float,
+    ) -> None:
+        """Log the turn and any eligibility decision to the audit trail."""
+        agent_name = "orchestrator"
+        if response is not None:
+            agent_name = response.metadata.get("agent", "orchestrator")
 
-        # 7. Audit
-        elapsed = (time.perf_counter() - start) * 1000
         self._audit.log_turn(
             call_id=call_id,
             phase=context.phase.value,
-            agent_name=response.metadata.get("agent", "orchestrator"),
+            agent_name=agent_name,
             input_text=masked_text,
-            output_text=mask_pii(response_text),
-            latency_ms=elapsed,
+            output_text=self._mask_pii(response_text),
+            latency_ms=elapsed_ms,
         )
 
-        # Log eligibility decision if one was produced this turn
-        if response.convergence_result is not None:
+        if response is not None and response.convergence_result is not None:
             self._audit.log_eligibility_decision(
                 call_id=call_id,
                 eligibility_result=context.eligibility_result,
@@ -241,58 +275,83 @@ class ConversationManager:
                 context=context,
             )
 
+    async def _handle_turn_locked(
+        self,
+        call_id: str,
+        user_text: str,
+        language: str | None,
+        stt_confidence: float,
+    ) -> str:
+        """Inner turn handler, called under per-session lock."""
+        start = time.perf_counter()
+
+        context = await self._load_context_or_fail(call_id)
+        if context is None:
+            self._turn_locks.pop(call_id, None)
+            return self._session_expired_message(language or "hi-IN")
+
+        turn_language = language or context.language
+        masked_text = self._mask_pii(user_text)
+
+        if self._sarvam_client:
+            self._sarvam_client.set_active_call_id(call_id)
+
+        agent_input = await self._translate_to_agent_language(user_text, turn_language)
+
+        try:
+            response = await self._execute_orchestrator(context, agent_input, stt_confidence)
+        except Exception as exc:
+            logger.error(
+                "Orchestrator failed",
+                extra={"call_id": call_id, "error": str(exc)[:200]},
+            )
+            if self._sarvam_client:
+                self._sarvam_client.clear_active_call_id()
+            elapsed = (time.perf_counter() - start) * 1000
+            self._audit_turn(call_id, context, masked_text, "[error]", None, elapsed)
+            return self._error_message(turn_language)
+
+        response_text = await self._translate_to_user_language(response, turn_language)
+        self._finalize_cost_tracking(call_id, context)
+        await self._session.update(context)
+
+        elapsed = (time.perf_counter() - start) * 1000
+        self._audit_turn(call_id, context, masked_text, response_text, response, elapsed)
         return response_text
 
-    # ------------------------------------------------------------------
-    # Context access
-    # ------------------------------------------------------------------
+    def _finalize_cost_tracking(
+        self,
+        call_id: str,
+        context: ConversationContext,
+    ) -> None:
+        """Record session cost on context and clear the active call_id."""
+        if self._sarvam_client:
+            session_cost = self._sarvam_client.costs.cost_for_call(call_id)
+            context.metadata["session_cost_inr"] = round(session_cost, 4)
+            self._sarvam_client.clear_active_call_id()
 
     async def get_context(self, call_id: str) -> ConversationContext | None:
-        """Load and return the current context for *call_id*.
-
-        Useful for the ``/conversation/{call_id}/status`` API endpoint.
-        """
+        """Load and return the current context for *call_id*."""
         return await self._session.get(call_id)
 
     async def end_conversation(self, call_id: str) -> None:
         """Explicitly end a session and clean up Redis."""
         self._audit.log_event(call_id, "session_end")
         await self._session.delete(call_id)
+        self._turn_locks.pop(call_id, None)
         logger.info("Conversation ended", extra={"call_id": call_id})
-
-    # ------------------------------------------------------------------
-    # Fallback messages
-    # ------------------------------------------------------------------
 
     @staticmethod
     def _default_welcome(language: str) -> str:
         """Default welcome when orchestrator fails."""
-        welcomes = {
-            "hi-IN": "Namaste! Main Vaidya hoon. Aapko kya jaanna hai?",
-            "ta-IN": "Vanakkam! Naan Vaidya. Ungalukku enna theriya vendum?",
-            "bn-IN": "Namaskar! Ami Vaidya. Apnar ki jante hobe?",
-            "en-IN": "Hello! I am Vaidya. How can I help you?",
-        }
-        return welcomes.get(language, welcomes["hi-IN"])
+        return get_msg("conversation", "default_welcome", language)
 
     @staticmethod
     def _session_expired_message(language: str) -> str:
         """Message when the session is not found / expired."""
-        messages = {
-            "hi-IN": "Aapka session khatam ho gaya. Kripya dubara call karein.",
-            "ta-IN": "Ungal session mudindhuviddu. Thayavu seythu meendum azhaikavum.",
-            "bn-IN": "Apnar session sesh hoye geche. Abar call korun.",
-            "en-IN": "Your session has expired. Please call again.",
-        }
-        return messages.get(language, messages["hi-IN"])
+        return get_msg("conversation", "session_expired", language)
 
     @staticmethod
     def _error_message(language: str) -> str:
         """Generic error message in user's language."""
-        messages = {
-            "hi-IN": "Maaf kijiye, thodi dikkat aa rahi hai. Kya aap phir se bata sakte hain?",
-            "ta-IN": "Mannikkavum, sila prachanai. Thayavu seythu meendum sollunga?",
-            "bn-IN": "Dukkhito, ektu somossa hocche. Abar bolben please?",
-            "en-IN": "Sorry, something went wrong. Could you say that again?",
-        }
-        return messages.get(language, messages["hi-IN"])
+        return get_msg("conversation", "error", language)
