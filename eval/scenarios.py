@@ -13,6 +13,28 @@ Scheme IDs referenced (from src/vaidya/schemes/data/):
     ESIC-2024-v2            - Employees' State Insurance
     PMSBY-2024-v2           - Pradhan Mantri Suraksha Bima Yojana
     MJPJAY-MH-2024-v2       - Mahatma Jyotiba Phule (Maharashtra)
+    CMCHIS-TN-2024-v1       - TN Chief Minister's Health Insurance
+    AAROGYASRI-AP-2024-v1   - AP Dr. YSR Aarogyasri
+    AAROGYASRI-TS-2024-v1   - Telangana Rajiv Aarogyasri
+    KASP-KL-2024-v1         - Kerala Karunya (KASP)
+    MA-GJ-2024-v1           - Gujarat MA Vatsalya
+    BSKY-OD-2024-v1         - Odisha BSKY / Gopabandhu Jan Arogya
+    MMSY-PB-2024-v1         - Punjab Mukh Mantri Sehat Yojana
+    ABUA-JH-2024-v1         - Jharkhand Abua Swasthya
+    ATAL-UK-2024-v1         - Uttarakhand Atal Ayushman
+    CHIRAYU-HR-2024-v1      - Haryana Chirayu
+    HIMCARE-HP-2024-v1      - HP HIMCARE
+    DAK-DL-2024-v1          - Delhi Arogya Kosh
+    SEHAT-JK-2024-v1        - JK AB-PMJAY SEHAT
+    DKBSSY-CG-2024-v1      - CG Dr. Khubchand Baghel
+    YESHASVINI-KA-2024-v1   - Karnataka Yeshasvini
+    JSY-2024-v1             - Janani Suraksha Yojana
+    JSSK-2024-v1            - Janani Shishu Suraksha Karyakram
+    RBSK-2024-v1            - Rashtriya Bal Swasthya Karyakram
+    CGHS-2024-v1            - Central Government Health Scheme
+    NIKSHAY-2024-v1         - Nikshay Poshan Yojana
+    PMNDP-2024-v1           - PM National Dialysis Programme
+    PMMVY-2024-v1           - Pradhan Mantri Matru Vandana Yojana
 """
 
 from __future__ import annotations
@@ -1811,6 +1833,419 @@ SCENARIOS: list[Scenario] = [
             "hindi",
             "vulnerable",
         ],
+    ),
+    # ==================================================================
+    # NEW STATE SCHEME SCENARIOS (SC-V100+)
+    # ==================================================================
+    # ------------------------------------------------------------------
+    # SC-V100: Tamil Nadu rice card holder (CMCHIS + PM-JAY dual)
+    # ------------------------------------------------------------------
+    _scenario(
+        id="SC-V100",
+        name="TN rice card holder - CMCHIS eligibility",
+        description=(
+            "Low-income Tamil Nadu resident with ration card and income below "
+            "Rs 1.2 lakh. Should qualify for CMCHIS (TN state) and PM-JAY (central)."
+        ),
+        language="ta-IN",
+        turns=[
+            "Vanakkam, enakku arasanga maruthuva thittam pathi therinja venum",
+            "Naan Tamil Nadu-la irukkiren, Madurai pakkatthula oru gramam",
+            "Ennoda kudumbathula 4 per - naan, en manaivi, 2 kuzhanthaigal",
+            "Naan kuli velai seikiren, kattida thozhil. Maatham 5000-6000 sambathikiren",
+            "Illai, enga kitta eppadipadd health insurance illai",
+            "Aamaam, ration card irukku. BPL card irukku",
+        ],
+        expected_eligible=["CMCHIS-TN-2024-v1", "PMJAY-2024-v3"],
+        expected_ineligible=["SS-WB-2024-v2", "CHIR-RJ-2024-v2"],
+        tags=["tamil", "tn", "cmchis", "dual_eligibility", "state_scheme"],
+    ),
+    # ------------------------------------------------------------------
+    # SC-V101: AP white ration card holder (Aarogyasri)
+    # ------------------------------------------------------------------
+    _scenario(
+        id="SC-V101",
+        name="AP daily wage worker - Aarogyasri + PM-JAY",
+        description=(
+            "Andhra Pradesh daily wage worker with white ration card and income "
+            "below Rs 5 lakh. Aarogyasri auto-integrates with PM-JAY."
+        ),
+        language="te-IN",
+        turns=[
+            "Namaskaram, naaku arogya padakam gurinchi teliyali",
+            "Nenu Andhra Pradesh lo untanu, Vijayawada daggaralo",
+            "Naa kutumbam lo 5 mandhi - nenu, naa bharya, 3 pillalu",
+            "Nenu daily kuli pani chestanu, kattadala lo. Nelaku 7000-8000 vastundi",
+            "Ledu, maa dagara health insurance ledu",
+            "White ration card undi, BPL card undi",
+        ],
+        expected_eligible=["AAROGYASRI-AP-2024-v1", "PMJAY-2024-v3"],
+        expected_ineligible=["SS-WB-2024-v2"],
+        tags=["telugu", "ap", "aarogyasri", "dual_eligibility", "state_scheme"],
+    ),
+    # ------------------------------------------------------------------
+    # SC-V102: Kerala BPL family (KASP)
+    # ------------------------------------------------------------------
+    _scenario(
+        id="SC-V102",
+        name="Kerala BPL family - KASP eligibility",
+        description=(
+            "Kerala family with income below Rs 3 lakh. Should qualify for "
+            "KASP (Kerala's AB-PMJAY umbrella scheme)."
+        ),
+        language="ml-IN",
+        turns=[
+            "Namaskaaram, enikku arogya padhathi kurichu ariyaanam",
+            "Njaan Kerala-il aanu, Thrissur-nu aduthulla oru gramathil",
+            "Ente kudumbathil 4 per und - njaan, ente bharya, 2 makkal",
+            "Njaan kuli pani cheyyunnu, construction. Maasam 8000 kittu",
+            "Illa, engalkku health insurance onnum illa",
+            "BPL card und, ration card und",
+        ],
+        expected_eligible=["KASP-KL-2024-v1"],
+        expected_ineligible=["SS-WB-2024-v2"],
+        tags=["malayalam", "kl", "kasp", "state_scheme"],
+    ),
+    # ------------------------------------------------------------------
+    # SC-V103: Gujarat lower-middle class (MA Vatsalya)
+    # ------------------------------------------------------------------
+    _scenario(
+        id="SC-V103",
+        name="Gujarat self-employed - MA Vatsalya",
+        description=(
+            "Gujarat self-employed worker with income Rs 3.5 lakh, below "
+            "the MA Vatsalya threshold of Rs 4 lakh."
+        ),
+        language="gu-IN",
+        turns=[
+            "Namaste, mane sarkari arogya yojana vise janvu che",
+            "Hu Gujarat ma rahun chhu, Rajkot ni najik",
+            "Mara parivar ma 4 jan - hu, mari patni, 2 balako",
+            "Hu potano kaam karu chhu, chhotu dukaan che. Mahine no 25-30 hazaar thay",
+            "Na, ame koi health insurance leedhu nathi",
+            "BPL card che, ration card che",
+        ],
+        expected_eligible=["MA-GJ-2024-v1", "PMJAY-2024-v3"],
+        expected_ineligible=["SS-WB-2024-v2"],
+        tags=["gujarati", "gj", "ma_vatsalya", "state_scheme"],
+    ),
+    # ------------------------------------------------------------------
+    # SC-V104: Telangana Rajiv Aarogyasri (Rs 10L)
+    # ------------------------------------------------------------------
+    _scenario(
+        id="SC-V104",
+        name="Telangana white ration card - Rajiv Aarogyasri Rs 10L",
+        description=(
+            "Telangana daily wage worker with white ration card. Should qualify "
+            "for Rajiv Aarogyasri with Rs 10 lakh coverage."
+        ),
+        language="te-IN",
+        turns=[
+            "Namaskaram, naaku health scheme gurinchi teliyali",
+            "Nenu Telangana lo, Warangal lo untanu",
+            "Naa family lo 5 mandhi unnaru",
+            "Nenu daily wage pani chestanu. Nelaku 6000 vastundi",
+            "Ledu, maa dagara health insurance ledu",
+            "White ration card undi",
+        ],
+        expected_eligible=["AAROGYASRI-TS-2024-v1"],
+        expected_ineligible=["SS-WB-2024-v2"],
+        tags=["telugu", "ts", "aarogyasri_ts", "state_scheme", "high_coverage"],
+    ),
+    # ------------------------------------------------------------------
+    # SC-V105: Odisha NFSA woman (BSKY Rs 10L for women)
+    # ------------------------------------------------------------------
+    _scenario(
+        id="SC-V105",
+        name="Odisha NFSA woman - BSKY Rs 10L women coverage",
+        description=(
+            "Odisha woman with NFSA card. Should qualify for BSKY with enhanced "
+            "Rs 10 lakh coverage for women members."
+        ),
+        language="od-IN",
+        turns=[
+            "Namaskar, mote swasthya yojana bisayare janiba darkar",
+            "Mu Odisha re rahuchi, Cuttack pakhare",
+            "Mo paribara re 4 jana - mu, mo swami, 2 pila",
+            "Mo swami kuli kama kare, construction re. Mahina re 7000 aase",
+            "Na, amara kichi health insurance nahin",
+            "NFSA card achhi, ration card achhi",
+        ],
+        expected_eligible=["BSKY-OD-2024-v1", "PMJAY-2024-v3"],
+        expected_ineligible=["SS-WB-2024-v2"],
+        tags=["odia", "od", "bsky", "women_coverage", "state_scheme"],
+    ),
+    # ------------------------------------------------------------------
+    # SC-V106: Punjab universal coverage (MMSY Rs 10L)
+    # ------------------------------------------------------------------
+    _scenario(
+        id="SC-V106",
+        name="Punjab resident - MMSY Rs 10L universal",
+        description=(
+            "Punjab resident. MMSY is universal with Rs 10 lakh coverage, "
+            "highest in India. No income criteria needed."
+        ),
+        language="pa-IN",
+        turns=[
+            "Sat Sri Akaal, mainu sarkari health yojana bare jaanana chahida hai",
+            "Main Punjab vich rehinda haan, Amritsar de kol",
+            "Mere parivaar vich 5 jann ne - main, meri patni, 3 bacche",
+            "Main apna kaam karda haan, dukaan chalaaunda haan. Mahine da 40000 aa jaanda",
+            "Nahi, saade kol koi health insurance nahi hai",
+            "Voter ID hai, Aadhaar hai",
+        ],
+        expected_eligible=["MMSY-PB-2024-v1"],
+        expected_ineligible=["SS-WB-2024-v2"],
+        tags=["punjabi", "pb", "mmsy", "universal", "high_coverage", "state_scheme"],
+    ),
+    # ------------------------------------------------------------------
+    # SC-V107: Jharkhand NFSA ration card (Abua Rs 15L)
+    # ------------------------------------------------------------------
+    _scenario(
+        id="SC-V107",
+        name="Jharkhand NFSA holder - Abua Swasthya Rs 15L",
+        description=(
+            "Jharkhand resident with NFSA ration card. Should qualify for "
+            "Abua Swasthya with Rs 15 lakh coverage (highest state coverage in India)."
+        ),
+        language="hi-IN",
+        turns=[
+            "Namaste, mujhe health yojana ke baare mein jaanna hai",
+            "Main Jharkhand mein rehta hoon, Ranchi ke paas",
+            "Family mein 5 log hain",
+            "Main daily wage pe kaam karta hoon, Rs 5000-6000 mahine ka",
+            "Nahi, koi health insurance nahi hai",
+            "Haan NFSA ration card hai, pink card",
+        ],
+        expected_eligible=["ABUA-JH-2024-v1", "PMJAY-2024-v3"],
+        expected_ineligible=["SS-WB-2024-v2"],
+        tags=["hindi", "jh", "abua", "high_coverage", "nfsa", "state_scheme"],
+    ),
+    # ------------------------------------------------------------------
+    # SC-V108: BPL pregnant woman (JSY + JSSK + PM-JAY triple)
+    # ------------------------------------------------------------------
+    _scenario(
+        id="SC-V108",
+        name="BPL pregnant woman - JSY + JSSK + PM-JAY triple eligibility",
+        description=(
+            "22-year-old BPL pregnant woman in Bihar. Should qualify for "
+            "JSY (cash), JSSK (free delivery), and PM-JAY (insurance) simultaneously."
+        ),
+        language="hi-IN",
+        turns=[
+            "Namaste didi, main pregnant hoon, mujhe yojana chahiye",
+            "Main Bihar mein hoon, Patna ke paas",
+            "Family mein 3 log hain - main, mere pati, aur meri saas",
+            "Mere pati mazdoori karte hain, 5000 mahina",
+            "Nahi, koi insurance nahi hai",
+            "BPL card hai, ration card hai. Main 22 saal ki hoon",
+        ],
+        expected_eligible=["PMJAY-2024-v3", "JSY-2024-v1", "JSSK-2024-v1"],
+        expected_ineligible=["SS-WB-2024-v2"],
+        tags=[
+            "hindi",
+            "br",
+            "maternal",
+            "triple_eligibility",
+            "jsy",
+            "jssk",
+            "pregnant",
+            "bpl",
+        ],
+    ),
+    # ------------------------------------------------------------------
+    # SC-V109: Central govt pensioner (CGHS, excluded from PM-JAY)
+    # ------------------------------------------------------------------
+    _scenario(
+        id="SC-V109",
+        name="Central govt pensioner - CGHS only",
+        description=(
+            "65-year-old retired central government employee in Delhi. "
+            "Qualifies for CGHS. Excluded from PM-JAY as govt employee. "
+            "Delhi opted out of PM-JAY anyway."
+        ),
+        language="hi-IN",
+        turns=[
+            "Namaste, main retired hoon, mujhe health yojana chahiye",
+            "Main Delhi mein rehta hoon",
+            "Family mein sirf main aur meri patni hain",
+            "Main central government se retired hoon, pension milti hai",
+            "CGHS card hai purana, lekin naye hospital mein kaise use karein",
+            "65 saal ka hoon",
+        ],
+        expected_eligible=["CGHS-2024-v1"],
+        expected_ineligible=["PMJAY-2024-v3"],
+        tags=["hindi", "dl", "cghs", "govt_employee", "pensioner", "exclusion"],
+    ),
+    # ------------------------------------------------------------------
+    # SC-V110: Karnataka cooperative farmer (Yeshasvini + AB-ARK)
+    # ------------------------------------------------------------------
+    _scenario(
+        id="SC-V110",
+        name="Karnataka cooperative farmer - Yeshasvini + Arogya Karnataka",
+        description=(
+            "Karnataka farmer who is member of a cooperative society. "
+            "Should qualify for both Yeshasvini (cooperative-based) and "
+            "Arogya Karnataka (state scheme)."
+        ),
+        language="kn-IN",
+        turns=[
+            "Namaskara, nanage arogya yojane bagge tiliyabeku",
+            "Naanu Karnataka-lli iddene, Dharwad-na hattira",
+            "Nanna kutumbadalli 4 jana - naanu, nanna hendathi, 2 makkaLu",
+            "Naanu raitha, sahakara sangha-dalli member. Tingalige 8000-10000 barutte",
+            "Illa, yaavude health insurance illa",
+            "BPL card ide, ration card ide. Sahakara sangha-dalli 5 varsha member",
+        ],
+        expected_eligible=["AK-KA-2024-v2", "YESHASVINI-KA-2024-v1", "PMJAY-2024-v3"],
+        expected_ineligible=["SS-WB-2024-v2"],
+        tags=[
+            "kannada",
+            "ka",
+            "yeshasvini",
+            "cooperative",
+            "farmer",
+            "dual_eligibility",
+            "state_scheme",
+        ],
+    ),
+    # ------------------------------------------------------------------
+    # SC-V111: Uttarakhand universal (Atal Ayushman, no income bar)
+    # ------------------------------------------------------------------
+    _scenario(
+        id="SC-V111",
+        name="Uttarakhand resident - Atal Ayushman universal",
+        description=(
+            "Uttarakhand resident with moderate income. Atal Ayushman is "
+            "universal — no income limit. First state with universal health coverage."
+        ),
+        language="hi-IN",
+        turns=[
+            "Namaste, mujhe swasthya yojana ki jaankari chahiye",
+            "Main Uttarakhand mein rehta hoon, Dehradun mein",
+            "Family mein 4 log hain",
+            "Main dukaan chalata hoon, mahina ka 30-35 hazaar kamata hoon",
+            "Nahi, koi insurance nahi hai",
+            "Aadhaar card hai, voter ID hai",
+        ],
+        expected_eligible=["ATAL-UK-2024-v1"],
+        expected_ineligible=["SS-WB-2024-v2"],
+        tags=["hindi", "uk", "atal_ayushman", "universal", "state_scheme"],
+    ),
+    # ------------------------------------------------------------------
+    # SC-V112: Delhi opted-out resident (DAK, no PM-JAY)
+    # ------------------------------------------------------------------
+    _scenario(
+        id="SC-V112",
+        name="Delhi BPL resident - DAK (PM-JAY not available)",
+        description=(
+            "Delhi BPL resident. Delhi opted out of PM-JAY. Should get "
+            "Delhi Arogya Kosh instead. Tests PM-JAY opt-out handling."
+        ),
+        language="hi-IN",
+        turns=[
+            "Namaste bhai, mujhe sarkari yojana chahiye",
+            "Main Delhi mein rehta hoon, Shahdara mein",
+            "Family mein 5 log hain",
+            "Main auto chalata hoon, din ka 300-400 kamata hoon",
+            "Nahi, koi insurance nahi hai",
+            "BPL card hai, voter ID hai Delhi ka",
+        ],
+        expected_eligible=["DAK-DL-2024-v1"],
+        expected_ineligible=["PMJAY-2024-v3"],
+        tags=["hindi", "dl", "dak", "pmjay_optout", "state_scheme"],
+    ),
+    # ------------------------------------------------------------------
+    # SC-V113: Marathi-speaking MH farmer (MJPJAY + PM-JAY)
+    # ------------------------------------------------------------------
+    _scenario(
+        id="SC-V113",
+        name="Maharashtra farmer - MJPJAY + PM-JAY in Marathi",
+        description=(
+            "Maharashtra farmer with ration card speaking Marathi. "
+            "Should qualify for MJPJAY and PM-JAY (integrated)."
+        ),
+        language="mr-IN",
+        turns=[
+            "Namaskar, mala arogya yojana baaddal mahiti havee",
+            "Mi Maharashtra madhye rahato, Nashik jawal",
+            "Mazya kutumbat 5 jan aahet - mi, mazhi bayko, 3 mule",
+            "Mi shetkari aahe, pik vikto. Mahinya cha 8000-10000 milte",
+            "Nahi, aamchya kade kahi health insurance nahi",
+            "Pivla ration card aahe, BPL card aahe",
+        ],
+        expected_eligible=["MJPJAY-MH-2024-v2", "PMJAY-2024-v3"],
+        expected_ineligible=["SS-WB-2024-v2"],
+        tags=["marathi", "mh", "mjpjay", "farmer", "state_scheme"],
+    ),
+    # ------------------------------------------------------------------
+    # SC-V114: Senior 72yr (PM-JAY 70+ universal + state scheme)
+    # ------------------------------------------------------------------
+    _scenario(
+        id="SC-V114",
+        name="Senior citizen 72yr - PM-JAY 70+ universal expansion",
+        description=(
+            "72-year-old in Rajasthan. PM-JAY 70+ is universal (no income bar). "
+            "Should get both PM-JAY 70+ AND Chiranjeevi regardless of income."
+        ),
+        language="hi-IN",
+        turns=[
+            "Namaste beta, main ek boodhe aadmi hoon, health yojana chahiye",
+            "Main Rajasthan mein hoon, Jodhpur ke paas",
+            "Bas main aur meri patni hain, bacche sheher mein rehte hain",
+            "Main retired hoon, pension milti hai 8000 mahina",
+            "Koi insurance nahi hai",
+            "Meri umar 72 saal hai. Jan Aadhaar card hai",
+        ],
+        expected_eligible=["PMJAY-70PLUS-2024-v1", "CHIR-RJ-2024-v2"],
+        expected_ineligible=[],
+        tags=["hindi", "rj", "senior", "70plus", "universal", "dual_eligibility"],
+    ),
+    # ------------------------------------------------------------------
+    # SC-V115: TB patient (Nikshay nutrition support)
+    # ------------------------------------------------------------------
+    _scenario(
+        id="SC-V115",
+        name="TB patient - Nikshay Poshan Yojana",
+        description=(
+            "TB patient on treatment registered on NIKSHAY portal. Should "
+            "qualify for Nikshay Poshan Yojana Rs 1000/month nutrition support."
+        ),
+        language="hi-IN",
+        turns=[
+            "Namaste, mujhe TB ki yojana ke baare mein jaanna hai",
+            "Main Maharashtra mein hoon, Pune ke paas",
+            "Family mein 4 log hain",
+            "Main mazdoori karta tha lekin ab TB ke ilaj mein hoon",
+            "NIKSHAY pe registered hoon, ilaj chal raha hai",
+            "BPL card hai, income bahut kam hai ab",
+        ],
+        expected_eligible=["NIKSHAY-2024-v1", "PMJAY-2024-v3", "MJPJAY-MH-2024-v2"],
+        expected_ineligible=[],
+        tags=["hindi", "mh", "nikshay", "tb", "disease_specific"],
+    ),
+    # ------------------------------------------------------------------
+    # SC-V116: Haryana PPP-linked family (Chirayu tiered)
+    # ------------------------------------------------------------------
+    _scenario(
+        id="SC-V116",
+        name="Haryana family income 4L - Chirayu Rs 4K contribution tier",
+        description=(
+            "Haryana family with income Rs 4 lakh and Parivar Pehchan Patra. "
+            "Falls in the 3-6L income tier requiring Rs 4000/year contribution."
+        ),
+        language="hi-IN",
+        turns=[
+            "Namaste, mujhe Haryana ki health yojana chahiye",
+            "Main Haryana mein hoon, Karnal mein",
+            "Family mein 4 log hain",
+            "Main chhota kaam karta hoon, mahina ka lagbhag 30-35 hazaar",
+            "Koi insurance nahi hai",
+            "Parivar Pehchan Patra hai, Aadhaar hai",
+        ],
+        expected_eligible=["CHIRAYU-HR-2024-v1"],
+        expected_ineligible=["SS-WB-2024-v2"],
+        tags=["hindi", "hr", "chirayu", "ppp", "tiered", "state_scheme"],
     ),
 ]
 
