@@ -17,6 +17,7 @@ import time
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
+from vaidya.agents.constants import SILENCE_STEPS
 from vaidya.agents.orchestrator import Orchestrator
 from vaidya.compliance.audit import AuditTrail
 from vaidya.compliance.consent import ConsentTracker
@@ -26,6 +27,7 @@ from vaidya.models.api import AgentResponse
 from vaidya.models.conversation import ConversationContext, ConversationPhase
 from vaidya.pipeline.translator import Translator
 from vaidya.session.manager import SessionManager
+from vaidya.voice.language import is_voice_language, normalize_language
 
 if TYPE_CHECKING:
     from vaidya.sarvam.client import SarvamClient
@@ -71,18 +73,20 @@ class ConversationManager:
         self,
         phone_hash: str,
         language: str = "hi-IN",
+        channel: str = "text",
     ) -> tuple[str, str]:
         """Create a new session and return ``(call_id, welcome_message)``.
 
         Resumes an existing non-terminal session if one exists for
-        *phone_hash* (dropped-call recovery).
+        *phone_hash* (dropped-call recovery). ``channel`` is propagated to
+        the orchestrator so voice calls get a short greet+Q1 welcome.
         """
         recovered = await self._try_recover_session(phone_hash)
         if recovered is not None:
             return recovered
 
         call_id, context = await self._create_new_session(phone_hash, language)
-        welcome_text = await self._generate_welcome(call_id, context, language)
+        welcome_text = await self._generate_welcome(call_id, context, language, channel)
         return call_id, welcome_text
 
     async def _try_recover_session(
@@ -124,6 +128,11 @@ class ConversationManager:
         if context is None:
             raise RuntimeError("Failed to create session")
 
+        # Every new session starts by asking the caller which language they'd
+        # like to use. The flag tells ``_handle_turn_locked`` to skip inbound
+        # translation until the language has been confirmed.
+        context.metadata["awaiting_language"] = True
+
         if self._consent is not None:
             self._consent.record_consent(
                 call_id=call_id,
@@ -147,6 +156,7 @@ class ConversationManager:
         call_id: str,
         context: ConversationContext,
         language: str,
+        channel: str = "text",
     ) -> str:
         """Generate welcome message, persist context, and log session start."""
         try:
@@ -154,6 +164,7 @@ class ConversationManager:
                 context,
                 user_input="",
                 stt_confidence=1.0,
+                channel=channel,
             )
             welcome_text = response.text
         except Exception as exc:
@@ -180,6 +191,7 @@ class ConversationManager:
         user_text: str,
         language: str | None = None,
         stt_confidence: float = 1.0,
+        channel: str = "text",
     ) -> str:
         """Process one user turn and return the agent's text response."""
         # Prune stale locks to prevent unbounded growth
@@ -190,7 +202,9 @@ class ConversationManager:
         if call_id not in self._turn_locks:
             self._turn_locks[call_id] = asyncio.Lock()
         async with self._turn_locks[call_id]:
-            return await self._handle_turn_locked(call_id, user_text, language, stt_confidence)
+            return await self._handle_turn_locked(
+                call_id, user_text, language, stt_confidence, channel
+            )
 
     async def _load_context_or_fail(
         self,
@@ -221,12 +235,14 @@ class ConversationManager:
         context: ConversationContext,
         agent_input: str,
         stt_confidence: float,
+        channel: str = "text",
     ) -> AgentResponse:
         """Call the orchestrator and return its response (may raise)."""
         return await self._orchestrator.handle_turn(
             context,
             agent_input,
             stt_confidence=stt_confidence,
+            channel=channel,
         )
 
     async def _translate_to_user_language(
@@ -281,6 +297,7 @@ class ConversationManager:
         user_text: str,
         language: str | None,
         stt_confidence: float,
+        channel: str = "text",
     ) -> str:
         """Inner turn handler, called under per-session lock."""
         start = time.perf_counter()
@@ -290,16 +307,26 @@ class ConversationManager:
             self._turn_locks.pop(call_id, None)
             return self._session_expired_message(language or "hi-IN")
 
+        pre_turn_language = context.language
         turn_language = language or context.language
         masked_text = self._mask_pii(user_text)
 
         if self._sarvam_client:
             self._sarvam_client.set_active_call_id(call_id)
 
-        agent_input = await self._translate_to_agent_language(user_text, turn_language)
+        # On the language-selection turn the caller's input is in *their*
+        # language (which we haven't yet confirmed), so translating it
+        # against the session default would corrupt the detection input.
+        # Pass the raw utterance through in that case.
+        if context.metadata.get("awaiting_language"):
+            agent_input = user_text
+        else:
+            agent_input = await self._translate_to_agent_language(user_text, turn_language)
 
         try:
-            response = await self._execute_orchestrator(context, agent_input, stt_confidence)
+            response = await self._execute_orchestrator(
+                context, agent_input, stt_confidence, channel
+            )
         except Exception as exc:
             logger.error(
                 "Orchestrator failed",
@@ -311,7 +338,21 @@ class ConversationManager:
             self._audit_turn(call_id, context, masked_text, "[error]", None, elapsed)
             return self._error_message(turn_language)
 
-        response_text = await self._translate_to_user_language(response, turn_language)
+        # If the orchestrator switched the session language (e.g. the user
+        # picked Tamil on the welcome turn), the outbound response is already
+        # in the new language -- don't translate it back to the pre-turn one.
+        effective_outbound_language = context.language
+        response_text = await self._translate_to_user_language(
+            response, effective_outbound_language
+        )
+
+        if context.language != pre_turn_language:
+            self._audit.log_event(
+                call_id,
+                "language_switched",
+                {"from": pre_turn_language, "to": context.language, "channel": channel},
+            )
+
         self._finalize_cost_tracking(call_id, context)
         await self._session.update(context)
 
@@ -329,6 +370,81 @@ class ConversationManager:
             session_cost = self._sarvam_client.costs.cost_for_call(call_id)
             context.metadata["session_cost_inr"] = round(session_cost, 4)
             self._sarvam_client.clear_active_call_id()
+
+    async def handle_silence(
+        self,
+        call_id: str,
+        elapsed_seconds: float,
+    ) -> tuple[str, bool]:
+        """Produce a silence-escalation utterance for the voice edge.
+
+        Returns ``(spoken_text, is_terminal)``. At 6s this is a gentle nudge;
+        at 12s it is a phase-aware reprompt:
+
+        - **WELCOME phase** (caller has not yet picked a language): a short
+          universal English prompt ("Please say your language — Hindi, Tamil,
+          or English?"). We deliberately do *not* re-play the long multi-
+          lingual welcome; that feels robotic.
+        - **Any other phase**: the standard prefix + the last assistant
+          question from the transcript, so the caller hears the exact
+          question they were asked.
+
+        At 20s it is a closure line and ``is_terminal=True``, telling the
+        caller to hang the call up cleanly.
+        """
+        from vaidya.models.conversation import ConversationPhase
+
+        step = next(
+            (s for s in SILENCE_STEPS if abs(elapsed_seconds - s[0]) < 1e-6),
+            None,
+        )
+        if step is None:
+            return "", False
+
+        _threshold, key, terminal = step
+        context = await self._session.get(call_id)
+        language = context.language if context is not None else "hi-IN"
+
+        # Phase-specific short reprompt for language selection.
+        if (
+            key == "silence_reprompt_prefix"
+            and context is not None
+            and context.phase == ConversationPhase.WELCOME
+        ):
+            return get_msg("orchestrator", "silence_welcome_reprompt", language), terminal
+
+        phrase = get_msg("orchestrator", key, language)
+        spoken = phrase
+        if key == "silence_reprompt_prefix" and context is not None:
+            last_question = next(
+                (t.text for t in reversed(context.transcript) if t.role == "assistant"),
+                "",
+            )
+            if last_question:
+                spoken = f"{phrase}{last_question}"
+        return spoken, terminal
+
+    async def switch_language(self, call_id: str, new_language: str) -> bool:
+        """Persist a detected voice language into the session.
+
+        No-ops (returning False) if the language is unsupported for voice
+        or already matches the session. Returns True when a switch occurred.
+        """
+        if not is_voice_language(new_language):
+            return False
+        normalized = normalize_language(new_language).value
+        context = await self._session.get(call_id)
+        if context is None or context.language == normalized:
+            return False
+        previous = context.language
+        context.language = normalized
+        await self._session.update(context)
+        self._audit.log_event(
+            call_id,
+            "language_switched",
+            {"from": previous, "to": normalized},
+        )
+        return True
 
     async def get_context(self, call_id: str) -> ConversationContext | None:
         """Load and return the current context for *call_id*."""

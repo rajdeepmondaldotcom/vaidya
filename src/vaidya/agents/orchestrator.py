@@ -35,7 +35,6 @@ logger = logging.getLogger(__name__)
 _REPEAT_SMS_THRESHOLD = 3
 _REPHRASE_TTS_RATE = 0.80
 _DISTRESS_TTS_RATE = 0.85
-_STT_CONFIDENCE_THRESHOLD = 0.7
 
 
 class Orchestrator:
@@ -74,8 +73,15 @@ class Orchestrator:
         user_input: str,
         stt_confidence: float = 1.0,
         silence_duration_seconds: float = 0.0,
+        channel: str = "text",
     ) -> AgentResponse:
-        """Main entry point. Routes user input through the state machine."""
+        """Main entry point. Routes user input through the state machine.
+
+        ``channel`` is "text" for the simulation / HTTP conversation API and
+        "voice" for real phone calls via Pipecat. Voice short-circuits the
+        wordy welcome (consent + disclaimer + open-elicitation) and jumps
+        straight to the first intake question for a phone-friendly opener.
+        """
         start = time.perf_counter()
 
         silence_response = self._check_silence(context, silence_duration_seconds)
@@ -90,7 +96,7 @@ class Orchestrator:
             stt_confidence=stt_confidence,
         )
 
-        response = await self._route_by_phase(context, user_input, stt_confidence)
+        response = await self._route_by_phase(context, user_input, stt_confidence, channel)
 
         elapsed = (time.perf_counter() - start) * 1000
         response.metadata["orchestrator_latency_ms"] = round(elapsed, 1)
@@ -138,10 +144,11 @@ class Orchestrator:
         context: ConversationContext,
         user_input: str,
         stt_confidence: float,
+        channel: str = "text",
     ) -> AgentResponse:
         match context.phase:
             case ConversationPhase.WELCOME:
-                return await self._handle_welcome(context, user_input, stt_confidence)
+                return await self._handle_welcome(context, user_input, stt_confidence, channel)
             case ConversationPhase.OPEN_ELICITATION:
                 return await self._handle_open_elicitation(context, user_input)
             case ConversationPhase.INTAKE:
@@ -171,29 +178,115 @@ class Orchestrator:
         context: ConversationContext,
         user_input: str,
         stt_confidence: float,
+        channel: str = "text",
     ) -> AgentResponse:
-        """Phase 1: Welcome & language lock."""
-        lang = context.language
-        consent_prefix = self._record_consent_if_needed(context)
+        """Phase 1: Language selection (always first) + welcome handshake.
 
-        if stt_confidence >= _STT_CONFIDENCE_THRESHOLD:
-            context.phase = ConversationPhase.OPEN_ELICITATION
-            welcome = get_msg("orchestrator", "welcome", lang)
-            disclaimer = get_msg("orchestrator", "disclaimer", lang)
+        Regardless of channel, the caller's very first interaction is a
+        language-selection turn. We never assume a language: even if the
+        API client passed ``language=hi-IN`` to ``start_conversation``,
+        that is treated as the *default for the opening prompt only*, and
+        the user is immediately asked which language they'd like to use.
+
+        Two-step handshake:
+
+        1. **Turn 1 (no user input yet):** speak a multilingual greeting
+           enumerating every supported voice language. Stay in WELCOME.
+           ``context.metadata["awaiting_language"] = True`` tells
+           :class:`ConversationManager` to skip inbound translation on the
+           next turn -- we need the raw user utterance to detect language.
+
+        2. **Turn 2 (user has responded):**
+           - Voice: the processor has already called ``switch_language``
+             based on the STT-tagged language; ``context.language`` is
+             now the caller's choice. We acknowledge in that language
+             and ask intake Q1 in the same utterance -> INTAKE.
+           - Text: we lexically detect the language from the raw reply
+             (names / autonyms / menu numbers). On success we switch the
+             session language, acknowledge + speak the disclaimer, and
+             transition to OPEN_ELICITATION. On failure (no confident
+             match) we re-prompt and stay in WELCOME.
+
+        Consent is recorded silently (for the audit trail) on the very
+        first turn but never spoken -- the disclaimer covers it on text,
+        and voice onboarding IVR already discloses recording.
+        """
+        # Fire-and-forget structural consent record; we never speak it.
+        self._record_consent_if_needed(context, speak=False)
+
+        user_text = (user_input or "").strip()
+
+        # Turn 1 of the handshake: no user input yet.
+        if not user_text:
+            context.metadata["awaiting_language"] = True
+            key = "welcome_voice" if channel == "voice" else "welcome_text"
             return AgentResponse(
-                text=f"{consent_prefix}{welcome} {disclaimer}",
-                phase_transition=ConversationPhase.OPEN_ELICITATION,
+                text=get_msg("orchestrator", key, context.language),
+                already_localized=True,
             )
 
+        # Turn 2: user has picked a language.
+        if channel == "voice":
+            # The voice processor has already switched ``context.language``
+            # to the STT-detected language via ``switch_language``.
+            new_lang = context.language
+            context.metadata["awaiting_language"] = False
+            context.phase = ConversationPhase.INTAKE
+            context.intake_question_index = 1
+            confirmation = get_msg("orchestrator", "language_confirmed", new_lang)
+            q1 = get_msg("orchestrator", "intake_q1_voice", new_lang)
+            return AgentResponse(
+                text=f"{confirmation} {q1}",
+                phase_transition=ConversationPhase.INTAKE,
+                already_localized=True,
+            )
+
+        # Text channel: lexically detect the chosen language.
+        from vaidya.voice.language import detect_language_from_text
+
+        detected = detect_language_from_text(user_text)
+        if detected is None:
+            # Couldn't tell -- re-prompt in a universal, short message and
+            # stay in WELCOME. ``awaiting_language`` stays True so the next
+            # user turn is also passed through untranslated.
+            context.metadata["awaiting_language"] = True
+            return AgentResponse(
+                text=get_msg(
+                    "orchestrator", "language_not_understood", context.language
+                ),
+                already_localized=True,
+            )
+
+        # Commit the detected language onto the session and move on.
+        new_lang = detected.value
+        context.language = new_lang
+        context.metadata["awaiting_language"] = False
+        context.metadata["language_confirmed"] = True
+        context.phase = ConversationPhase.OPEN_ELICITATION
+
+        confirmation = get_msg("orchestrator", "language_confirmed", new_lang)
+        welcome = get_msg("orchestrator", "welcome", new_lang)
+        disclaimer = get_msg("orchestrator", "disclaimer", new_lang)
         return AgentResponse(
-            text=f"{consent_prefix}{get_msg('orchestrator', 'language_confirm', lang)}",
+            text=f"{confirmation} {welcome} {disclaimer}",
+            phase_transition=ConversationPhase.OPEN_ELICITATION,
+            already_localized=True,
         )
 
-    def _record_consent_if_needed(self, context: ConversationContext) -> str:
+    def _record_consent_if_needed(
+        self,
+        context: ConversationContext,
+        *,
+        speak: bool = True,
+    ) -> str:
+        """Record consent in the tracker and (optionally) return a spoken prefix.
+
+        On voice calls ``speak=False`` records consent silently for audit
+        purposes without narrating the 17-word consent request to the caller.
+        """
         if context.metadata.get("consent_asked"):
             return ""
 
-        consent_text = get_msg("orchestrator", "consent_ask", context.language)
         context.metadata["consent_asked"] = True
 
         if self._consent_tracker is not None:
@@ -203,6 +296,10 @@ class Orchestrator:
                 granted=True,
             )
 
+        if not speak:
+            return ""
+
+        consent_text = get_msg("orchestrator", "consent_ask", context.language)
         return f"{consent_text} "
 
     async def _handle_open_elicitation(

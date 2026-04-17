@@ -322,16 +322,97 @@ def _make_convergence_result(num_schemes: int = 2) -> ConvergenceResult:
 
 
 class TestWelcomePhase:
-    """Test Phase 1: Welcome & language lock."""
+    """Test Phase 1: Language selection + welcome handshake.
 
-    async def test_welcome_phase_transitions_to_open_elicitation(self):
-        """Create context in WELCOME, call handle_turn with empty input.
+    The first turn of every call -- text or voice -- asks the user which
+    language they'd like to continue in. We never assume a language.
+    """
 
-        Verify:
-        - Response includes Namaste or welcome text
-        - Phase transitions to OPEN_ELICITATION
-        - Consent was asked (metadata)
-        """
+    async def test_welcome_text_turn1_asks_language_and_stays(self):
+        """Text turn 1 (empty input): emit the multilingual language menu
+        and stay in WELCOME until the user picks a language."""
+        consent_tracker = ConsentTracker()
+        orchestrator = _build_orchestrator(consent_tracker=consent_tracker)
+        context = _make_context(phase=ConversationPhase.WELCOME)
+
+        response = await orchestrator.handle_turn(
+            context=context,
+            user_input="",
+            stt_confidence=1.0,
+        )
+
+        # Greeting opens in multiple languages and offers a numbered menu.
+        assert "Namaste" in response.text
+        assert "Tamil" in response.text and "Bengali" in response.text
+        assert "English" in response.text
+        # Phase stays in WELCOME; we wait for the user.
+        assert context.phase == ConversationPhase.WELCOME
+        assert response.phase_transition is None
+        # The manager is told to skip inbound translation on next turn.
+        assert context.metadata.get("awaiting_language") is True
+        # Consent is recorded silently (for audit), not spoken.
+        assert context.metadata.get("consent_asked") is True
+        assert consent_tracker.has_consent("test-call-001", "recording") is True
+
+    async def test_welcome_text_turn2_detects_language_and_transitions(self):
+        """Text turn 2: user replies 'Tamil' -- session switches to Tamil,
+        acknowledges, and transitions to OPEN_ELICITATION."""
+        orchestrator = _build_orchestrator()
+        context = _make_context(phase=ConversationPhase.WELCOME)
+        context.metadata["awaiting_language"] = True
+
+        response = await orchestrator.handle_turn(
+            context=context,
+            user_input="Tamil",
+            stt_confidence=1.0,
+        )
+
+        assert context.language == "ta-IN"
+        assert context.metadata.get("awaiting_language") is False
+        assert context.metadata.get("language_confirmed") is True
+        assert context.phase == ConversationPhase.OPEN_ELICITATION
+        assert response.phase_transition == ConversationPhase.OPEN_ELICITATION
+        # Response is localised (Tamil confirmation + welcome + disclaimer).
+        assert response.already_localized is True
+        assert "Tamil" in response.text or "Sari" in response.text
+
+    async def test_welcome_text_menu_number_picks_language(self):
+        """A bare digit must select by menu position (4 -> Telugu)."""
+        orchestrator = _build_orchestrator()
+        context = _make_context(phase=ConversationPhase.WELCOME)
+        context.metadata["awaiting_language"] = True
+
+        response = await orchestrator.handle_turn(
+            context=context,
+            user_input="4",
+            stt_confidence=1.0,
+        )
+
+        assert context.language == "te-IN"
+        assert context.phase == ConversationPhase.OPEN_ELICITATION
+        assert response.already_localized is True
+
+    async def test_welcome_text_ambiguous_reprompt_keeps_phase(self):
+        """If we can't confidently detect the language, re-prompt and stay."""
+        orchestrator = _build_orchestrator()
+        context = _make_context(phase=ConversationPhase.WELCOME)
+        context.metadata["awaiting_language"] = True
+
+        response = await orchestrator.handle_turn(
+            context=context,
+            user_input="hmm not sure",
+            stt_confidence=1.0,
+        )
+
+        assert context.phase == ConversationPhase.WELCOME
+        assert response.phase_transition is None
+        assert context.metadata.get("awaiting_language") is True
+        # Universal fallback prompt lists language choices.
+        assert "English" in response.text
+
+    async def test_welcome_voice_turn1_asks_language_stays_in_welcome(self):
+        """Voice turn 1 (empty input): speak a multilingual language-select
+        prompt enumerating every supported language, stay in WELCOME."""
         consent_tracker = ConsentTracker()
         orchestrator = _build_orchestrator(consent_tracker=consent_tracker)
         context = _make_context(phase=ConversationPhase.WELCOME)
@@ -340,55 +421,61 @@ class TestWelcomePhase:
             context=context,
             user_input="",
             stt_confidence=0.9,
+            channel="voice",
         )
 
-        # Welcome text should contain greeting
-        assert "Namaste" in response.text or "Vaidya" in response.text
-        # Phase should transition to OPEN_ELICITATION
-        assert context.phase == ConversationPhase.OPEN_ELICITATION
-        assert response.phase_transition == ConversationPhase.OPEN_ELICITATION
-        # Consent was asked
-        assert context.metadata.get("consent_asked") is True
-        # Consent tracker should have recorded consent
+        text_lower = response.text.lower()
+        # Greetings from multiple language families are audible upfront.
+        assert "namaste" in text_lower
+        assert "vanakkam" in text_lower
+        assert "hello" in text_lower
+        # Language-ask wording, not a state question.
+        assert "language" in text_lower
+        # Spoken consent is never narrated on voice.
+        assert "record karne" not in text_lower
+        # Phase stays in WELCOME.
+        assert context.phase == ConversationPhase.WELCOME
+        assert response.phase_transition is None
+        # Consent still recorded structurally.
         assert consent_tracker.has_consent("test-call-001", "recording") is True
+        assert context.metadata.get("awaiting_language") is True
 
-    async def test_welcome_low_stt_confidence_asks_language_confirmation(self):
-        """Low STT confidence should ask for language confirmation, not transition."""
+    async def test_welcome_voice_turn2_confirms_language_and_asks_q1(self):
+        """Voice turn 2: caller spoke in Tamil, processor pre-switched the
+        session language. We confirm in Tamil and ask Q1, -> INTAKE."""
         orchestrator = _build_orchestrator()
-        context = _make_context(phase=ConversationPhase.WELCOME)
+        context = _make_context(phase=ConversationPhase.WELCOME, language="ta-IN")
+        context.metadata["awaiting_language"] = True
 
         response = await orchestrator.handle_turn(
             context=context,
-            user_input="",
-            stt_confidence=0.4,
+            user_input="Tamil",
+            stt_confidence=0.9,
+            channel="voice",
         )
 
-        # Should stay in WELCOME (no transition)
-        assert context.phase == ConversationPhase.WELCOME
-        # Should ask language confirmation
-        assert "Hindi" in response.text or "baat karna" in response.text
-        # Consent should still be asked
-        assert context.metadata.get("consent_asked") is True
+        assert "Tamil" in response.text or "Sari" in response.text
+        assert "enga" in response.text.lower()
+        assert context.phase == ConversationPhase.INTAKE
+        assert response.phase_transition == ConversationPhase.INTAKE
+        assert context.intake_question_index == 1
+        assert context.metadata.get("awaiting_language") is False
 
     async def test_welcome_consent_asked_only_once(self):
-        """Consent should be asked exactly once across multiple welcome turns."""
+        """Consent metadata flag should be set once and not re-toggled."""
         orchestrator = _build_orchestrator()
         context = _make_context(phase=ConversationPhase.WELCOME)
 
-        # First turn
-        resp1 = await orchestrator.handle_turn(context=context, user_input="", stt_confidence=0.4)
-        consent_text_count_1 = resp1.text.count("record")
-
-        # Manually reset phase for re-entry (simulate staying in welcome)
-        context.phase = ConversationPhase.WELCOME
-
-        # Second turn
-        resp2 = await orchestrator.handle_turn(
-            context=context, user_input="Haan", stt_confidence=0.9
+        await orchestrator.handle_turn(
+            context=context, user_input="", stt_confidence=1.0
         )
+        assert context.metadata.get("consent_asked") is True
 
-        # The second response should not include consent text again
-        # because consent_asked is already True in metadata
+        # Re-enter welcome (simulating a re-prompt) -- metadata persists.
+        context.phase = ConversationPhase.WELCOME
+        await orchestrator.handle_turn(
+            context=context, user_input="Hindi", stt_confidence=1.0
+        )
         assert context.metadata.get("consent_asked") is True
 
 
@@ -961,13 +1048,20 @@ class TestEndToEndHappyPath:
         # Track all phases we pass through
         phases_seen = [context.phase]
 
-        # Phase 1: Welcome
+        # Phase 1a: Welcome -- language-selection prompt, stay in WELCOME.
         r_welcome = await orchestrator.handle_turn(
             context=context, user_input="", stt_confidence=0.9
         )
         phases_seen.append(context.phase)
-        assert context.phase == ConversationPhase.OPEN_ELICITATION
+        assert context.phase == ConversationPhase.WELCOME
         assert "Namaste" in r_welcome.text or "Vaidya" in r_welcome.text
+
+        # Phase 1b: User picks Hindi -> OPEN_ELICITATION.
+        await orchestrator.handle_turn(
+            context=context, user_input="Hindi", stt_confidence=0.9
+        )
+        phases_seen.append(context.phase)
+        assert context.phase == ConversationPhase.OPEN_ELICITATION
 
         # Phase 2: Open elicitation -> Intake
         r_open = await orchestrator.handle_turn(
@@ -1027,39 +1121,39 @@ class TestEndToEndHappyPath:
 
 
 class TestLanguageSupport:
-    """Test that different languages produce appropriate responses."""
+    """Test that selecting a language produces responses in that language.
 
-    async def test_hindi_welcome(self):
-        orchestrator = _build_orchestrator()
-        context = _make_context(phase=ConversationPhase.WELCOME, language="hi-IN")
-        response = await orchestrator.handle_turn(
-            context=context, user_input="", stt_confidence=0.9
-        )
-        assert "Namaste" in response.text
+    The opening turn is now a multilingual menu (identical across callers),
+    so language-specific assertions happen on the second turn -- after the
+    user has picked their language and the orchestrator acknowledges it.
+    """
 
-    async def test_tamil_welcome(self):
+    async def _pick_language(self, language_reply: str) -> str:
         orchestrator = _build_orchestrator()
-        context = _make_context(phase=ConversationPhase.WELCOME, language="ta-IN")
+        context = _make_context(phase=ConversationPhase.WELCOME)
+        context.metadata["awaiting_language"] = True
         response = await orchestrator.handle_turn(
-            context=context, user_input="", stt_confidence=0.9
+            context=context, user_input=language_reply, stt_confidence=1.0
         )
-        assert "Vanakkam" in response.text
+        return response.text
 
-    async def test_bengali_welcome(self):
-        orchestrator = _build_orchestrator()
-        context = _make_context(phase=ConversationPhase.WELCOME, language="bn-IN")
-        response = await orchestrator.handle_turn(
-            context=context, user_input="", stt_confidence=0.9
-        )
-        assert "Namaskar" in response.text
+    async def test_hindi_confirmation(self):
+        text = await self._pick_language("Hindi")
+        assert "Hindi" in text or "Namaste" in text
 
-    async def test_english_welcome(self):
-        orchestrator = _build_orchestrator()
-        context = _make_context(phase=ConversationPhase.WELCOME, language="en-IN")
-        response = await orchestrator.handle_turn(
-            context=context, user_input="", stt_confidence=0.9
-        )
-        assert "Hello" in response.text
+    async def test_tamil_confirmation(self):
+        text = await self._pick_language("Tamil")
+        # Tamil confirmation reads "Sari, Tamil-il pesalaam."
+        assert "Sari" in text or "Tamil" in text
+
+    async def test_bengali_confirmation(self):
+        text = await self._pick_language("Bengali")
+        # Bengali confirmation starts with "Bhalo" and the welcome has "Namaskar".
+        assert "Bhalo" in text or "Namaskar" in text
+
+    async def test_english_confirmation(self):
+        text = await self._pick_language("English")
+        assert "English" in text or "Hello" in text
 
 
 class TestMetadataTracking:
