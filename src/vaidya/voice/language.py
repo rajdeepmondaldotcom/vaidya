@@ -124,6 +124,54 @@ TTS_SPEAKERS: dict[Language, str] = {
 # Display names (English + native script)
 # ---------------------------------------------------------------------------
 
+LANGUAGE_AUTONYMS: dict[Language, str] = {
+    Language.HINDI: "हिन्दी",
+    Language.TAMIL: "தமிழ்",
+    Language.BENGALI: "বাংলা",
+    Language.TELUGU: "తెలుగు",
+    Language.GUJARATI: "ગુજરાતી",
+    Language.KANNADA: "ಕನ್ನಡ",
+    Language.MALAYALAM: "മലയാളം",
+    Language.MARATHI: "मराठी",
+    Language.PUNJABI: "ਪੰਜਾਬੀ",
+    Language.ODIA: "ଓଡ଼ିଆ",
+    Language.ENGLISH: "English",
+}
+
+# Menu-number shortcut so users can reply "2" to pick Tamil, etc.
+LANGUAGE_MENU_ORDER: tuple[Language, ...] = (
+    Language.HINDI,
+    Language.TAMIL,
+    Language.BENGALI,
+    Language.TELUGU,
+    Language.GUJARATI,
+    Language.KANNADA,
+    Language.MALAYALAM,
+    Language.MARATHI,
+    Language.PUNJABI,
+    Language.ODIA,
+    Language.ENGLISH,
+)
+
+# Extra lexical keys for text detection (autonyms + common romanisations).
+_TEXT_KEYWORDS: dict[str, Language] = {
+    "हिन्दी": Language.HINDI,
+    "हिंदी": Language.HINDI,
+    "தமிழ்": Language.TAMIL,
+    "tamizh": Language.TAMIL,
+    "বাংলা": Language.BENGALI,
+    "bangla": Language.BENGALI,
+    "తెలుగు": Language.TELUGU,
+    "ગુજરાતી": Language.GUJARATI,
+    "ಕನ್ನಡ": Language.KANNADA,
+    "മലയാളം": Language.MALAYALAM,
+    "मराठी": Language.MARATHI,
+    "ਪੰਜਾਬੀ": Language.PUNJABI,
+    "ଓଡ଼ିଆ": Language.ODIA,
+    "ଓଡିଆ": Language.ODIA,
+}
+
+
 LANGUAGE_DISPLAY_NAMES: dict[Language | TextLanguage, str] = {
     Language.HINDI: "Hindi",
     Language.TAMIL: "Tamil",
@@ -199,6 +247,54 @@ def is_text_language(lang: str) -> bool:
 def is_any_supported_language(lang: str) -> bool:
     """Return ``True`` if *lang* is supported in any tier (voice or text)."""
     return is_voice_language(lang) or is_text_language(lang)
+
+
+def detect_language_from_text(text: str) -> Language | None:
+    """Best-effort lexical language match for a short user utterance.
+
+    Used on the text channel's first turn (before any session language has
+    been confirmed) to pick the user's chosen language from a menu-style
+    response like ``"Tamil"``, ``"tamizh"``, ``"தமிழ்"``, or ``"2"``.
+
+    Returns ``None`` when the input is empty, too long to be a menu answer,
+    or doesn't lexically match any known language. In that case callers
+    should re-prompt or fall back to Sarvam language detection.
+    """
+    if not text:
+        return None
+
+    cleaned = text.strip().lower()
+    if not cleaned:
+        return None
+
+    # Pure numeric menu pick, e.g. "2" -> Tamil.
+    if cleaned.isdigit():
+        idx = int(cleaned) - 1
+        if 0 <= idx < len(LANGUAGE_MENU_ORDER):
+            return LANGUAGE_MENU_ORDER[idx]
+        return None
+
+    # Short utterances: match the whole string against the known maps.
+    if cleaned in SARVAM_LANG_MAP:
+        return SARVAM_LANG_MAP[cleaned]
+
+    if text.strip() in _TEXT_KEYWORDS:
+        return _TEXT_KEYWORDS[text.strip()]
+
+    # Longer utterances: token-by-token search. Only the first unambiguous
+    # hit wins -- if two different languages appear (e.g. "Hindi ya Tamil?")
+    # we bail and let the caller re-prompt.
+    hits: set[Language] = set()
+    for token in cleaned.replace(",", " ").split():
+        if token in SARVAM_LANG_MAP:
+            hits.add(SARVAM_LANG_MAP[token])
+    for autonym, lang in _TEXT_KEYWORDS.items():
+        if autonym in text:
+            hits.add(lang)
+
+    if len(hits) == 1:
+        return next(iter(hits))
+    return None
 
 
 async def detect_language(client: object, text: str) -> Language:
