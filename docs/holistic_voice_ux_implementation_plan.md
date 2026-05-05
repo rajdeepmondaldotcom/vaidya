@@ -1,6 +1,6 @@
 # Holistic Voice UX Implementation Plan
 
-Status: Phase 3 revision, pre-research.
+Status: Phase 5 revision, research incorporated.
 Anchor: the current Vaidya architecture remains the source of truth: FastAPI routes, Redis-backed `ConversationManager`, deterministic `Orchestrator`, Sarvam STT/TTS/LLM services, Pipecat telephony transport, Twilio webhook and WebSocket routes.
 
 ## Phase 1 Initial Plan
@@ -168,3 +168,56 @@ The Phase 2 self-audit found four blockers and three refinements. The plan above
 - Do not commit `.venv` created by `uv`; `.gitignore` already covers virtualenv-style directories.
 
 The implementation direction remains unchanged: stabilize the existing voice-first architecture with narrow, production-critical fixes.
+
+## Phase 5 Round 2 Revision
+
+Industry research validated the Phase 1-3 direction and produced only refinements:
+
+- Twilio webhook validation must use the Twilio SDK validator with the exact public webhook URL and all received parameters. This replaces the signature-presence check.
+- Twilio `<Stream>` supports nested custom parameters and `statusCallback`; the implementation will pass only `phone_hash` as a custom parameter and add `statusCallback` / `statusCallbackMethod="POST"` when `voice_status_callback_url` is configured.
+- Sarvam Streaming STT officially supports `vad_signals`, `high_vad_sensitivity`, and 8 kHz telephony sample-rate matching; the implementation will use these settings through `SarvamSTTSettings`.
+- Pipecat turn guidance supports reacting to high-level user speaking frames and using VAD/transcription to determine turn starts. No local VAD transport parameter will be used.
+- Voice UX guidance supports two no-input recovery attempts followed by a graceful close. The 6s / 12s / 20s silence plan remains intact.
+- Logging and privacy guidance supports hashing caller identifiers and avoiding raw health/phone PII in logs.
+
+No architecture decision changed.
+
+## Phase 6 Final Consolidated Plan
+
+This is the implementation checklist used for code changes:
+
+1. Voice route security and privacy
+   - Validate Twilio signatures with the Twilio SDK when `twilio_auth_token` is configured.
+   - Hash caller identifiers before logging or passing through Twilio Stream params.
+   - Escape TwiML attribute values.
+   - Add optional Stream `statusCallback` wiring.
+
+2. Voice session creation
+   - Accept the WebSocket.
+   - Parse the Twilio handshake before session creation.
+   - Resolve `phone_hash` from Stream custom params first, then Twilio `callSid`, then `streamSid`.
+   - Start `ConversationManager` only after identity is known.
+   - End the session only if a session was created.
+
+3. Pipeline compatibility
+   - Make `run_voice_pipeline()` accept parsed handshake data and parse only as fallback.
+   - Remove unsupported local VAD transport params.
+   - Configure Sarvam STT with `vad_signals=True`, `high_vad_sensitivity=True`, and telephony sample rate.
+   - Keep Twilio auto-hangup via `EndTaskFrame` and serializer credentials.
+
+4. Agent processor voice UX
+   - Use central language normalization and speaker mapping.
+   - Handle Pipecat language enum values.
+   - Add idle watcher cleanup.
+
+5. Conversation API consistency
+   - Pass `channel` through from `POST /conversation/start`.
+
+6. Copy and prompt quality
+   - Update language-selection no-input reprompt to cover all 11 supported voice languages.
+   - Tighten the intake prompt's acknowledgement instruction.
+
+7. Verification and commits
+   - Add focused tests for route, pipeline, language, and silence behavior.
+   - Run focused checks first, then broader unit/integration and ruff checks.
+   - Commit code in logical local commits. Do not push.
