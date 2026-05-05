@@ -1,7 +1,7 @@
 """Tests for ChromaDB-backed KnowledgeStore.
 
-Uses an in-memory chromadb.EphemeralClient injected into the KnowledgeStore
-to avoid filesystem or network dependencies.
+Uses an in-memory fake ChromaDB client injected into the KnowledgeStore to
+avoid filesystem, SQLite extension, or network dependencies in unit tests.
 
 Covers:
 - index_scheme: upserts a scheme into the collection
@@ -15,9 +15,9 @@ Covers:
 
 from __future__ import annotations
 
+from typing import Any
 from unittest.mock import MagicMock, patch
 
-import chromadb
 import pytest
 
 from vaidya.knowledge.store import KnowledgeStore
@@ -84,24 +84,119 @@ def _make_scheme(
 # ---------------------------------------------------------------------------
 
 
+class _FakeCollection:
+    """Minimal Chroma collection stand-in for deterministic unit tests."""
+
+    def __init__(self) -> None:
+        self._items: dict[str, dict[str, Any]] = {}
+
+    def upsert(
+        self,
+        *,
+        ids: list[str],
+        documents: list[str],
+        metadatas: list[dict[str, Any]],
+    ) -> None:
+        for scheme_id, document, metadata in zip(ids, documents, metadatas, strict=True):
+            self._items[scheme_id] = {"document": document, "metadata": metadata}
+
+    def count(self) -> int:
+        return len(self._items)
+
+    def query(
+        self,
+        *,
+        query_texts: list[str],
+        n_results: int,
+        where: dict[str, Any] | None = None,
+        include: list[str],
+    ) -> dict[str, list[list[Any]]]:
+        del include
+        query_terms = set(query_texts[0].lower().replace("/", " ").split())
+
+        ranked: list[tuple[int, str, dict[str, Any]]] = []
+        for scheme_id, item in self._items.items():
+            if not self._matches_where(item["metadata"], where):
+                continue
+            haystack = " ".join(
+                [
+                    item["document"],
+                    str(item["metadata"].get("canonical_name", "")),
+                    str(item["metadata"].get("keywords", "")).replace(",", " "),
+                ]
+            ).lower()
+            score = sum(1 for term in query_terms if term in haystack)
+            ranked.append((score, scheme_id, item))
+
+        ranked.sort(key=lambda row: (-row[0], row[1]))
+        selected = ranked[:n_results]
+        return {
+            "ids": [[scheme_id for _, scheme_id, _ in selected]],
+            "metadatas": [[item["metadata"] for _, _, item in selected]],
+            "documents": [[item["document"] for _, _, item in selected]],
+        }
+
+    def get(
+        self,
+        *,
+        ids: list[str] | None = None,
+        where: dict[str, Any] | None = None,
+        include: list[str],
+    ) -> dict[str, list[Any]]:
+        del include
+        selected: list[tuple[str, dict[str, Any]]] = []
+        if ids is not None:
+            for scheme_id in ids:
+                item = self._items.get(scheme_id)
+                if item is not None and self._matches_where(item["metadata"], where):
+                    selected.append((scheme_id, item))
+        else:
+            selected = [
+                (scheme_id, item)
+                for scheme_id, item in self._items.items()
+                if self._matches_where(item["metadata"], where)
+            ]
+
+        return {
+            "ids": [scheme_id for scheme_id, _ in selected],
+            "metadatas": [item["metadata"] for _, item in selected],
+            "documents": [item["document"] for _, item in selected],
+        }
+
+    @classmethod
+    def _matches_where(cls, metadata: dict[str, Any], where: dict[str, Any] | None) -> bool:
+        if where is None:
+            return True
+        if "$or" in where:
+            return any(cls._matches_where(metadata, condition) for condition in where["$or"])
+        return all(metadata.get(key) == value for key, value in where.items())
+
+
+class _FakeChromaClient:
+    def __init__(self) -> None:
+        self.collection = _FakeCollection()
+
+    def get_or_create_collection(
+        self,
+        *,
+        name: str,
+        metadata: dict[str, Any],
+    ) -> _FakeCollection:
+        del name, metadata
+        return self.collection
+
+    def heartbeat(self) -> int:
+        return 1
+
+
 @pytest.fixture()
 def store() -> KnowledgeStore:
-    """KnowledgeStore backed by an in-memory ephemeral ChromaDB client.
-
-    Each test gets a fresh collection by deleting any leftover "schemes"
-    collection before creating the store.
-    """
-    ephemeral_client = chromadb.Client()
-
-    # Ensure a clean slate -- delete any leftover collection from prior tests
-    import contextlib
-
-    with contextlib.suppress(Exception):
-        ephemeral_client.delete_collection("schemes")
+    """KnowledgeStore backed by an in-memory fake ChromaDB client."""
+    fake_client = _FakeChromaClient()
 
     with patch(
         "vaidya.knowledge.store.chromadb.PersistentClient",
-        return_value=ephemeral_client,
+        return_value=fake_client,
     ):
         ks = KnowledgeStore(chromadb_path="/tmp/test_chroma_unused")
 
