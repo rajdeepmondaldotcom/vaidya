@@ -32,6 +32,9 @@ except ImportError:
     PIPECAT_AVAILABLE = False
 
 _PHONE_HASH_RE = re.compile(r"^[0-9a-f]{16,64}$")
+_TWILIO_VALID = "valid"
+_TWILIO_INVALID = "invalid"
+_TWILIO_UNAVAILABLE = "unavailable"
 
 
 def _hash_identifier(value: object) -> str:
@@ -68,39 +71,49 @@ def _validate_twilio_http_request(
     request: Request,
     form,
     auth_token: str,
-) -> bool:
+) -> str:
     """Validate a Twilio webhook request using the official helper."""
     try:
         from twilio.request_validator import RequestValidator
     except ImportError:
         logger.error("Twilio auth token configured but twilio package is unavailable")
-        return False
+        return _TWILIO_UNAVAILABLE
 
     signature = request.headers.get("X-Twilio-Signature", "")
     if not signature:
         logger.warning("Missing Twilio signature")
-        return False
+        return _TWILIO_INVALID
 
     validator = RequestValidator(auth_token)
-    return bool(validator.validate(str(request.url), form, signature))
+    if validator.validate(str(request.url), form, signature):
+        return _TWILIO_VALID
+    return _TWILIO_INVALID
 
 
-def _validate_twilio_websocket(websocket: WebSocket, auth_token: str, public_url: str) -> bool:
+def _validate_twilio_websocket(websocket: WebSocket, auth_token: str, public_url: str) -> str:
     """Validate Twilio's WebSocket upgrade signature when configured."""
     try:
         from twilio.request_validator import RequestValidator
     except ImportError:
         logger.error("Twilio auth token configured but twilio package is unavailable")
-        return False
+        return _TWILIO_UNAVAILABLE
 
     signature = websocket.headers.get("x-twilio-signature", "")
     if not signature:
         logger.warning("Missing Twilio WebSocket signature")
-        return False
+        return _TWILIO_INVALID
 
     url = public_url or str(websocket.url)
     validator = RequestValidator(auth_token)
-    return bool(validator.validate(url, {}, signature))
+    if validator.validate(url, {}, signature):
+        return _TWILIO_VALID
+    return _TWILIO_INVALID
+
+
+def _twilio_http_failure_response(result: str) -> Response:
+    if result == _TWILIO_UNAVAILABLE:
+        return Response(status_code=503, content="Twilio validator unavailable")
+    return Response(status_code=403, content="Forbidden")
 
 
 def _build_stream_twiml(ws_url: str, phone_hash: str, status_callback_url: str = "") -> str:
@@ -134,16 +147,18 @@ async def incoming_call(request: Request) -> Response:
     caller = form.get("From", form.get("Caller", "unknown"))
     call_sid = form.get("CallSid", "")
     phone_hash = _hash_identifier(caller or call_sid)
+    call_sid_hash = _hash_identifier(call_sid) if call_sid else ""
 
-    logger.info("Incoming call", extra={"caller_hash": phone_hash, "call_sid": call_sid})
+    logger.info(
+        "Incoming call",
+        extra={"caller_hash": phone_hash, "call_sid_hash": call_sid_hash},
+    )
 
     # Twilio signature verification
-    if settings.twilio_auth_token and not _validate_twilio_http_request(
-        request,
-        form,
-        settings.twilio_auth_token,
-    ):
-        return Response(status_code=403, content="Forbidden")
+    if settings.twilio_auth_token:
+        validation = _validate_twilio_http_request(request, form, settings.twilio_auth_token)
+        if validation != _TWILIO_VALID:
+            return _twilio_http_failure_response(validation)
 
     if not ws_url:
         twiml = """<?xml version="1.0" encoding="UTF-8"?>
@@ -168,9 +183,10 @@ async def voice_stream(websocket: WebSocket) -> None:
 
     This is the main voice call handler. For each connected call it:
     1. Accepts the WebSocket.
-    2. Creates a conversation session via :class:`ConversationManager`.
-    3. Runs the Pipecat voice pipeline (STT -> Agent -> TTS).
-    4. Cleans up the session when the call ends.
+    2. Parses Twilio's handshake and derives a privacy-preserving caller key.
+    3. Creates a conversation session via :class:`ConversationManager`.
+    4. Runs the Pipecat voice pipeline (STT -> Agent -> TTS).
+    5. Cleans up the session when the call ends.
 
     Twilio sends ``connected`` then ``start`` (with customParameters) as
     the first messages on the stream. Caller info is extracted from
@@ -182,13 +198,18 @@ async def voice_stream(websocket: WebSocket) -> None:
         await websocket.close(code=1011, reason="pipecat not installed")
         return
 
-    if settings.twilio_auth_token and not _validate_twilio_websocket(
-        websocket,
-        settings.twilio_auth_token,
-        settings.voice_websocket_url,
-    ):
-        await websocket.close(code=1008, reason="invalid Twilio signature")
-        return
+    if settings.twilio_auth_token:
+        validation = _validate_twilio_websocket(
+            websocket,
+            settings.twilio_auth_token,
+            settings.voice_websocket_url,
+        )
+        if validation == _TWILIO_UNAVAILABLE:
+            await websocket.close(code=1011, reason="Twilio validator unavailable")
+            return
+        if validation != _TWILIO_VALID:
+            await websocket.close(code=1008, reason="invalid Twilio signature")
+            return
 
     await websocket.accept()
 
@@ -257,21 +278,31 @@ async def voice_stream(websocket: WebSocket) -> None:
             logger.info("Voice session ended", extra={"call_id": call_id})
 
 
-@router.post("/status")
-async def call_status(request: Request) -> dict:
+@router.post("/status", response_model=None)
+async def call_status(request: Request) -> dict | Response:
     """Twilio status callback: tracks call lifecycle events.
 
     Twilio POSTs here when a call is initiated, ringing, answered, or completed.
     We log the event for monitoring and debugging.
     """
+    settings = request.app.state.settings
     form = await request.form()
     status = form.get("CallStatus", "unknown")
     call_sid = form.get("CallSid", "")
     duration = form.get("CallDuration", "0")
 
+    if settings.twilio_auth_token:
+        validation = _validate_twilio_http_request(request, form, settings.twilio_auth_token)
+        if validation != _TWILIO_VALID:
+            return _twilio_http_failure_response(validation)
+
     logger.info(
         "Call status update",
-        extra={"call_sid": call_sid, "status": status, "duration": duration},
+        extra={
+            "call_sid_hash": _hash_identifier(call_sid) if call_sid else "",
+            "status": status,
+            "duration": duration,
+        },
     )
 
     return {"status": "ok"}
