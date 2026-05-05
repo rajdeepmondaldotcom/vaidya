@@ -247,17 +247,17 @@
     "en-IN": "Let me ask again — "
   },
   "silence_welcome_reprompt": {
-    "hi-IN": "Please say your language — Hindi, Tamil, or English?",
-    "ta-IN": "Please say your language — Hindi, Tamil, or English?",
-    "bn-IN": "Please say your language — Hindi, Tamil, or English?",
-    "te-IN": "Please say your language — Hindi, Tamil, or English?",
-    "gu-IN": "Please say your language — Hindi, Tamil, or English?",
-    "kn-IN": "Please say your language — Hindi, Tamil, or English?",
-    "ml-IN": "Please say your language — Hindi, Tamil, or English?",
-    "mr-IN": "Please say your language — Hindi, Tamil, or English?",
-    "pa-IN": "Please say your language — Hindi, Tamil, or English?",
-    "od-IN": "Please say your language — Hindi, Tamil, or English?",
-    "en-IN": "Please say your language — Hindi, Tamil, or English?"
+    "hi-IN": "Please say your language name, like Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, or English.",
+    "ta-IN": "Please say your language name, like Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, or English.",
+    "bn-IN": "Please say your language name, like Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, or English.",
+    "te-IN": "Please say your language name, like Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, or English.",
+    "gu-IN": "Please say your language name, like Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, or English.",
+    "kn-IN": "Please say your language name, like Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, or English.",
+    "ml-IN": "Please say your language name, like Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, or English.",
+    "mr-IN": "Please say your language name, like Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, or English.",
+    "pa-IN": "Please say your language name, like Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, or English.",
+    "od-IN": "Please say your language name, like Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, or English.",
+    "en-IN": "Please say your language name, like Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, or English."
   },
   "silence_closure": {
     "hi-IN": "Line cut lagti hai. Dhanyavaad, phir call kijiye.",

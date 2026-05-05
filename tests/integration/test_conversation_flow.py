@@ -466,16 +466,12 @@ class TestWelcomePhase:
         orchestrator = _build_orchestrator()
         context = _make_context(phase=ConversationPhase.WELCOME)
 
-        await orchestrator.handle_turn(
-            context=context, user_input="", stt_confidence=1.0
-        )
+        await orchestrator.handle_turn(context=context, user_input="", stt_confidence=1.0)
         assert context.metadata.get("consent_asked") is True
 
         # Re-enter welcome (simulating a re-prompt) -- metadata persists.
         context.phase = ConversationPhase.WELCOME
-        await orchestrator.handle_turn(
-            context=context, user_input="Hindi", stt_confidence=1.0
-        )
+        await orchestrator.handle_turn(context=context, user_input="Hindi", stt_confidence=1.0)
         assert context.metadata.get("consent_asked") is True
 
 
@@ -1057,9 +1053,7 @@ class TestEndToEndHappyPath:
         assert "Namaste" in r_welcome.text or "Vaidya" in r_welcome.text
 
         # Phase 1b: User picks Hindi -> OPEN_ELICITATION.
-        await orchestrator.handle_turn(
-            context=context, user_input="Hindi", stt_confidence=0.9
-        )
+        await orchestrator.handle_turn(context=context, user_input="Hindi", stt_confidence=0.9)
         phases_seen.append(context.phase)
         assert context.phase == ConversationPhase.OPEN_ELICITATION
 

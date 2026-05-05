@@ -251,9 +251,7 @@ class Orchestrator:
             # user turn is also passed through untranslated.
             context.metadata["awaiting_language"] = True
             return AgentResponse(
-                text=get_msg(
-                    "orchestrator", "language_not_understood", context.language
-                ),
+                text=get_msg("orchestrator", "language_not_understood", context.language),
                 already_localized=True,
             )
 
