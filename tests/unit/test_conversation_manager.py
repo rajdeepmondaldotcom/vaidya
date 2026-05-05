@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from vaidya.models.api import AgentResponse
-from vaidya.models.conversation import ConversationContext, ConversationPhase
+from vaidya.models.conversation import ConversationContext, ConversationPhase, Turn
 from vaidya.pipeline.conversation import ConversationManager
 
 # ---------------------------------------------------------------------------
@@ -340,3 +340,231 @@ class TestTurnLocking:
         await mgr.handle_turn("call-A", "world")
         lock2 = mgr._turn_locks["call-A"]
         assert lock1 is lock2
+
+
+# ---------------------------------------------------------------------------
+# handle_silence (voice edge)
+# ---------------------------------------------------------------------------
+
+
+class TestHandleSilence:
+    @pytest.mark.asyncio
+    async def test_6s_returns_nudge_not_terminal(self):
+        orch, session, translator, audit, _ = _make_deps()
+        ctx = _make_context(language="hi-IN", phase=ConversationPhase.INTAKE)
+        session.get = AsyncMock(return_value=ctx)
+
+        mgr = ConversationManager(
+            orchestrator=orch,
+            session_manager=session,
+            translator=translator,
+            audit_trail=audit,
+        )
+        spoken, terminal = await mgr.handle_silence("test-call-001", 6.0)
+        assert "sun raha hoon" in spoken
+        assert terminal is False
+
+    @pytest.mark.asyncio
+    async def test_12s_intake_prepends_reprompt_to_last_assistant_turn(self):
+        orch, session, translator, audit, _ = _make_deps()
+        ctx = _make_context(language="hi-IN", phase=ConversationPhase.INTAKE)
+        ctx.transcript = [
+            Turn(
+                role="user",
+                text="hello",
+                raw_text="hello",
+                language="hi-IN",
+            ),
+            Turn(
+                role="assistant",
+                text="Aap kahaan rehte hain?",
+                raw_text="Aap kahaan rehte hain?",
+                language="hi-IN",
+            ),
+        ]
+        session.get = AsyncMock(return_value=ctx)
+
+        mgr = ConversationManager(
+            orchestrator=orch,
+            session_manager=session,
+            translator=translator,
+            audit_trail=audit,
+        )
+        spoken, terminal = await mgr.handle_silence("test-call-001", 12.0)
+        # Prefix + last question glued together
+        assert "Ek baar phir" in spoken
+        assert "Aap kahaan rehte hain?" in spoken
+        assert terminal is False
+
+    @pytest.mark.asyncio
+    async def test_12s_intake_with_no_assistant_transcript_returns_bare_prefix(self):
+        orch, session, translator, audit, _ = _make_deps()
+        ctx = _make_context(language="hi-IN", phase=ConversationPhase.INTAKE)
+        ctx.transcript = []  # no prior turns
+        session.get = AsyncMock(return_value=ctx)
+
+        mgr = ConversationManager(
+            orchestrator=orch,
+            session_manager=session,
+            translator=translator,
+            audit_trail=audit,
+        )
+        spoken, terminal = await mgr.handle_silence("test-call-001", 12.0)
+        # Prefix alone still returned
+        assert "Ek baar phir" in spoken
+        assert terminal is False
+
+    @pytest.mark.asyncio
+    async def test_12s_in_welcome_uses_short_english_language_reprompt(self):
+        """During WELCOME (language-select) we must NOT replay the long
+        multi-lingual greeting — we use a short English prompt instead."""
+        orch, session, translator, audit, _ = _make_deps()
+        ctx = _make_context(language="hi-IN", phase=ConversationPhase.WELCOME)
+        # Even though the welcome text is the "last assistant turn", the
+        # phase-aware reprompt should IGNORE it and use the short prompt.
+        ctx.transcript = [
+            Turn(
+                role="assistant",
+                text="Namaste, Vanakkam, Hello. Vaidya here. Please say your language.",
+                raw_text="Namaste, Vanakkam, Hello. Vaidya here. Please say your language.",
+                language="hi-IN",
+            ),
+        ]
+        session.get = AsyncMock(return_value=ctx)
+
+        mgr = ConversationManager(
+            orchestrator=orch,
+            session_manager=session,
+            translator=translator,
+            audit_trail=audit,
+        )
+        spoken, terminal = await mgr.handle_silence("test-call-001", 12.0)
+        # Short English prompt, not the prefix + long welcome
+        assert "Please say your language" in spoken
+        assert "Hindi, Tamil, Bengali" in spoken
+        assert "Odia, or English" in spoken
+        # The reprompt prefix ("Ek baar phir") should NOT be present
+        assert "Ek baar phir" not in spoken
+        assert "Namaste, Vanakkam" not in spoken
+        assert terminal is False
+
+    @pytest.mark.asyncio
+    async def test_20s_returns_closure_terminal(self):
+        orch, session, translator, audit, _ = _make_deps()
+        ctx = _make_context(language="hi-IN", phase=ConversationPhase.INTAKE)
+        session.get = AsyncMock(return_value=ctx)
+
+        mgr = ConversationManager(
+            orchestrator=orch,
+            session_manager=session,
+            translator=translator,
+            audit_trail=audit,
+        )
+        spoken, terminal = await mgr.handle_silence("test-call-001", 20.0)
+        assert "Line cut" in spoken or "Dhanyavaad" in spoken
+        assert terminal is True
+
+    @pytest.mark.asyncio
+    async def test_off_threshold_returns_empty_not_terminal(self):
+        orch, session, translator, audit, _ = _make_deps()
+        ctx = _make_context(language="hi-IN", phase=ConversationPhase.INTAKE)
+        session.get = AsyncMock(return_value=ctx)
+
+        mgr = ConversationManager(
+            orchestrator=orch,
+            session_manager=session,
+            translator=translator,
+            audit_trail=audit,
+        )
+        spoken, terminal = await mgr.handle_silence("test-call-001", 7.5)
+        assert spoken == ""
+        assert terminal is False
+
+    @pytest.mark.asyncio
+    async def test_respects_session_language(self):
+        orch, session, translator, audit, _ = _make_deps()
+        ctx = _make_context(language="ta-IN", phase=ConversationPhase.INTAKE)
+        session.get = AsyncMock(return_value=ctx)
+
+        mgr = ConversationManager(
+            orchestrator=orch,
+            session_manager=session,
+            translator=translator,
+            audit_trail=audit,
+        )
+        spoken, _ = await mgr.handle_silence("test-call-001", 6.0)
+        # Tamil nudge, not Hindi
+        assert "ketkiren" in spoken.lower() or "sollunga" in spoken.lower()
+
+
+# ---------------------------------------------------------------------------
+# switch_language (voice edge)
+# ---------------------------------------------------------------------------
+
+
+class TestSwitchLanguage:
+    @pytest.mark.asyncio
+    async def test_switches_to_supported_voice_language(self):
+        orch, session, translator, audit, _ = _make_deps()
+        ctx = _make_context(language="hi-IN", phase=ConversationPhase.INTAKE)
+        session.get = AsyncMock(return_value=ctx)
+
+        mgr = ConversationManager(
+            orchestrator=orch,
+            session_manager=session,
+            translator=translator,
+            audit_trail=audit,
+        )
+        result = await mgr.switch_language("test-call-001", "ta-IN")
+        assert result is True
+        session.update.assert_awaited()
+        # The updated context should carry the new language
+        updated_ctx = session.update.await_args.args[0]
+        assert updated_ctx.language == "ta-IN"
+
+    @pytest.mark.asyncio
+    async def test_no_switch_when_same_language(self):
+        orch, session, translator, audit, _ = _make_deps()
+        ctx = _make_context(language="hi-IN", phase=ConversationPhase.INTAKE)
+        session.get = AsyncMock(return_value=ctx)
+
+        mgr = ConversationManager(
+            orchestrator=orch,
+            session_manager=session,
+            translator=translator,
+            audit_trail=audit,
+        )
+        result = await mgr.switch_language("test-call-001", "hi-IN")
+        assert result is False
+        session.update.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_rejects_unsupported_voice_language(self):
+        orch, session, translator, audit, _ = _make_deps()
+        ctx = _make_context(language="hi-IN", phase=ConversationPhase.INTAKE)
+        session.get = AsyncMock(return_value=ctx)
+
+        mgr = ConversationManager(
+            orchestrator=orch,
+            session_manager=session,
+            translator=translator,
+            audit_trail=audit,
+        )
+        result = await mgr.switch_language("test-call-001", "fr-FR")
+        assert result is False
+        session.update.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_no_switch_when_session_missing(self):
+        orch, session, translator, audit, _ = _make_deps()
+        session.get = AsyncMock(return_value=None)
+
+        mgr = ConversationManager(
+            orchestrator=orch,
+            session_manager=session,
+            translator=translator,
+            audit_trail=audit,
+        )
+        result = await mgr.switch_language("ghost-call", "ta-IN")
+        assert result is False
+        session.update.assert_not_awaited()
