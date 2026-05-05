@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 from unittest.mock import MagicMock
 
 import pytest
@@ -10,6 +11,7 @@ from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from twilio.request_validator import RequestValidator
 
+from vaidya.api.routes import voice as voice_module
 from vaidya.api.routes.voice import (
     _phone_hash_from_call_data,
 )
@@ -94,6 +96,23 @@ class TestIncomingCall:
 
         assert response.status_code == 403
 
+    async def test_validator_unavailable_returns_503(self, client_factory, monkeypatch):
+        settings = _settings(twilio_auth_token="test-token")
+        client = await client_factory(settings)
+        monkeypatch.setattr(
+            voice_module,
+            "_validate_twilio_http_request",
+            lambda *args, **kwargs: voice_module._TWILIO_UNAVAILABLE,
+        )
+
+        response = await client.post(
+            "/voice/incoming",
+            data={"From": "+15551234567", "CallSid": "CA123"},
+            headers={"X-Twilio-Signature": "valid-looking"},
+        )
+
+        assert response.status_code == 503
+
     async def test_missing_websocket_url_returns_apology(self, client_factory):
         settings = _settings(voice_websocket_url="")
         client = await client_factory(settings)
@@ -125,3 +144,38 @@ class TestPhoneHashFromCallData:
 
         expected = hashlib.sha256(b"CA123").hexdigest()[:16]
         assert _phone_hash_from_call_data(call_data) == expected
+
+
+class TestCallStatus:
+    async def test_valid_twilio_signature_logs_hashed_call_sid(
+        self,
+        client_factory,
+        caplog,
+    ):
+        token = "test-token"
+        settings = _settings(twilio_auth_token=token)
+        client = await client_factory(settings)
+        params = {"CallStatus": "completed", "CallSid": "CA123", "CallDuration": "42"}
+        headers = {"X-Twilio-Signature": _signature("http://test/voice/status", params, token)}
+
+        with caplog.at_level(logging.INFO, logger="vaidya.api.routes.voice"):
+            response = await client.post("/voice/status", data=params, headers=headers)
+
+        assert response.status_code == 200
+        expected_hash = hashlib.sha256(b"CA123").hexdigest()[:16]
+        record = next(r for r in caplog.records if r.message == "Call status update")
+        assert record.call_sid_hash == expected_hash
+        assert not hasattr(record, "call_sid")
+        assert "CA123" not in caplog.text
+
+    async def test_invalid_twilio_signature_rejects_status_callback(self, client_factory):
+        settings = _settings(twilio_auth_token="test-token")
+        client = await client_factory(settings)
+
+        response = await client.post(
+            "/voice/status",
+            data={"CallStatus": "completed", "CallSid": "CA123", "CallDuration": "42"},
+            headers={"X-Twilio-Signature": "bad"},
+        )
+
+        assert response.status_code == 403
