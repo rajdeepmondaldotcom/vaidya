@@ -6,7 +6,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
     sarvam_api_key: str = ""
     redis_url: str = "redis://localhost:6379/0"
@@ -76,6 +80,7 @@ class Settings(BaseSettings):
     twilio_phone_number: str = ""
     voice_websocket_url: str = ""
     voice_status_callback_url: str = ""
+    default_voice_language: str = "hi-IN"
 
     # Simulation
     max_simulation_turns: int = 20

@@ -32,6 +32,7 @@ async def start_conversation(
     call_id, welcome = await manager.start_conversation(
         phone_hash=request.phone_number_hash,
         language=validated_lang,
+        channel=request.channel,
     )
     return StartConversationResponse(
         call_id=call_id,

@@ -1,12 +1,13 @@
 # ---- builder ----
 FROM python:3.11-slim AS builder
 
+ARG CACHE_BUST=2026-04-17-telephony-v7-welcome
 WORKDIR /build
 
-COPY pyproject.toml ./
+COPY pyproject.toml README.md ./
 COPY src/ src/
 
-RUN pip install --no-cache-dir --prefix=/install .
+RUN echo "cache_bust=$CACHE_BUST" && pip install --no-cache-dir --prefix=/install ".[telephony]"
 
 # ---- runtime ----
 FROM python:3.11-slim AS runtime
@@ -16,9 +17,10 @@ RUN groupadd --gid 1000 vaidya \
 
 COPY --from=builder /install /usr/local
 COPY src/ /app/src/
-COPY data/ /app/data/
 
 WORKDIR /app
+RUN mkdir -p /app/data/audit /app/chroma_data \
+    && chown -R vaidya:vaidya /app/data /app/chroma_data
 ENV PYTHONPATH=/app/src \
     PYTHONUNBUFFERED=1
 
