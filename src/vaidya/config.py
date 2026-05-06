@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
-from pydantic_settings import BaseSettings, SettingsConfigDict
+import json
+from typing import Annotated, Any
+
+from pydantic import field_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -69,7 +73,7 @@ class Settings(BaseSettings):
     redis_max_connections: int = 10
 
     # Security
-    allowed_origins: list[str] = []
+    allowed_origins: Annotated[list[str], NoDecode] = []
 
     # Monitoring
     sentry_dsn: str = ""
@@ -84,3 +88,23 @@ class Settings(BaseSettings):
 
     # Simulation
     max_simulation_turns: int = 20
+
+    @field_validator("allowed_origins", mode="before")
+    @classmethod
+    def _parse_allowed_origins(cls, value: Any) -> list[str]:
+        """Accept JSON, comma-separated, or single-origin env values."""
+        if value is None or value == "":
+            return []
+        if isinstance(value, str):
+            raw = value.strip()
+            if not raw:
+                return []
+            if raw.startswith("["):
+                decoded = json.loads(raw)
+                if isinstance(decoded, list):
+                    return [str(item).strip() for item in decoded if str(item).strip()]
+                raise ValueError("ALLOWED_ORIGINS JSON value must be a list")
+            return [origin.strip() for origin in raw.split(",") if origin.strip()]
+        if isinstance(value, (list, tuple, set)):
+            return [str(origin).strip() for origin in value if str(origin).strip()]
+        raise TypeError("ALLOWED_ORIGINS must be a string or list")
