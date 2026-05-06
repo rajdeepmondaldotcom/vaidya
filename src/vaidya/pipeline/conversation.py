@@ -382,9 +382,8 @@ class ConversationManager:
         at 12s it is a phase-aware reprompt:
 
         - **WELCOME phase** (caller has not yet picked a language): a short
-          universal English prompt ("Please say your language — Hindi, Tamil,
-          or English?"). We deliberately do *not* re-play the long multi-
-          lingual welcome; that feels robotic.
+          universal English prompt listing the supported voice languages. We
+          deliberately do *not* re-play the full welcome; that feels robotic.
         - **Any other phase**: the standard prefix + the last assistant
           question from the transcript, so the caller hears the exact
           question they were asked.
@@ -422,6 +421,9 @@ class ConversationManager:
             )
             if last_question:
                 spoken = f"{phrase}{last_question}"
+        if terminal and context is not None:
+            context.phase = ConversationPhase.CLOSURE
+            await self._session.update(context)
         return spoken, terminal
 
     async def switch_language(self, call_id: str, new_language: str) -> bool:
@@ -438,6 +440,8 @@ class ConversationManager:
             return False
         previous = context.language
         context.language = normalized
+        context.metadata["language_confirmed"] = True
+        context.metadata["language_source"] = "stt"
         await self._session.update(context)
         self._audit.log_event(
             call_id,
@@ -445,6 +449,17 @@ class ConversationManager:
             {"from": previous, "to": normalized},
         )
         return True
+
+    async def mark_voice_disconnected(self, call_id: str) -> None:
+        """Record transport disconnect without deleting the recoverable session.
+
+        Voice calls can drop because of network or carrier failures. Keeping
+        the Redis session until TTL preserves dropped-call recovery for the
+        same hashed caller, while removing only the in-process lock avoids
+        memory growth after the WebSocket is gone.
+        """
+        self._audit.log_event(call_id, "voice_stream_disconnected")
+        self._turn_locks.pop(call_id, None)
 
     async def get_context(self, call_id: str) -> ConversationContext | None:
         """Load and return the current context for *call_id*."""

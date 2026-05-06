@@ -26,7 +26,13 @@ import logging
 from typing import TYPE_CHECKING
 
 from vaidya.agents.constants import SILENCE_STEPS
-from vaidya.voice.language import TTS_SPEAKERS, is_voice_language, normalize_language
+from vaidya.i18n import get_msg
+from vaidya.voice.language import (
+    TTS_SPEAKERS,
+    detect_language_from_text,
+    is_voice_language,
+    normalize_language,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -106,13 +112,6 @@ except ImportError:
 if TYPE_CHECKING:
     from vaidya.pipeline.conversation import ConversationManager
 
-_FALLBACK_MESSAGES = {
-    "hi-IN": "Maaf kijiye, kuch galat ho gaya. Kripya dobara boliye.",
-    "ta-IN": "Manaikkavum, oru pizhvu undayatu. Thayavu seithu meeNum sollungal.",
-    "bn-IN": "Dukkhito, kichu bhul hoyeche. Onugrah kore abar bolun.",
-    "en-IN": "Sorry, something went wrong. Please try again.",
-}
-
 
 class VaidyaAgentProcessor(FrameProcessor):
     """Bridges Pipecat STT transcription to Vaidya's multi-agent pipeline.
@@ -168,7 +167,7 @@ class VaidyaAgentProcessor(FrameProcessor):
             # mumbled utterances with no ``frame.language`` leave us
             # unlocked so the next (cleaner) transcription can pick.
             self._language_locked = await self._maybe_switch_language(
-                getattr(frame, "language", None)
+                await self._language_signal_for_turn(user_text, getattr(frame, "language", None))
             )
 
         try:
@@ -178,6 +177,7 @@ class VaidyaAgentProcessor(FrameProcessor):
                 self._language,
                 channel="voice",
             )
+            await self._sync_language_from_context()
             await self.push_frame(TextFrame(text=response))
         except Exception as exc:
             error_type = type(exc).__name__
@@ -187,8 +187,53 @@ class VaidyaAgentProcessor(FrameProcessor):
                 extra={"call_id": self._call_id, "error": str(exc)[:200]},
                 exc_info=True,
             )
-            fallback = _FALLBACK_MESSAGES.get(self._language, _FALLBACK_MESSAGES["en-IN"])
+            fallback = get_msg("conversation", "error", self._language)
             await self.push_frame(TextFrame(text=fallback))
+
+    async def _get_context(self):
+        getter = getattr(self._mgr, "get_context", None)
+        if getter is None:
+            return None
+        try:
+            return await getter(self._call_id)
+        except (AttributeError, TypeError):
+            return None
+
+    async def _language_signal_for_turn(self, user_text: str, stt_language: object) -> object:
+        """Prefer explicit language-name utterances over STT language tags.
+
+        During the opening prompt, callers often say a language name in a
+        different language ("Tamil", "English", "Hindi"). The STT language
+        tag for that word can be English or Hindi, but the user's intent is
+        the named language. Lexical detection must therefore win over STT,
+        but only while the session is actually waiting for a language.
+        """
+        context = await self._get_context()
+        metadata = getattr(context, "metadata", {}) if context is not None else {}
+        if context is None or metadata.get("awaiting_language"):
+            detected = detect_language_from_text(user_text)
+            if detected is not None:
+                return detected.value
+        return stt_language
+
+    async def _sync_language_from_context(self) -> None:
+        """Reflect orchestrator-side language changes into the downstream TTS."""
+        context = await self._get_context()
+        if context is None or context.language == self._language:
+            return
+
+        normalized = _normalize_lang_code(context.language)
+        if not normalized:
+            return
+
+        self._language = normalized
+        voice = _speaker_for_language(normalized)
+        await self.push_frame(
+            TTSUpdateSettingsFrame(
+                delta=SarvamTTSSettings(voice=voice, language=normalized),
+            ),
+            FrameDirection.DOWNSTREAM,
+        )
 
     async def _maybe_switch_language(self, detected: str | None) -> bool:
         """Handle STT-detected language on the first utterance.

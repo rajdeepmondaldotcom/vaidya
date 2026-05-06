@@ -13,6 +13,7 @@ Requires ``pipecat-ai[sarvam]>=1.0.0`` — guarded import so the rest of the app
 
 from __future__ import annotations
 
+import hashlib
 import logging
 from typing import TYPE_CHECKING
 
@@ -46,6 +47,13 @@ if TYPE_CHECKING:
     from vaidya.pipeline.conversation import ConversationManager
 
 _TELEPHONY_SAMPLE_RATE = 8000
+
+
+def _hash_identifier(value: object) -> str:
+    raw = str(value or "").strip()
+    if not raw:
+        raw = "unknown"
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
 
 
 async def parse_voice_websocket_start(websocket: WebSocket) -> tuple[str, dict]:
@@ -168,8 +176,8 @@ async def run_voice_pipeline(
         extra={
             "call_id": call_id,
             "transport_type": transport_type,
-            "stream_sid": stream_sid,
-            "twilio_call_sid": twilio_call_sid,
+            "stream_sid_hash": _hash_identifier(stream_sid) if stream_sid else "",
+            "twilio_call_sid_hash": _hash_identifier(twilio_call_sid) if twilio_call_sid else "",
         },
     )
 

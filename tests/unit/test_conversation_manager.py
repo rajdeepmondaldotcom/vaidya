@@ -299,6 +299,26 @@ class TestEndConversation:
         await mgr.end_conversation("test-call-001")
         assert "test-call-001" not in mgr._turn_locks
 
+    @pytest.mark.asyncio
+    async def test_mark_voice_disconnected_preserves_session_for_recovery(self):
+        orch, session, translator, audit, _ = _make_deps()
+        ctx = _make_context(phase=ConversationPhase.INTAKE)
+        session.get = AsyncMock(return_value=ctx)
+        mgr = ConversationManager(
+            orchestrator=orch,
+            session_manager=session,
+            translator=translator,
+            audit_trail=audit,
+        )
+        await mgr.handle_turn("test-call-001", "hello")
+        assert "test-call-001" in mgr._turn_locks
+
+        await mgr.mark_voice_disconnected("test-call-001")
+
+        session.delete.assert_not_awaited()
+        audit.log_event.assert_any_call("test-call-001", "voice_stream_disconnected")
+        assert "test-call-001" not in mgr._turn_locks
+
 
 # ---------------------------------------------------------------------------
 # Turn locking
@@ -440,7 +460,7 @@ class TestHandleSilence:
         )
         spoken, terminal = await mgr.handle_silence("test-call-001", 12.0)
         # Short English prompt, not the prefix + long welcome
-        assert "Please say your language" in spoken
+        assert "Please say one language name" in spoken
         assert "Hindi, Tamil, Bengali" in spoken
         assert "Odia, or English" in spoken
         # The reprompt prefix ("Ek baar phir") should NOT be present
@@ -463,6 +483,8 @@ class TestHandleSilence:
         spoken, terminal = await mgr.handle_silence("test-call-001", 20.0)
         assert "Line cut" in spoken or "Dhanyavaad" in spoken
         assert terminal is True
+        assert ctx.phase == ConversationPhase.CLOSURE
+        session.update.assert_awaited_once_with(ctx)
 
     @pytest.mark.asyncio
     async def test_off_threshold_returns_empty_not_terminal(self):
@@ -521,6 +543,8 @@ class TestSwitchLanguage:
         # The updated context should carry the new language
         updated_ctx = session.update.await_args.args[0]
         assert updated_ctx.language == "ta-IN"
+        assert updated_ctx.metadata["language_confirmed"] is True
+        assert updated_ctx.metadata["language_source"] == "stt"
 
     @pytest.mark.asyncio
     async def test_no_switch_when_same_language(self):

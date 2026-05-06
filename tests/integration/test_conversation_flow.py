@@ -411,8 +411,8 @@ class TestWelcomePhase:
         assert "English" in response.text
 
     async def test_welcome_voice_turn1_asks_language_stays_in_welcome(self):
-        """Voice turn 1 (empty input): speak a multilingual language-select
-        prompt enumerating every supported language, stay in WELCOME."""
+        """Voice turn 1 (empty input): speak a compact language-select
+        prompt with every supported language, stay in WELCOME."""
         consent_tracker = ConsentTracker()
         orchestrator = _build_orchestrator(consent_tracker=consent_tracker)
         context = _make_context(phase=ConversationPhase.WELCOME)
@@ -425,12 +425,13 @@ class TestWelcomePhase:
         )
 
         text_lower = response.text.lower()
-        # Greetings from multiple language families are audible upfront.
+        # Compact greeting, not a long multi-greeting IVR opener.
         assert "namaste" in text_lower
-        assert "vanakkam" in text_lower
-        assert "hello" in text_lower
+        assert "vaidya" in text_lower
         # Language-ask wording, not a state question.
         assert "language" in text_lower
+        assert "odia" in text_lower
+        assert "english" in text_lower
         # Spoken consent is never narrated on voice.
         assert "record karne" not in text_lower
         # Phase stays in WELCOME.
@@ -440,16 +441,17 @@ class TestWelcomePhase:
         assert consent_tracker.has_consent("test-call-001", "recording") is True
         assert context.metadata.get("awaiting_language") is True
 
-    async def test_welcome_voice_turn2_confirms_language_and_asks_q1(self):
+    async def test_welcome_voice_turn2_confirms_stt_language_and_asks_q1(self):
         """Voice turn 2: caller spoke in Tamil, processor pre-switched the
         session language. We confirm in Tamil and ask Q1, -> INTAKE."""
         orchestrator = _build_orchestrator()
         context = _make_context(phase=ConversationPhase.WELCOME, language="ta-IN")
         context.metadata["awaiting_language"] = True
+        context.metadata["language_confirmed"] = True
 
         response = await orchestrator.handle_turn(
             context=context,
-            user_input="Tamil",
+            user_input="Vanakkam",
             stt_confidence=0.9,
             channel="voice",
         )
@@ -460,6 +462,43 @@ class TestWelcomePhase:
         assert response.phase_transition == ConversationPhase.INTAKE
         assert context.intake_question_index == 1
         assert context.metadata.get("awaiting_language") is False
+
+    async def test_welcome_voice_language_name_overrides_stt_default(self):
+        """If the caller says 'Tamil' while the STT tag/default is Hindi,
+        the spoken language name is the intent and must win."""
+        orchestrator = _build_orchestrator()
+        context = _make_context(phase=ConversationPhase.WELCOME, language="hi-IN")
+        context.metadata["awaiting_language"] = True
+
+        response = await orchestrator.handle_turn(
+            context=context,
+            user_input="Tamil",
+            stt_confidence=0.9,
+            channel="voice",
+        )
+
+        assert context.language == "ta-IN"
+        assert context.phase == ConversationPhase.INTAKE
+        assert "Tamil" in response.text or "Sari" in response.text
+        assert "enga" in response.text.lower()
+        assert context.metadata.get("language_source") == "lexical_voice"
+
+    async def test_welcome_voice_unclear_language_reprompts(self):
+        orchestrator = _build_orchestrator()
+        context = _make_context(phase=ConversationPhase.WELCOME, language="hi-IN")
+        context.metadata["awaiting_language"] = True
+
+        response = await orchestrator.handle_turn(
+            context=context,
+            user_input="hmm",
+            stt_confidence=0.7,
+            channel="voice",
+        )
+
+        assert context.phase == ConversationPhase.WELCOME
+        assert response.phase_transition is None
+        assert context.metadata.get("awaiting_language") is True
+        assert "English" in response.text
 
     async def test_welcome_consent_asked_only_once(self):
         """Consent metadata flag should be set once and not re-toggled."""
