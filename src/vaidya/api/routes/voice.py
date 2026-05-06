@@ -274,7 +274,7 @@ async def voice_stream(websocket: WebSocket) -> None:
         )
     finally:
         if call_id is not None:
-            await mgr.end_conversation(call_id)
+            await mgr.mark_voice_disconnected(call_id)
             logger.info("Voice session ended", extra={"call_id": call_id})
 
 

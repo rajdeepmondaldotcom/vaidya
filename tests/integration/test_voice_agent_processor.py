@@ -35,6 +35,7 @@ def _make_processor(language: str = "hi-IN") -> tuple[VaidyaAgentProcessor, Magi
     mgr.handle_turn = AsyncMock(return_value="bot response text")
     mgr.switch_language = AsyncMock(return_value=True)
     mgr.handle_silence = AsyncMock(return_value=("silence-spoken-text", False))
+    mgr.get_context = AsyncMock(return_value=None)
 
     proc = VaidyaAgentProcessor(
         conversation_manager=mgr,
@@ -85,6 +86,52 @@ class TestLanguageAutoSwitch:
         assert _tts_setting(tts_frames[0], "voice") == "kavitha"
         # Processor's own language state was updated
         assert proc._language == "ta-IN"
+
+    @pytest.mark.asyncio
+    async def test_language_name_overrides_stt_language_tag(self):
+        from pipecat.frames.frames import TranscriptionFrame, TTSUpdateSettingsFrame
+
+        proc, mgr, captured = _make_processor(language="hi-IN")
+
+        frame = TranscriptionFrame(
+            text="Tamil",
+            user_id="u1",
+            timestamp="2026-04-17T00:00:00Z",
+            language="en-IN",
+        )
+        await proc._on_transcription(frame)
+
+        mgr.switch_language.assert_awaited_once_with("test-call", "ta-IN")
+        tts_frames = [f for f, _ in captured if isinstance(f, TTSUpdateSettingsFrame)]
+        assert len(tts_frames) == 1
+        assert _tts_setting(tts_frames[0], "language") == "ta-IN"
+        assert _tts_setting(tts_frames[0], "voice") == "kavitha"
+
+    @pytest.mark.asyncio
+    async def test_language_name_does_not_override_after_welcome(self):
+        from types import SimpleNamespace
+
+        from pipecat.frames.frames import TranscriptionFrame, TTSUpdateSettingsFrame
+
+        proc, mgr, captured = _make_processor(language="hi-IN")
+        mgr.get_context = AsyncMock(
+            return_value=SimpleNamespace(
+                language="hi-IN",
+                metadata={"awaiting_language": False},
+            )
+        )
+
+        frame = TranscriptionFrame(
+            text="Tamil Nadu",
+            user_id="u1",
+            timestamp="2026-04-17T00:00:00Z",
+            language="hi-IN",
+        )
+        await proc._on_transcription(frame)
+
+        mgr.switch_language.assert_not_awaited()
+        assert [f for f, _ in captured if isinstance(f, TTSUpdateSettingsFrame)] == []
+        assert proc._language == "hi-IN"
 
     @pytest.mark.asyncio
     async def test_same_language_does_not_push_settings_frame(self):
@@ -248,6 +295,32 @@ class TestTranscriptionRouting:
         assert len(text_frames) == 1
         # Hindi fallback
         assert "Maaf" in text_frames[0].text
+
+    @pytest.mark.asyncio
+    async def test_syncs_language_changed_by_manager_before_tts(self):
+        from types import SimpleNamespace
+
+        from pipecat.frames.frames import TextFrame, TranscriptionFrame, TTSUpdateSettingsFrame
+
+        proc, mgr, captured = _make_processor(language="hi-IN")
+        mgr.get_context = AsyncMock(return_value=SimpleNamespace(language="ta-IN"))
+
+        frame = TranscriptionFrame(
+            text="Tamil",
+            user_id="u1",
+            timestamp="2026-04-17T00:00:00Z",
+            language=None,
+        )
+        await proc._on_transcription(frame)
+
+        tts_indices = [
+            idx for idx, (f, _) in enumerate(captured) if isinstance(f, TTSUpdateSettingsFrame)
+        ]
+        text_indices = [idx for idx, (f, _) in enumerate(captured) if isinstance(f, TextFrame)]
+        assert tts_indices
+        assert text_indices
+        assert max(tts_indices) < min(text_indices)
+        assert proc._language == "ta-IN"
 
 
 # ---------------------------------------------------------------------------

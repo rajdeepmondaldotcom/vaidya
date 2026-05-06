@@ -13,17 +13,17 @@
     "en-IN": "Hello! I am Vaidya, your government healthcare scheme assistant. You can speak in your language. How can I help you?"
   },
   "welcome_voice": {
-    "hi-IN": "Namaste. Vanakkam. Namaskar. Kem chho. Hello. I am Vaidya, your healthcare scheme assistant. Please tell me your language — Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, or English.",
-    "ta-IN": "Namaste. Vanakkam. Namaskar. Kem chho. Hello. I am Vaidya, your healthcare scheme assistant. Please tell me your language — Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, or English.",
-    "bn-IN": "Namaste. Vanakkam. Namaskar. Kem chho. Hello. I am Vaidya, your healthcare scheme assistant. Please tell me your language — Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, or English.",
-    "te-IN": "Namaste. Vanakkam. Namaskar. Kem chho. Hello. I am Vaidya, your healthcare scheme assistant. Please tell me your language — Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, or English.",
-    "gu-IN": "Namaste. Vanakkam. Namaskar. Kem chho. Hello. I am Vaidya, your healthcare scheme assistant. Please tell me your language — Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, or English.",
-    "kn-IN": "Namaste. Vanakkam. Namaskar. Kem chho. Hello. I am Vaidya, your healthcare scheme assistant. Please tell me your language — Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, or English.",
-    "ml-IN": "Namaste. Vanakkam. Namaskar. Kem chho. Hello. I am Vaidya, your healthcare scheme assistant. Please tell me your language — Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, or English.",
-    "mr-IN": "Namaste. Vanakkam. Namaskar. Kem chho. Hello. I am Vaidya, your healthcare scheme assistant. Please tell me your language — Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, or English.",
-    "pa-IN": "Namaste. Vanakkam. Namaskar. Kem chho. Hello. I am Vaidya, your healthcare scheme assistant. Please tell me your language — Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, or English.",
-    "od-IN": "Namaste. Vanakkam. Namaskar. Kem chho. Hello. I am Vaidya, your healthcare scheme assistant. Please tell me your language — Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, or English.",
-    "en-IN": "Namaste. Vanakkam. Namaskar. Kem chho. Hello. I am Vaidya, your healthcare scheme assistant. Please tell me your language — Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, or English."
+    "hi-IN": "Namaste. I am Vaidya, your healthcare scheme assistant. Say the language you want: Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, or English.",
+    "ta-IN": "Namaste. I am Vaidya, your healthcare scheme assistant. Say the language you want: Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, or English.",
+    "bn-IN": "Namaste. I am Vaidya, your healthcare scheme assistant. Say the language you want: Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, or English.",
+    "te-IN": "Namaste. I am Vaidya, your healthcare scheme assistant. Say the language you want: Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, or English.",
+    "gu-IN": "Namaste. I am Vaidya, your healthcare scheme assistant. Say the language you want: Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, or English.",
+    "kn-IN": "Namaste. I am Vaidya, your healthcare scheme assistant. Say the language you want: Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, or English.",
+    "ml-IN": "Namaste. I am Vaidya, your healthcare scheme assistant. Say the language you want: Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, or English.",
+    "mr-IN": "Namaste. I am Vaidya, your healthcare scheme assistant. Say the language you want: Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, or English.",
+    "pa-IN": "Namaste. I am Vaidya, your healthcare scheme assistant. Say the language you want: Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, or English.",
+    "od-IN": "Namaste. I am Vaidya, your healthcare scheme assistant. Say the language you want: Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, or English.",
+    "en-IN": "Namaste. I am Vaidya, your healthcare scheme assistant. Say the language you want: Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, or English."
   },
   "welcome_text": {
     "hi-IN": "Namaste / வணக்கம் / নমস্কার / నమస్కారం / નમસ્તે / ನಮಸ್ಕಾರ / നമസ്കാരം / नमस्कार / ਸਤ ਸ੍ਰੀ ਅਕਾਲ / ନମସ୍କାର / Hello.\n\nI am Vaidya, your government healthcare scheme assistant. Which language would you like to continue in?\n\n1. हिन्दी (Hindi)\n2. தமிழ் (Tamil)\n3. বাংলা (Bengali)\n4. తెలుగు (Telugu)\n5. ગુજરાતી (Gujarati)\n6. ಕನ್ನಡ (Kannada)\n7. മലയാളം (Malayalam)\n8. मराठी (Marathi)\n9. ਪੰਜਾਬੀ (Punjabi)\n10. ଓଡ଼ିଆ (Odia)\n11. English\n\nReply with the number or the language name.",
@@ -247,17 +247,17 @@
     "en-IN": "Let me ask again — "
   },
   "silence_welcome_reprompt": {
-    "hi-IN": "Please say your language name, like Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, or English.",
-    "ta-IN": "Please say your language name, like Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, or English.",
-    "bn-IN": "Please say your language name, like Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, or English.",
-    "te-IN": "Please say your language name, like Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, or English.",
-    "gu-IN": "Please say your language name, like Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, or English.",
-    "kn-IN": "Please say your language name, like Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, or English.",
-    "ml-IN": "Please say your language name, like Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, or English.",
-    "mr-IN": "Please say your language name, like Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, or English.",
-    "pa-IN": "Please say your language name, like Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, or English.",
-    "od-IN": "Please say your language name, like Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, or English.",
-    "en-IN": "Please say your language name, like Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, or English."
+    "hi-IN": "Please say one language name: Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, or English.",
+    "ta-IN": "Please say one language name: Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, or English.",
+    "bn-IN": "Please say one language name: Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, or English.",
+    "te-IN": "Please say one language name: Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, or English.",
+    "gu-IN": "Please say one language name: Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, or English.",
+    "kn-IN": "Please say one language name: Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, or English.",
+    "ml-IN": "Please say one language name: Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, or English.",
+    "mr-IN": "Please say one language name: Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, or English.",
+    "pa-IN": "Please say one language name: Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, or English.",
+    "od-IN": "Please say one language name: Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, or English.",
+    "en-IN": "Please say one language name: Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, or English."
   },
   "silence_closure": {
     "hi-IN": "Line cut lagti hai. Dhanyavaad, phir call kijiye.",

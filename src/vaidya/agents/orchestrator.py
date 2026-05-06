@@ -197,10 +197,10 @@ class Orchestrator:
            next turn -- we need the raw user utterance to detect language.
 
         2. **Turn 2 (user has responded):**
-           - Voice: the processor has already called ``switch_language``
-             based on the STT-tagged language; ``context.language`` is
-             now the caller's choice. We acknowledge in that language
-             and ask intake Q1 in the same utterance -> INTAKE.
+           - Voice: prefer an explicit language name in the utterance
+             ("Tamil", "Hindi", etc.). If there isn't one, use the
+             processor's STT-tagged language switch. Then acknowledge in
+             that language and ask intake Q1 in the same utterance -> INTAKE.
            - Text: we lexically detect the language from the raw reply
              (names / autonyms / menu numbers). On success we switch the
              session language, acknowledge + speak the disclaimer, and
@@ -227,10 +227,24 @@ class Orchestrator:
 
         # Turn 2: user has picked a language.
         if channel == "voice":
-            # The voice processor has already switched ``context.language``
-            # to the STT-detected language via ``switch_language``.
+            from vaidya.voice.language import detect_language_from_text
+
+            # If the caller says a language name ("Tamil") in another
+            # language, lexical intent beats the STT language tag.
+            detected = detect_language_from_text(user_text)
+            if detected is not None:
+                context.language = detected.value
+                context.metadata["language_source"] = "lexical_voice"
+            elif not context.metadata.get("language_confirmed"):
+                context.metadata["awaiting_language"] = True
+                return AgentResponse(
+                    text=get_msg("orchestrator", "language_not_understood", context.language),
+                    already_localized=True,
+                )
+
             new_lang = context.language
             context.metadata["awaiting_language"] = False
+            context.metadata["language_confirmed"] = True
             context.phase = ConversationPhase.INTAKE
             context.intake_question_index = 1
             confirmation = get_msg("orchestrator", "language_confirmed", new_lang)
