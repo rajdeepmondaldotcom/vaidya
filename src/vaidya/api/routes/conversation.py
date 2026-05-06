@@ -80,6 +80,7 @@ async def conversation_turn(
         user_text=request_body.text,
         language=request_body.language,
         stt_confidence=request_body.stt_confidence,
+        channel=request_body.channel,
     )
     return await _build_turn_response(call_id, response_text, manager, client)
 

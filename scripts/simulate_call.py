@@ -44,6 +44,11 @@ def _parse_args() -> argparse.Namespace:
         help="Language code for the conversation (default: hi-IN)",
     )
     parser.add_argument(
+        "--channel",
+        default="voice",
+        help="Conversation channel to simulate (default: voice)",
+    )
+    parser.add_argument(
         "--timeout",
         type=float,
         default=60.0,
@@ -56,12 +61,13 @@ async def _start_conversation(
     client: httpx.AsyncClient,
     base_url: str,
     language: str,
+    channel: str,
 ) -> tuple[str, str]:
     """Start a new conversation and return (call_id, welcome_message)."""
     phone_hash = hashlib.sha256(f"cli-sim-{time.time()}".encode()).hexdigest()[:16]
     resp = await client.post(
         f"{base_url}/conversation/start",
-        json={"phone_number_hash": phone_hash, "language": language},
+        json={"phone_number_hash": phone_hash, "language": language, "channel": channel},
     )
     resp.raise_for_status()
     data = resp.json()
@@ -74,11 +80,12 @@ async def _send_turn(
     call_id: str,
     text: str,
     language: str,
+    channel: str,
 ) -> dict:
     """Send one user turn and return the full response dict."""
     resp = await client.post(
         f"{base_url}/conversation/{call_id}/turn",
-        json={"text": text, "language": language},
+        json={"text": text, "language": language, "channel": channel},
     )
     resp.raise_for_status()
     return resp.json()
@@ -110,10 +117,11 @@ def _print_meta(phase: str, schemes_found: int | None, latency_ms: float) -> Non
 async def _run_interactive(args: argparse.Namespace) -> None:
     base_url = args.base_url.rstrip("/")
     language = args.language
+    channel = args.channel
 
     print(f"\n{_BOLD}{'=' * 60}{_RESET}")
     print(f"{_BOLD}  Vaidya Call Simulator{_RESET}")
-    print(f"{_DIM}  API: {base_url}  |  Language: {language}{_RESET}")
+    print(f"{_DIM}  API: {base_url}  |  Language: {language}  |  Channel: {channel}{_RESET}")
     print(f"{_DIM}  Type your messages. Commands: /quit, /status, /lang <code>{_RESET}")
     print(f"{_BOLD}{'=' * 60}{_RESET}")
 
@@ -131,7 +139,7 @@ async def _run_interactive(args: argparse.Namespace) -> None:
         # Start conversation
         try:
             start_time = time.perf_counter()
-            call_id, welcome = await _start_conversation(client, base_url, language)
+            call_id, welcome = await _start_conversation(client, base_url, language, channel)
             start_latency = (time.perf_counter() - start_time) * 1000
         except Exception as exc:
             print(f"\n{_YELLOW}Failed to start conversation: {exc}{_RESET}")
@@ -164,10 +172,12 @@ async def _run_interactive(args: argparse.Namespace) -> None:
                     print(f"\n{_DIM}  Phase: {state.get('phase')}")
                     print(f"  Intake progress: {state.get('intake_progress')}")
                     profile = state.get("user_profile", {})
-                    print(f"  Profile: state={profile.get('state')}, "
-                          f"income={profile.get('income_bracket')}, "
-                          f"occupation={profile.get('occupation_type')}, "
-                          f"coverage={profile.get('existing_coverage')}")
+                    print(
+                        f"  Profile: state={profile.get('state')}, "
+                        f"income={profile.get('income_bracket')}, "
+                        f"occupation={profile.get('occupation_type')}, "
+                        f"coverage={profile.get('existing_coverage')}"
+                    )
                     eligible = state.get("eligible_schemes")
                     if eligible:
                         print(f"  Eligible schemes: {', '.join(eligible)}")
@@ -184,7 +194,14 @@ async def _run_interactive(args: argparse.Namespace) -> None:
             # Send turn
             try:
                 turn_start = time.perf_counter()
-                response = await _send_turn(client, base_url, call_id, user_input, language)
+                response = await _send_turn(
+                    client,
+                    base_url,
+                    call_id,
+                    user_input,
+                    language,
+                    channel,
+                )
                 turn_latency = (time.perf_counter() - turn_start) * 1000
             except httpx.HTTPStatusError as exc:
                 if exc.response.status_code == 404:

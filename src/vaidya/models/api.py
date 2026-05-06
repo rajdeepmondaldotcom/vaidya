@@ -40,6 +40,7 @@ class TurnRequest(BaseModel):
     text: str
     language: str | None = None
     stt_confidence: float = 1.0
+    channel: str = "text"  # voice | whatsapp | sms | web | text
 
 
 class TurnResponse(BaseModel):
