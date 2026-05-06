@@ -389,8 +389,12 @@ class TestHappyPathFlows:
         orchestrator = _build_orchestrator()
         ctx = _make_context(phase=ConversationPhase.WELCOME, language="hi-IN")
 
-        # Phase 1: Welcome
+        # Phase 1: Welcome asks for language and waits for the answer.
         await orchestrator.handle_turn(ctx, user_input="", stt_confidence=0.9)
+        assert ctx.phase == ConversationPhase.WELCOME
+
+        # Phase 1b: Language selection -> Open elicitation
+        await orchestrator.handle_turn(ctx, user_input="Hindi", stt_confidence=0.9)
         assert ctx.phase == ConversationPhase.OPEN_ELICITATION
 
         # Phase 2: Open elicitation -> Intake
@@ -464,8 +468,12 @@ class TestHappyPathFlows:
         orchestrator = _build_orchestrator(client)
         ctx = _make_context(phase=ConversationPhase.WELCOME, language="ta-IN")
 
-        # Welcome
+        # Welcome asks for language and waits for the answer.
         await orchestrator.handle_turn(ctx, user_input="", stt_confidence=0.9)
+        assert ctx.phase == ConversationPhase.WELCOME
+
+        # Language selection
+        await orchestrator.handle_turn(ctx, user_input="Tamil", stt_confidence=0.9)
         assert ctx.phase == ConversationPhase.OPEN_ELICITATION
 
         # Open elicitation
@@ -525,8 +533,12 @@ class TestHappyPathFlows:
         orchestrator = _build_orchestrator(client)
         ctx = _make_context(phase=ConversationPhase.WELCOME, language="bn-IN")
 
-        # Welcome -> Open Elicitation
+        # Welcome asks for language and waits for the answer.
         await orchestrator.handle_turn(ctx, user_input="", stt_confidence=0.9)
+        assert ctx.phase == ConversationPhase.WELCOME
+
+        # Language selection -> Open Elicitation
+        await orchestrator.handle_turn(ctx, user_input="Bengali", stt_confidence=0.9)
         assert ctx.phase == ConversationPhase.OPEN_ELICITATION
 
         # Open Elicitation -> Intake
@@ -779,6 +791,8 @@ class TestConcurrencyStress:
                 call_id=f"concurrent-{idx}",
             )
             resp = await orchestrator.handle_turn(ctx, user_input="", stt_confidence=0.9)
+            assert resp is not None
+            resp = await orchestrator.handle_turn(ctx, user_input="Hindi", stt_confidence=0.9)
             assert resp is not None
             return idx, ctx.phase
 
