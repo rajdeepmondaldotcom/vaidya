@@ -260,7 +260,19 @@ class SarvamClient:
             reasoning_effort=reasoning_effort,
             wiki_grounding=wiki_grounding,
         )
-        return parse_llm_json(raw)
+        parsed = parse_llm_json(raw)
+        if parsed.get("_parse_error") and reasoning_effort:
+            logger.info("Retrying JSON chat without reasoning_effort")
+            raw = await self.chat(
+                model,
+                messages,
+                temperature,
+                max_tokens=max_tokens,
+                reasoning_effort=None,
+                wiki_grounding=wiki_grounding,
+            )
+            parsed = parse_llm_json(raw)
+        return parsed
 
     async def translate(
         self,

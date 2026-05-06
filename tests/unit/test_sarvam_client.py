@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -149,3 +149,35 @@ class TestCostTrackerIntegration:
         breakdown = client.costs.total_by_service
         assert "tts" in breakdown
         assert "translate" in breakdown
+
+
+class TestChatJson:
+    @patch("vaidya.sarvam.client.SarvamAI")
+    async def test_retries_without_reasoning_effort_after_parse_error(self, mock_sarvam_cls):
+        client = SarvamClient(api_key="test-key-123")
+        client.chat = AsyncMock(side_effect=["thinking aloud", '{"ok": true}'])
+
+        result = await client.chat_json(
+            "sarvam-30b",
+            [{"role": "user", "content": "Return JSON"}],
+            reasoning_effort="low",
+        )
+
+        assert result == {"ok": True}
+        assert client.chat.await_count == 2
+        assert client.chat.await_args_list[0].kwargs["reasoning_effort"] == "low"
+        assert client.chat.await_args_list[1].kwargs["reasoning_effort"] is None
+
+    @patch("vaidya.sarvam.client.SarvamAI")
+    async def test_does_not_retry_parse_error_without_reasoning_effort(self, mock_sarvam_cls):
+        client = SarvamClient(api_key="test-key-123")
+        client.chat = AsyncMock(return_value="thinking aloud")
+
+        result = await client.chat_json(
+            "sarvam-30b",
+            [{"role": "user", "content": "Return JSON"}],
+            reasoning_effort=None,
+        )
+
+        assert result["_parse_error"] is True
+        client.chat.assert_awaited_once()
