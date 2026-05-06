@@ -33,13 +33,13 @@ services:
       - vaidya-net
 
   chromadb:
-    image: chromadb/chroma:latest
+    image: chromadb/chroma:0.6.3
     ports:
       - "8100:8000"
     volumes:
       - chroma-data:/chroma/chroma
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v2/heartbeat"]
       interval: 10s
       timeout: 5s
       retries: 5
