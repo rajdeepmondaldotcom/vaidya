@@ -10,9 +10,10 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from vaidya.voice.language import TTS_SPEAKERS, normalize_language
+from vaidya.voice.prosody import format_for_tts, pace_for_profile, temperature_for_profile
 
 if TYPE_CHECKING:
     from vaidya.sarvam.client import SarvamClient
@@ -60,14 +61,20 @@ class TTSClient:
         pace: float = 1.0,
         temperature: float = 0.6,
         speech_sample_rate: int = 8000,
-        metadata: dict | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> bytes | None:
         """Convert *text* to speech audio bytes, chunking if needed."""
+        profile = str(metadata.get("tts_profile", "default")) if metadata else "default"
         if metadata and "tts_speech_rate_factor" in metadata:
             pace = float(metadata["tts_speech_rate_factor"])
+        elif metadata and "tts_profile" in metadata:
+            pace = pace_for_profile(profile, pace)
+        if metadata and "tts_profile" in metadata:
+            temperature = temperature_for_profile(profile, temperature)
 
         lang = normalize_language(language)
         speaker = TTS_SPEAKERS.get(lang, "priya")
+        text = format_for_tts(text, profile=profile)
         chunks = _chunk_text(text)
 
         if len(chunks) > 1:

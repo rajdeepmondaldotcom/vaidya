@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from enum import StrEnum
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -39,7 +40,7 @@ class Turn(BaseModel):
     language: str
     timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
     stt_confidence: float | None = None
-    metadata: dict = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class ConversationContext(BaseModel):
@@ -55,7 +56,7 @@ class ConversationContext(BaseModel):
     phone_number_hash: str
     language: str
     phase: ConversationPhase
-    transcript: list[Turn] = []
+    transcript: list[Turn] = Field(default_factory=list)
 
     # Progressive enrichment
     user_profile: UserProfile = Field(default_factory=UserProfile)
@@ -73,7 +74,7 @@ class ConversationContext(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
-    metadata: dict = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
     # ------------------------------------------------------------------
     # Helpers
@@ -86,7 +87,7 @@ class ConversationContext(BaseModel):
         raw_text: str,
         language: str | None = None,
         stt_confidence: float | None = None,
-        metadata: dict | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> Turn:
         """Append a turn to the transcript and bump `updated_at`."""
         turn = Turn(
