@@ -6,7 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from vaidya.dependencies import get_schemes as get_schemes_dep
 from vaidya.models.api import SchemeResponse
-from vaidya.models.scheme import Jurisdiction, SchemeRecord
+from vaidya.models.scheme import SchemeRecord
+from vaidya.schemes.selection import filter_schemes_by_state
 
 router = APIRouter()
 
@@ -29,14 +30,7 @@ async def list_schemes(
     schemes: list[SchemeRecord] = Depends(get_schemes_dep),
 ) -> list[SchemeResponse]:
     """List all available healthcare schemes."""
-    filtered = schemes
-    if state:
-        state_upper = state.upper()
-        filtered = [
-            s
-            for s in schemes
-            if s.jurisdiction == Jurisdiction.CENTRAL or s.state_code == state_upper
-        ]
+    filtered = filter_schemes_by_state(schemes, state) if state else schemes
 
     return [_scheme_to_response(s) for s in filtered]
 
