@@ -51,7 +51,7 @@ Both agents run in parallel. When they agree, the result goes out. When they dis
 
 Every disagreement is logged with both reasoning traces. This is what makes it deployable at government scale, not demo scale.
 
-## Schemes covered (Phase 1)
+## Schemes covered
 
 | Scheme | Coverage | Who qualifies |
 |--------|----------|---------------|
@@ -64,7 +64,7 @@ Every disagreement is logged with both reasoning traces. This is what makes it d
 | ESIC | Comprehensive | Salaried workers under ₹21K/month |
 | Arogya Karnataka | ₹5L/family/year | NFSA/BPL households |
 
-8 schemes. Real eligibility rules, real exclusion logic, real enrollment steps. Each stored as a validated JSON file with field-level data.
+46 schemes across central and state programs. Real eligibility rules, real exclusion logic, real enrollment steps. Each stored as a validated JSON file with field-level data. At runtime, Vaidya evaluates every applicable scheme for the caller: central schemes plus the caller's state schemes, or the full registry when the state is unknown.
 
 ## What's under the hood
 
@@ -122,7 +122,7 @@ API key: sign up at [dashboard.sarvam.ai](https://dashboard.sarvam.ai). Free tie
 | POST | `/conversation/{id}/turn` | Send a user message, get a response |
 | GET | `/conversation/{id}` | Current conversation state |
 | POST | `/simulate/text` | Full multi-turn text conversation |
-| GET | `/schemes` | List all 8 schemes |
+| GET | `/schemes` | List all schemes |
 | GET | `/schemes/{id}` | Single scheme detail |
 | DELETE | `/compliance/data/{phone_hash}` | Delete all user data (DPDP Act) |
 
@@ -152,25 +152,47 @@ python -m eval --scenarios all      # full 64-scenario suite
 
 ## Cost per call
 
-Assuming a 3-minute call with 4 LLM calls, 2K chars translation, 1.5K chars TTS. Pricing from [Sarvam API docs](https://docs.sarvam.ai):
+The `/costs` report uses actual tracked usage: audio seconds for STT, characters for
+translation/TTS/language ID, pages for document intelligence, and call duration for
+telephony when `TELEPHONY_RATE_INR_PER_MINUTE` is configured. It also separates usage
+by model and mode, so fast-routing (`sarvam-30b`) and regular accuracy routing
+(`sarvam-105b`) are visible even though both Sarvam chat models are currently free.
+Rates below follow the [Sarvam API pricing docs](https://docs.sarvam.ai/api-reference-docs/pricing).
+
+Formula:
+
+```text
+total =
+  ceil(stt_audio_seconds) * stt_rate_per_second
+  + tts_chars * tts_rate_per_char
+  + translate_chars * translate_rate_per_char
+  + language_id_chars * language_id_rate_per_char
+  + vision_pages * vision_rate_per_page
+  + ceil(telephony_seconds / 60) * TELEPHONY_RATE_INR_PER_MINUTE
+```
+
+Example: 3-minute voice call, no diarization, 2K translated chars, 1.5K TTS chars,
+100 language-ID chars, and optional carrier cost at ₹1/min:
 
 | Component | Rate | Per Call (₹) |
 |-----------|------|-------------|
-| STT (Saaras v3) | ₹30/hour | 1.50 |
-| LLM (sarvam-105b/30b) | **Free** | 0.00 |
-| Translation (Mayura v1) | ₹20/10K chars | 0.40 |
+| STT (Saaras v3, transcribe/translate/verbatim/translit/codemix) | ₹30/hour | 1.50 |
+| STT with diarization | ₹45/hour | 2.25 |
+| LLM fast/regular (`sarvam-30b`/`sarvam-105b`) | Free | 0.00 |
+| Translation (Mayura v1 / Sarvam Translate v1) | ₹20/10K chars | 0.40 |
 | TTS (Bulbul v3) | ₹30/10K chars | 0.45 |
 | Language ID | ₹3.5/10K chars | 0.04 |
-| Telephony (Exotel) | ~₹1/min | 3.00 |
-| **Total** | | **~₹5.39** |
+| Telephony, if configured at ₹1/min | deployment-specific | 3.00 |
+| **Total, standard STT + telephony** | | **~₹5.39** |
+| **Total, diarized STT + telephony** | | **~₹6.14** |
 
 At 10,000 calls/day, that's ~₹17.5L/month. At a million calls/day, ~₹17.5 crore/month. The LLM being free is what makes the unit economics work at scale.
 
 ## What's next
 
-**Phase 1 (now):** 8 schemes, 3 languages (Hindi, Tamil, Bengali), text simulation mode.
+**Phase 1 (now):** 46 schemes across all states/UTs, 23 languages, text simulation mode, and real voice calls via Twilio.
 
-**Phase 2 (at Sarvam):** 50+ schemes across all states, all 11 Bulbul languages, WhatsApp via Samvaad, CSC integration, NHA API verification.
+**Phase 2:** automated scheme-corpus refresh, WhatsApp via Samvaad, CSC integration, and NHA API verification.
 
 **Phase 3 (national):** Chanakya on-premises per state health department. Air-gapped. Full pipeline runs locally. Generalizes beyond healthcare to pensions, agriculture subsidies, education scholarships.
 

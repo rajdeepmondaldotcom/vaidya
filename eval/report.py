@@ -221,5 +221,7 @@ def generate_report(
     # Write
     # ------------------------------------------------------------------
     report_text = "\n".join(lines)
-    Path(output_path).write_text(report_text, encoding="utf-8")
+    path = Path(output_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(report_text, encoding="utf-8")
     return report_text
