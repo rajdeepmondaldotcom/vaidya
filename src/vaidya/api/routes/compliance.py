@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -22,7 +23,7 @@ async def delete_user_data(
     session: SessionManager = Depends(get_session),
     audit: AuditTrail = Depends(get_audit_trail),
     consent: ConsentTracker = Depends(get_consent_tracker),
-) -> dict:
+) -> dict[str, Any]:
     """Delete all records for a phone number hash (DPDP Act compliance).
 
     Removes: session data, audit trail, consent records.

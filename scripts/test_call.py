@@ -39,9 +39,7 @@ def main() -> None:
         print("Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER")
         sys.exit(1)
 
-    base_url = args.base_url or os.environ.get(
-        "VOICE_STATUS_CALLBACK_URL", ""
-    ).rsplit("/", 1)[0]
+    base_url = args.base_url or os.environ.get("VOICE_STATUS_CALLBACK_URL", "").rsplit("/", 1)[0]
     if not base_url:
         print("Set --base-url or VOICE_STATUS_CALLBACK_URL env var")
         sys.exit(1)

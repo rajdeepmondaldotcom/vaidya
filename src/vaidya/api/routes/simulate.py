@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends
 from vaidya.config import Settings
 from vaidya.dependencies import get_client, get_conversation_manager, get_settings
 from vaidya.models.api import SimulateRequest, SimulateResponse
+from vaidya.models.conversation import ConversationContext
 from vaidya.pipeline.conversation import ConversationManager
 from vaidya.sarvam.client import SarvamClient
 
@@ -35,21 +36,38 @@ async def _run_simulation_turns(
     return conversation
 
 
+async def _confirm_simulation_language(
+    manager: ConversationManager,
+    call_id: str,
+    language: str,
+) -> list[dict[str, str]]:
+    """Complete the app's first-turn language handshake for scripted simulations."""
+    response = await manager.handle_turn(
+        call_id=call_id,
+        user_text=language,
+        language=language,
+    )
+    return [
+        {"role": "user", "text": language},
+        {"role": "assistant", "text": response},
+    ]
+
+
 def _build_simulation_response(
     conversation: list[dict[str, str]],
-    context: object | None,
+    context: ConversationContext | None,
     client: SarvamClient | None,
     call_id: str,
 ) -> SimulateResponse:
     """Build the SimulateResponse from final context state."""
-    final_phase = context.phase.value if context else "unknown"  # type: ignore[union-attr]
+    final_phase = context.phase.value if context else "unknown"
     eligible_scheme_ids: list[str] = []
     eligible_scheme_names: list[str] = []
-    if context and getattr(context, "convergence_result", None):
-        eligible_scheme_ids = [m.scheme_id for m in context.convergence_result.all_eligible]  # type: ignore[union-attr]
-        eligible_scheme_names = [m.scheme_name for m in context.convergence_result.all_eligible]  # type: ignore[union-attr]
+    if context and context.convergence_result:
+        eligible_scheme_ids = [m.scheme_id for m in context.convergence_result.all_eligible]
+        eligible_scheme_names = [m.scheme_name for m in context.convergence_result.all_eligible]
 
-    session_cost = context.metadata.get("session_cost_inr", 0.0) if context else 0.0  # type: ignore[union-attr]
+    session_cost = context.metadata.get("session_cost_inr", 0.0) if context else 0.0
     total_cost = round(client.costs.cost_for_call(call_id), 4) if client else None
 
     return SimulateResponse(
@@ -79,6 +97,7 @@ async def simulate_text_conversation(
     )
 
     conversation: list[dict[str, str]] = [{"role": "assistant", "text": welcome}]
+    conversation.extend(await _confirm_simulation_language(manager, call_id, request.language))
     conversation.extend(await _run_simulation_turns(manager, call_id, turns, request.language))
 
     context = await manager.get_context(call_id)

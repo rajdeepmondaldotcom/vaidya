@@ -12,6 +12,7 @@ import hashlib
 import logging
 import time
 from datetime import UTC, datetime
+from typing import Any, cast
 
 import redis.asyncio as aioredis
 
@@ -39,14 +40,17 @@ class SessionManager:
     """
 
     def __init__(self, redis_url: str, ttl_seconds: int = 1800, max_connections: int = 10) -> None:
-        self._redis = aioredis.from_url(
-            redis_url,
-            decode_responses=True,
-            max_connections=max_connections,
-            socket_connect_timeout=5.0,
-            socket_timeout=10.0,
-            retry_on_timeout=True,
-            health_check_interval=30,
+        self._redis = cast(
+            Any,
+            aioredis.from_url(  # type: ignore[no-untyped-call]
+                redis_url,
+                decode_responses=True,
+                max_connections=max_connections,
+                socket_connect_timeout=5.0,
+                socket_timeout=10.0,
+                retry_on_timeout=True,
+                health_check_interval=30,
+            ),
         )
         self._ttl = ttl_seconds
 
@@ -134,7 +138,8 @@ class SessionManager:
             return None
         phone_key = f"{_PHONE_PREFIX}{phone_hash}"
         try:
-            return await self._redis.get(phone_key)
+            value = await self._redis.get(phone_key)
+            return str(value) if value is not None else None
         except Exception as exc:
             logger.error(
                 "Redis phone index GET failed",

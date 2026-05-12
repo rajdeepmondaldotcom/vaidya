@@ -27,8 +27,8 @@ _SRC_DIR = _PROJECT_ROOT / "src"
 if str(_SRC_DIR) not in sys.path:
     sys.path.insert(0, str(_SRC_DIR))
 
-from vaidya.knowledge.store import KnowledgeStore
-from vaidya.models.scheme import SchemeRecord
+from vaidya.knowledge.store import KnowledgeStore  # noqa: E402
+from vaidya.models.scheme import SchemeRecord  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +56,8 @@ def _parse_args() -> argparse.Namespace:
         help="Validate and print scheme data without writing to ChromaDB",
     )
     parser.add_argument(
-        "--verbose", "-v",
+        "--verbose",
+        "-v",
         action="store_true",
         help="Enable debug logging",
     )
@@ -82,7 +83,9 @@ def load_scheme_files(scheme_dir: Path) -> list[SchemeRecord]:
             record = SchemeRecord.model_validate(data)
             schemes.append(record)
             logger.info(
-                "  Loaded: %-30s (%s)", record.canonical_name, record.scheme_id,
+                "  Loaded: %-30s (%s)",
+                record.canonical_name,
+                record.scheme_id,
             )
         except json.JSONDecodeError as exc:
             logger.error("  Invalid JSON in %s: %s", json_file.name, exc)
@@ -109,7 +112,9 @@ def seed_knowledge_store(
             indexed += 1
         except Exception as exc:
             logger.error(
-                "  Failed to index %s: %s", scheme.scheme_id, exc,
+                "  Failed to index %s: %s",
+                scheme.scheme_id,
+                exc,
             )
 
     return indexed
@@ -141,8 +146,7 @@ def main() -> None:
         state_info = f"  [{s.state_code}]" if s.state_code else "  [central]"
         coverage = f"Rs {s.coverage_amount_inr:,}" if s.coverage_amount_inr else "comprehensive"
         print(f"  {s.scheme_id:<25} {state_info:<12} {s.canonical_name}")
-        print(f"  {'':25} {'':12} Coverage: {coverage} | "
-              f"Confidence: {s.confidence_level.value}")
+        print(f"  {'':25} {'':12} Coverage: {coverage} | Confidence: {s.confidence_level.value}")
         print()
 
     if args.dry_run:
