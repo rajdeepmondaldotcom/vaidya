@@ -518,6 +518,28 @@ class TestHandleSilence:
         # Tamil nudge, not Hindi
         assert "ketkiren" in spoken.lower() or "sollunga" in spoken.lower()
 
+    @pytest.mark.asyncio
+    async def test_patient_silence_schedule_after_wait_request(self):
+        orch, session, translator, audit, _ = _make_deps()
+        ctx = _make_context(language="hi-IN", phase=ConversationPhase.INTAKE)
+        ctx.metadata["silence_schedule"] = "patient"
+        session.get = AsyncMock(return_value=ctx)
+
+        mgr = ConversationManager(
+            orchestrator=orch,
+            session_manager=session,
+            translator=translator,
+            audit_trail=audit,
+        )
+
+        early, terminal = await mgr.handle_silence("test-call-001", 6.0)
+        assert early == ""
+        assert terminal is False
+
+        spoken, terminal = await mgr.handle_silence("test-call-001", 12.0)
+        assert "sun raha hoon" in spoken
+        assert terminal is False
+
 
 # ---------------------------------------------------------------------------
 # switch_language (voice edge)

@@ -233,6 +233,45 @@
     "od-IN": "ghare {count} jana achhanti",
     "en-IN": "there are {count} people in your household"
   },
+  "confirm_income": {
+    "hi-IN": "income {income} hai",
+    "ta-IN": "varumanam {income}",
+    "bn-IN": "income {income}",
+    "te-IN": "income {income}",
+    "gu-IN": "income {income} chhe",
+    "kn-IN": "income {income}",
+    "ml-IN": "income {income}",
+    "mr-IN": "income {income} aahe",
+    "pa-IN": "income {income} hai",
+    "od-IN": "income {income}",
+    "en-IN": "income is {income}"
+  },
+  "confirm_coverage": {
+    "hi-IN": "health coverage {coverage} hai",
+    "ta-IN": "health coverage {coverage}",
+    "bn-IN": "health coverage {coverage}",
+    "te-IN": "health coverage {coverage}",
+    "gu-IN": "health coverage {coverage} chhe",
+    "kn-IN": "health coverage {coverage}",
+    "ml-IN": "health coverage {coverage}",
+    "mr-IN": "health coverage {coverage} aahe",
+    "pa-IN": "health coverage {coverage} hai",
+    "od-IN": "health coverage {coverage}",
+    "en-IN": "health coverage is {coverage}"
+  },
+  "confirm_health_need": {
+    "hi-IN": "health need {need} hai",
+    "ta-IN": "health need {need}",
+    "bn-IN": "health need {need}",
+    "te-IN": "health need {need}",
+    "gu-IN": "health need {need} chhe",
+    "kn-IN": "health need {need}",
+    "ml-IN": "health need {need}",
+    "mr-IN": "health need {need} aahe",
+    "pa-IN": "health need {need} hai",
+    "od-IN": "health need {need}",
+    "en-IN": "health need is {need}"
+  },
   "confirm_conjunction": {
     "hi-IN": "aur aap",
     "ta-IN": "matrum",

@@ -17,7 +17,7 @@ import time
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-from vaidya.agents.constants import SILENCE_STEPS
+from vaidya.agents.constants import PATIENT_SILENCE_STEPS, SILENCE_STEPS
 from vaidya.agents.orchestrator import Orchestrator
 from vaidya.compliance.audit import AuditTrail
 from vaidya.compliance.consent import ConsentTracker
@@ -354,11 +354,35 @@ class ConversationManager:
             )
 
         self._finalize_cost_tracking(call_id, context)
+        elapsed = (time.perf_counter() - start) * 1000
+        self._remember_turn_metadata(
+            context,
+            response,
+            stt_confidence=stt_confidence,
+            channel=channel,
+            turn_language=effective_outbound_language,
+            elapsed_ms=elapsed,
+        )
         await self._session.update(context)
 
-        elapsed = (time.perf_counter() - start) * 1000
         self._audit_turn(call_id, context, masked_text, response_text, response, elapsed)
         return response_text
+
+    @staticmethod
+    def _remember_turn_metadata(
+        context: ConversationContext,
+        response: AgentResponse,
+        *,
+        stt_confidence: float,
+        channel: str,
+        turn_language: str,
+        elapsed_ms: float,
+    ) -> None:
+        response.metadata["conversation_latency_ms"] = round(elapsed_ms, 1)
+        response.metadata["stt_confidence"] = round(stt_confidence, 3)
+        response.metadata["channel"] = channel
+        response.metadata["language"] = turn_language
+        context.metadata["last_turn_metadata"] = dict(response.metadata)
 
     def _finalize_cost_tracking(
         self,
@@ -391,18 +415,17 @@ class ConversationManager:
         At 20s it is a closure line and ``is_terminal=True``, telling the
         caller to hang the call up cleanly.
         """
-        from vaidya.models.conversation import ConversationPhase
-
+        context = await self._session.get(call_id)
+        language = context.language if context is not None else "hi-IN"
+        steps = self._silence_steps_for_context(context)
         step = next(
-            (s for s in SILENCE_STEPS if abs(elapsed_seconds - s[0]) < 1e-6),
+            (s for s in steps if abs(elapsed_seconds - s[0]) < 1e-6),
             None,
         )
         if step is None:
             return "", False
 
         _threshold, key, terminal = step
-        context = await self._session.get(call_id)
-        language = context.language if context is not None else "hi-IN"
 
         # Phase-specific short reprompt for language selection.
         if (
@@ -425,6 +448,19 @@ class ConversationManager:
             context.phase = ConversationPhase.CLOSURE
             await self._session.update(context)
         return spoken, terminal
+
+    async def voice_silence_steps(self, call_id: str) -> list[tuple[float, str, bool]]:
+        """Return the active silence schedule for the voice edge."""
+        context = await self._session.get(call_id)
+        return self._silence_steps_for_context(context)
+
+    @staticmethod
+    def _silence_steps_for_context(
+        context: ConversationContext | None,
+    ) -> list[tuple[float, str, bool]]:
+        if context is not None and context.metadata.get("silence_schedule") == "patient":
+            return PATIENT_SILENCE_STEPS
+        return SILENCE_STEPS
 
     async def switch_language(self, call_id: str, new_language: str) -> bool:
         """Persist a detected voice language into the session.

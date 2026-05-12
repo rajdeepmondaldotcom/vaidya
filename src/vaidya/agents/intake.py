@@ -20,6 +20,7 @@ from vaidya.models.user_profile import (
 )
 from vaidya.prompts import registry as prompts
 from vaidya.sarvam.client import SarvamClient
+from vaidya.utils.states import state_code_to_name, state_name_to_code
 
 logger = logging.getLogger(__name__)
 
@@ -87,6 +88,17 @@ _CONFIRMATION_WORDS = frozenset(
     {"haan", "ha", "ji", "sahi", "theek", "yes", "correct", "aama", "hya"}
 )
 
+_LOW_FIELD_CONFIDENCE = 0.55
+_MAX_REPAIRS_PER_QUESTION = 2
+
+_QUESTION_REQUIRED_FIELDS: dict[int, tuple[str, ...]] = {
+    1: ("state",),
+    2: ("family_size",),
+    3: ("occupation_type", "income_bracket"),
+    4: ("existing_coverage",),
+    5: ("health_need",),
+}
+
 
 def _to_bool(value: Any) -> bool | None:
     """Coerce various truthy representations to bool."""
@@ -130,6 +142,33 @@ _FIELD_MAPPINGS: list[tuple[str, str, Callable[[Any], Any]]] = [
     ("secc_category", "secc_category", lambda v: v),
 ]
 
+_NUMBER_WORDS: dict[str, int] = {
+    "one": 1,
+    "ek": 1,
+    "do": 2,
+    "two": 2,
+    "teen": 3,
+    "three": 3,
+    "char": 4,
+    "chaar": 4,
+    "four": 4,
+    "paanch": 5,
+    "panch": 5,
+    "five": 5,
+    "six": 6,
+    "che": 6,
+    "saat": 7,
+    "seven": 7,
+    "aath": 8,
+    "eight": 8,
+    "nau": 9,
+    "nine": 9,
+    "dus": 10,
+    "ten": 10,
+}
+
+_STATE_WINDOW_WORDS = 4
+
 
 def _heuristic_confirmation(user_input: str) -> bool:
     """Word-boundary matching fallback for confirmation detection."""
@@ -148,6 +187,33 @@ def _collect_confirmation_parts(profile: UserProfile, language: str) -> list[str
         )
     if profile.occupation_type != OccupationType.UNKNOWN:
         parts.append(_format_occupation_label(profile.occupation_type, language))
+    if profile.income_bracket != IncomeCategory.UNKNOWN:
+        parts.append(
+            get_msg_template(
+                "intake",
+                "confirm_income",
+                language,
+                income=_format_enum_value(profile.income_bracket.value),
+            )
+        )
+    if profile.existing_coverage != CoverageType.UNKNOWN:
+        parts.append(
+            get_msg_template(
+                "intake",
+                "confirm_coverage",
+                language,
+                coverage=_format_enum_value(profile.existing_coverage.value),
+            )
+        )
+    if profile.health_need:
+        parts.append(
+            get_msg_template(
+                "intake",
+                "confirm_health_need",
+                language,
+                need=profile.health_need,
+            )
+        )
     return parts
 
 
@@ -165,6 +231,19 @@ def _join_with_conjunction(parts: list[str], conjunction: str) -> str:
     joined = ", ".join(parts[:-1])
     separator = ", " if len(parts) > 2 else " "
     return f"{joined}{separator}{conjunction} {parts[-1]}"
+
+
+def _format_enum_value(value: str) -> str:
+    """Make enum values speakable without adding a large label table."""
+    return (
+        value.replace("_", " ")
+        .replace("1l", "1 lakh")
+        .replace("2.5l", "2.5 lakh")
+        .replace(
+            "5l",
+            "5 lakh",
+        )
+    )
 
 
 class IntakeAgent(BaseAgent):
@@ -209,11 +288,12 @@ class IntakeAgent(BaseAgent):
             return await self._handle_initial_freeform(context, profile, user_input, language)
         elif q_index == 0:
             # Empty input at start - ask the first question
-            context.intake_question_index = 1
+            context.intake_question_index = self._next_missing_question(context, profile, 1) or 1
+            self._mark_question_asked(context, context.intake_question_index)
             return AgentResponse(
-                text=self._get_question_text(1, language),
+                text=self._get_question_text(context.intake_question_index, language),
                 updated_profile=profile,
-                metadata={"intake_q": 1},
+                metadata={"intake_q": context.intake_question_index},
             )
 
         if 1 <= q_index <= MAX_INTAKE_QUESTIONS:
@@ -238,11 +318,18 @@ class IntakeAgent(BaseAgent):
         user_input: str,
         language: str,
     ) -> AgentResponse:
-        """Extract from first free-form statement, then ask Q1."""
+        """Extract from first free-form statement, then ask the next missing field."""
         extracted = await self._extract_freeform(user_input, language)
+        extracted = self._merge_heuristic_fields(extracted, user_input, 0)
         profile = self._apply_extracted(profile, extracted)
-        context.intake_question_index = 1
-        next_q = self._get_question_text(1, language)
+
+        next_index = self._next_missing_question(context, profile, 1)
+        if next_index is None:
+            return self._enter_confirmation(context, profile, extracted, language)
+
+        context.intake_question_index = next_index
+        self._mark_question_asked(context, next_index)
+        next_q = self._get_question_text(next_index, language)
 
         return AgentResponse(
             text=next_q,
@@ -267,14 +354,19 @@ class IntakeAgent(BaseAgent):
         if extracted.get("distress_detected"):
             return self._handle_distress_response(context, profile, extracted, language)
 
+        extracted = self._merge_heuristic_fields(extracted, user_input, q_index)
         profile = self._apply_extracted(profile, extracted)
 
-        if extracted.get("needs_followup") and not extracted.get("question_complete"):
-            return AgentResponse(
-                text=extracted.get("spoken_text", ""),
-                updated_profile=profile,
-                metadata={"intake_q": q_index, "followup": True},
+        if self._needs_repair(context, profile, extracted, q_index):
+            repair_response = self._repair_or_skip_question(
+                context,
+                profile,
+                extracted,
+                q_index,
+                language,
             )
+            if repair_response is not None:
+                return repair_response
 
         return self._advance_to_next_question(context, profile, extracted, q_index, language)
 
@@ -308,12 +400,14 @@ class IntakeAgent(BaseAgent):
         language: str,
     ) -> AgentResponse:
         """Update question index and either enter confirmation or ask the next question."""
-        next_index = q_index + 1
-        context.intake_question_index = next_index
+        self._mark_question_answered(context, q_index)
+        next_index = self._next_missing_question(context, profile, q_index + 1)
 
-        if next_index > MAX_INTAKE_QUESTIONS or profile.required_fields_complete:
+        if next_index is None:
             return self._enter_confirmation(context, profile, extracted, language)
 
+        context.intake_question_index = next_index
+        self._mark_question_asked(context, next_index)
         next_q = self._get_question_text(next_index, language)
         ack = self._build_acknowledgement(extracted, language)
         spoken_text = f"{ack} {next_q}".strip() if ack else next_q
@@ -422,7 +516,7 @@ class IntakeAgent(BaseAgent):
                 system,
                 user_input,
                 reasoning_effort=self._reasoning_effort,
-                max_tokens=1024,
+                max_tokens=4096,
             )
             if "confirmed" not in result:
                 result["confirmed"] = _heuristic_confirmation(user_input)
@@ -458,7 +552,7 @@ class IntakeAgent(BaseAgent):
                 system,
                 user_input,
                 reasoning_effort=self._reasoning_effort,
-                max_tokens=1024,
+                max_tokens=4096,
             )
         except Exception as exc:
             logger.warning("Free-form extraction failed", extra={"error": str(exc)})
@@ -489,7 +583,7 @@ class IntakeAgent(BaseAgent):
                 system,
                 user_input,
                 reasoning_effort=self._reasoning_effort,
-                max_tokens=1024,
+                max_tokens=4096,
             )
         except Exception as exc:
             logger.warning(
@@ -551,9 +645,333 @@ class IntakeAgent(BaseAgent):
 
         return profile
 
+    def _merge_heuristic_fields(
+        self,
+        extracted: dict[str, Any],
+        user_input: str,
+        question_number: int,
+    ) -> dict[str, Any]:
+        """Fill common intake fields with deterministic extraction as LLM backup."""
+        heuristic_fields = self._heuristic_fields(user_input, question_number)
+        if not heuristic_fields:
+            return extracted
+
+        merged = dict(extracted or {})
+        fields = merged.get("extracted_fields")
+        fields = {} if not isinstance(fields, dict) else dict(fields)
+
+        confidence = merged.get("field_confidence")
+        confidence = {} if not isinstance(confidence, dict) else dict(confidence)
+
+        for field, value in heuristic_fields.items():
+            if fields.get(field) in (None, "", "null"):
+                fields[field] = value
+                confidence.setdefault(field, 0.85)
+
+        merged["extracted_fields"] = fields
+        merged["field_confidence"] = confidence
+        if heuristic_fields:
+            merged.setdefault("question_complete", True)
+        return merged
+
+    @classmethod
+    def _heuristic_fields(cls, user_input: str, question_number: int) -> dict[str, Any]:
+        text = user_input.strip()
+        lower = text.lower()
+        fields: dict[str, Any] = {}
+
+        if question_number in (0, 1):
+            state = cls._extract_state(lower)
+            if state:
+                fields["state"] = state
+
+        if question_number in (0, 2):
+            family_size = cls._extract_family_size(lower)
+            if family_size is not None:
+                fields["family_size"] = family_size
+
+        if question_number in (0, 3):
+            occupation = cls._extract_occupation(lower)
+            if occupation:
+                fields["occupation_type"] = occupation
+            income = cls._extract_income(lower)
+            if income:
+                fields["income_bracket"] = income
+
+        if question_number in (0, 4):
+            coverage = cls._extract_coverage(lower)
+            if coverage:
+                fields["existing_coverage"] = coverage
+
+        if "bpl" in lower:
+            fields["bpl_card"] = True
+        if "ration" in lower or "nfsa" in lower:
+            fields["ration_card"] = True
+        return fields
+
     @staticmethod
-    def _get_question_text(question_number: int, language: str) -> str:
+    def _extract_state(lower_text: str) -> str | None:
+        words = re.findall(r"[\w&]+", lower_text)
+        for window in range(_STATE_WINDOW_WORDS, 0, -1):
+            for start in range(0, len(words) - window + 1):
+                candidate = " ".join(words[start : start + window])
+                code = state_name_to_code(candidate)
+                if code:
+                    return state_code_to_name(code)
+        return None
+
+    @staticmethod
+    def _extract_family_size(lower_text: str) -> int | None:
+        family_markers = ("family", "parivaar", "pariwar", "ghar", "log", "members")
+        if not any(marker in lower_text for marker in family_markers):
+            return None
+
+        match = re.search(r"\b([1-9][0-9]?)\b", lower_text)
+        if match:
+            return int(match.group(1))
+
+        for word, value in _NUMBER_WORDS.items():
+            if re.search(rf"\b{re.escape(word)}\b", lower_text):
+                return value
+        return None
+
+    @staticmethod
+    def _extract_occupation(lower_text: str) -> str | None:
+        if any(
+            marker in lower_text
+            for marker in ("daily wage", "daily-wage", "mazdoori", "majdoori", "construction")
+        ):
+            return "daily_wage"
+        if any(marker in lower_text for marker in ("sarkari", "government job", "govt job")):
+            return "salaried_govt"
+        if any(
+            marker in lower_text for marker in ("company", "private job", "salary", "salaried")
+        ):
+            return "salaried_pvt"
+        if any(marker in lower_text for marker in ("farmer", "kisan", "farming", "खेती")):
+            return "farmer"
+        if any(marker in lower_text for marker in ("business", "shop", "self employed")):
+            return "self_employed"
+        return None
+
+    @staticmethod
+    def _extract_income(lower_text: str) -> str | None:
+        if "income tax" in lower_text or "tax bharta" in lower_text:
+            return "above_5l"
+
+        monthly_amount = IntakeAgent._extract_monthly_rupees(lower_text)
+        if monthly_amount is None:
+            if "below 1 lakh" in lower_text or "bpl" in lower_text:
+                return "below_1l"
+            return None
+
+        annual = monthly_amount * 12
+        if annual < 100_000:
+            return "below_1l"
+        if annual <= 250_000:
+            return "1l_to_2.5l"
+        if annual <= 500_000:
+            return "2.5l_to_5l"
+        return "above_5l"
+
+    @staticmethod
+    def _extract_monthly_rupees(lower_text: str) -> int | None:
+        hazaar_match = re.search(
+            r"\b(\d{1,3})(?:\s*-\s*(\d{1,3}))?\s*(?:hazaar|hazar|thousand)\b", lower_text
+        )
+        if hazaar_match:
+            value = int(hazaar_match.group(2) or hazaar_match.group(1))
+            return value * 1000
+
+        amount_match = re.search(r"\b(\d{4,6})\b", lower_text)
+        if amount_match:
+            return int(amount_match.group(1))
+        return None
+
+    @staticmethod
+    def _extract_coverage(lower_text: str) -> str | None:
+        insurance_words = ("insurance", "coverage", "bima", "बीमा")
+        no_words = ("nahi", "nahin", "no ", "none", "nei", "kono")
+        if any(word in lower_text for word in insurance_words) and any(
+            word in lower_text for word in no_words
+        ):
+            return "none"
+        if any(marker in lower_text for marker in ("company insurance", "employer insurance")):
+            return "employer"
+        if "private insurance" in lower_text:
+            return "private"
+        if any(marker in lower_text for marker in ("sarkari insurance", "government scheme")):
+            return "govt_scheme"
+        return None
+
+    def _needs_repair(
+        self,
+        context: ConversationContext,
+        profile: UserProfile,
+        extracted: dict[str, Any],
+        question_number: int,
+    ) -> bool:
+        """Return True when a caller answer needs one bounded clarification."""
+        if question_number == 5 and not extracted.get("needs_followup"):
+            return False
+
+        if extracted.get("needs_followup") and not extracted.get("question_complete"):
+            return True
+
+        if not self._question_complete(context, profile, question_number):
+            return True
+
+        confidence = extracted.get("field_confidence", {})
+        if not isinstance(confidence, dict):
+            return False
+
+        for field in _QUESTION_REQUIRED_FIELDS.get(question_number, ()):
+            raw = confidence.get(field)
+            if raw is not None and self._as_confidence(raw) < _LOW_FIELD_CONFIDENCE:
+                return True
+        return False
+
+    def _repair_or_skip_question(
+        self,
+        context: ConversationContext,
+        profile: UserProfile,
+        extracted: dict[str, Any],
+        question_number: int,
+        language: str,
+    ) -> AgentResponse | None:
+        """Ask a clearer follow-up twice, then skip and keep the call moving."""
+        counts = self._repair_counts(context)
+        key = str(question_number)
+        repair_count = counts.get(key, 0)
+
+        if repair_count >= _MAX_REPAIRS_PER_QUESTION:
+            self._mark_question_skipped(context, question_number)
+            return None
+
+        counts[key] = repair_count + 1
+        followup = (
+            str(extracted.get("spoken_text", "") or "").strip()
+            if extracted.get("needs_followup")
+            else ""
+        )
+        if not followup:
+            followup = self._get_question_text(question_number, language, fallback=True)
+
+        return AgentResponse(
+            text=followup,
+            updated_profile=profile,
+            metadata={
+                "intake_q": question_number,
+                "followup": True,
+                "ux_action": "repair",
+                "repair_type": "intake_low_confidence",
+                "repair_count": counts[key],
+                "tts_profile": "repair",
+            },
+        )
+
+    def _next_missing_question(
+        self,
+        context: ConversationContext,
+        profile: UserProfile,
+        start_at: int,
+    ) -> int | None:
+        for question_number in range(start_at, MAX_INTAKE_QUESTIONS + 1):
+            if not self._question_complete(context, profile, question_number):
+                return question_number
+        return None
+
+    def _question_complete(
+        self,
+        context: ConversationContext,
+        profile: UserProfile,
+        question_number: int,
+    ) -> bool:
+        if question_number in self._metadata_ints(context, "intake_skipped_questions"):
+            return True
+        if question_number == 1:
+            return profile.state is not None
+        if question_number == 2:
+            return profile.family_size is not None
+        if question_number == 3:
+            return (
+                profile.occupation_type != OccupationType.UNKNOWN
+                and profile.income_bracket != IncomeCategory.UNKNOWN
+            )
+        if question_number == 4:
+            return profile.existing_coverage != CoverageType.UNKNOWN
+        if question_number == 5:
+            answered = self._metadata_ints(context, "intake_answered_questions")
+            asked = self._metadata_ints(context, "intake_asked_questions")
+            return (
+                profile.health_need is not None
+                or question_number in answered
+                or question_number in asked
+            )
+        return True
+
+    def _mark_question_asked(self, context: ConversationContext, question_number: int) -> None:
+        self._add_metadata_int(context, "intake_asked_questions", question_number)
+
+    def _mark_question_answered(self, context: ConversationContext, question_number: int) -> None:
+        self._add_metadata_int(context, "intake_answered_questions", question_number)
+
+    def _mark_question_skipped(self, context: ConversationContext, question_number: int) -> None:
+        self._add_metadata_int(context, "intake_skipped_questions", question_number)
+
+    @staticmethod
+    def _repair_counts(context: ConversationContext) -> dict[str, int]:
+        raw = context.metadata.get("intake_repair_counts")
+        if not isinstance(raw, dict):
+            raw = {}
+            context.metadata["intake_repair_counts"] = raw
+        clean: dict[str, int] = {}
+        for key, value in raw.items():
+            try:
+                clean[str(key)] = int(value)
+            except (TypeError, ValueError):
+                continue
+        context.metadata["intake_repair_counts"] = clean
+        return clean
+
+    @staticmethod
+    def _metadata_ints(context: ConversationContext, key: str) -> set[int]:
+        raw = context.metadata.get(key)
+        if not isinstance(raw, list):
+            return set()
+        values: set[int] = set()
+        for value in raw:
+            try:
+                values.add(int(value))
+            except (TypeError, ValueError):
+                continue
+        return values
+
+    def _add_metadata_int(
+        self,
+        context: ConversationContext,
+        key: str,
+        value: int,
+    ) -> None:
+        values = self._metadata_ints(context, key)
+        values.add(value)
+        context.metadata[key] = sorted(values)
+
+    @staticmethod
+    def _as_confidence(value: Any) -> float:
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return 0.0
+
+    @staticmethod
+    def _get_question_text(question_number: int, language: str, fallback: bool = False) -> str:
         """Retrieve the localized question text for a given question number."""
+        if fallback:
+            key = f"q{question_number}_fallback"
+            text = get_msg("intake", key, language)
+            if text != key:
+                return text
         return get_msg("intake", f"q{question_number}", language)
 
     @staticmethod
@@ -597,4 +1015,4 @@ class IntakeAgent(BaseAgent):
     @staticmethod
     def _build_acknowledgement(extracted: dict[str, Any], _language: str) -> str:
         """Return the LLM's spoken_text if present, else empty string."""
-        return extracted.get("spoken_text", "")
+        return str(extracted.get("spoken_text", ""))

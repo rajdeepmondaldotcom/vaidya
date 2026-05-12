@@ -21,6 +21,13 @@ SILENCE_STEPS: list[tuple[float, str, bool]] = [
     (20.0, "silence_closure", True),
 ]
 
+# Patient silence escalation used after the caller explicitly asks for time.
+PATIENT_SILENCE_STEPS: list[tuple[float, str, bool]] = [
+    (12.0, "silence_nudge", False),
+    (24.0, "silence_reprompt_prefix", False),
+    (40.0, "silence_closure", True),
+]
+
 # Scheme processing. MAX_SCHEMES_PER_LLM_CALL is a per-call batch size, not a
 # corpus-wide cap; callers must batch when evaluating larger candidate sets.
 MAX_SCHEMES_PER_LLM_CALL = 20
