@@ -5,7 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from vaidya.models.scheme import Jurisdiction, SchemeRecord
+from vaidya.models.scheme import SchemeRecord
+from vaidya.schemes.selection import filter_schemes_by_state
 
 _SCHEME_DIR = Path(__file__).parent / "data"
 _SCHEMES: list[SchemeRecord] = []
@@ -35,15 +36,5 @@ def get_scheme_by_id(scheme_id: str) -> SchemeRecord | None:
 
 
 def get_schemes_for_state(state_code: str) -> list[SchemeRecord]:
-    """Return central schemes applicable to *state_code* plus state-specific schemes.
-
-    Central schemes are included unless *state_code* appears in the scheme's
-    ``geographic_restrictions`` list.  State schemes are included when their
-    ``state_code`` matches.
-    """
-    return [
-        s
-        for s in get_schemes()
-        if (s.jurisdiction == Jurisdiction.CENTRAL and state_code not in s.geographic_restrictions)
-        or s.state_code == state_code
-    ]
+    """Return central schemes applicable to *state_code* plus state-specific schemes."""
+    return filter_schemes_by_state(get_schemes(), state_code)

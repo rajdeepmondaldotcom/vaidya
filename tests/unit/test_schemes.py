@@ -1,7 +1,7 @@
 """Tests for scheme data loading and validation.
 
 Verifies:
-- All 16 scheme JSONs load successfully via get_schemes()
+- All scheme JSONs load successfully via get_schemes()
 - Required fields present on every scheme
 - PM-JAY has exclusion rules
 - Swasthya Sathi is state=WB
