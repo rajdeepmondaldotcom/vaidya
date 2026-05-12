@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+import io
 import json
 import logging
+import os
 import time
-from typing import Any
+import wave
+from typing import Any, cast
 
 from sarvamai import SarvamAI
 
@@ -74,6 +77,132 @@ def _extract_chat_content(response: Any) -> str:
     return content
 
 
+def _model_latency_class(model: str) -> str:
+    """Return Vaidya's routing class for Sarvam chat models."""
+    if model == "sarvam-30b":
+        return "fast"
+    if model == "sarvam-105b":
+        return "regular"
+    return "unknown"
+
+
+def _duration_from_wav_bytes(data: bytes) -> float | None:
+    """Return WAV duration in seconds when *data* is a readable WAV payload."""
+    try:
+        with wave.open(io.BytesIO(data), "rb") as wav_file:
+            frame_rate = wav_file.getframerate()
+            if frame_rate <= 0:
+                return None
+            return float(wav_file.getnframes() / frame_rate)
+    except (EOFError, wave.Error):
+        return None
+
+
+def _duration_from_wav_path(path: str | os.PathLike[str]) -> float | None:
+    """Return WAV duration in seconds when *path* points to a readable WAV file."""
+    try:
+        with wave.open(os.fspath(path), "rb") as wav_file:
+            frame_rate = wav_file.getframerate()
+            if frame_rate <= 0:
+                return None
+            return float(wav_file.getnframes() / frame_rate)
+    except (EOFError, OSError, wave.Error):
+        return None
+
+
+def _read_file_like_bytes(audio_file: Any) -> bytes | None:
+    """Read a seekable file-like object without changing its current position."""
+    if isinstance(audio_file, io.BytesIO):
+        return audio_file.getvalue()
+
+    tell = getattr(audio_file, "tell", None)
+    seek = getattr(audio_file, "seek", None)
+    read = getattr(audio_file, "read", None)
+    if not callable(tell) or not callable(seek) or not callable(read):
+        return None
+
+    try:
+        position = tell()
+        data = read()
+        seek(position)
+    except (OSError, ValueError):
+        return None
+    return bytes(data) if isinstance(data, (bytes, bytearray)) else None
+
+
+def _estimate_audio_duration_seconds(
+    audio_file: Any,
+    *,
+    raw_sample_rate: int | None = None,
+    raw_sample_width_bytes: int = 2,
+    raw_channels: int = 1,
+) -> tuple[float | None, str]:
+    """Best-effort audio duration for billing, without consuming file handles."""
+    if isinstance(audio_file, (str, os.PathLike)):
+        duration = _duration_from_wav_path(audio_file)
+        return (duration, "wav_path") if duration is not None else (None, "unknown")
+
+    data: bytes | None
+    if isinstance(audio_file, (bytes, bytearray)):
+        data = bytes(audio_file)
+    else:
+        data = _read_file_like_bytes(audio_file)
+
+    if not data:
+        return None, "unknown"
+
+    wav_duration = _duration_from_wav_bytes(data)
+    if wav_duration is not None:
+        return wav_duration, "wav_bytes"
+
+    if raw_sample_rate and raw_sample_rate > 0 and raw_sample_width_bytes > 0 and raw_channels > 0:
+        return (
+            len(data) / (raw_sample_rate * raw_sample_width_bytes * raw_channels),
+            "raw_pcm_bytes",
+        )
+
+    return None, "unknown"
+
+
+def _duration_from_stt_response(response: Any) -> float | None:
+    """Extract audio duration from STT timestamps when the API response includes them."""
+    timestamps = getattr(response, "timestamps", None)
+    candidates: list[Any] = []
+    if timestamps:
+        if isinstance(timestamps, dict):
+            candidates.append(timestamps.get("end_time_seconds"))
+            nested = timestamps.get("timestamps")
+            if isinstance(nested, dict):
+                candidates.append(nested.get("end_time_seconds"))
+        else:
+            candidates.append(getattr(timestamps, "end_time_seconds", None))
+
+    diarized = getattr(response, "diarized_transcript", None)
+    entries = None
+    if isinstance(diarized, dict):
+        entries = diarized.get("entries")
+    elif diarized is not None:
+        entries = getattr(diarized, "entries", None)
+    if entries:
+        candidates.append(
+            [
+                entry.get("end_time_seconds")
+                if isinstance(entry, dict)
+                else getattr(entry, "end_time_seconds", None)
+                for entry in entries
+            ]
+        )
+
+    end_times: list[float] = []
+    for candidate in candidates:
+        values = candidate if isinstance(candidate, (list, tuple)) else [candidate]
+        for value in values:
+            if isinstance(value, (int, float)):
+                end_times.append(float(value))
+
+    return max(end_times) if end_times else None
+
+
 class SarvamClient:
     """Thin async facade over the synchronous sarvamai SDK with cost tracking."""
 
@@ -124,7 +253,7 @@ class SarvamClient:
         api_call: Any,
         cost_recorder: Any,
         result_extractor: Any,
-        log_extras: dict,
+        log_extras: dict[str, Any],
         *,
         on_error: str = "raise",
     ) -> Any:
@@ -172,7 +301,7 @@ class SarvamClient:
         top_p: float | None = None,
         frequency_penalty: float | None = None,
         seed: int | None = None,
-        tools: list[dict] | None = None,
+        tools: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         """Assemble keyword arguments for the chat completions SDK call."""
         kwargs: dict[str, Any] = {
@@ -203,7 +332,7 @@ class SarvamClient:
         top_p: float | None = None,
         frequency_penalty: float | None = None,
         seed: int | None = None,
-        tools: list[dict] | None = None,
+        tools: list[dict[str, Any]] | None = None,
     ) -> str:
         """Call Sarvam LLM and return the response text."""
         kwargs = self._build_chat_kwargs(
@@ -231,15 +360,28 @@ class SarvamClient:
         def record_cost(elapsed_ms: float, response: Any) -> None:
             tokens = getattr(response.usage, "total_tokens", 0) if response.usage else 0
             self.costs.record_llm(
-                tokens, call_id=self._active_call_id, latency_ms=elapsed_ms, model=model
+                tokens,
+                call_id=self._active_call_id,
+                latency_ms=elapsed_ms,
+                model=model,
+                mode=reasoning_effort or "default",
+                metadata={
+                    "latency_class": _model_latency_class(model),
+                    "temperature": temperature,
+                    "max_tokens": max_tokens,
+                    "wiki_grounding": wiki_grounding,
+                },
             )
 
-        return await self._timed_api_call(
-            "LLM call",
-            api_call,
-            record_cost,
-            _extract_chat_content,
-            {"model": model},
+        return cast(
+            str,
+            await self._timed_api_call(
+                "LLM call",
+                api_call,
+                record_cost,
+                _extract_chat_content,
+                {"model": model},
+            ),
         )
 
     async def chat_json(
@@ -307,15 +449,29 @@ class SarvamClient:
 
         def record_cost(elapsed_ms: float, _response: Any) -> None:
             self.costs.record_translate(
-                len(text), call_id=self._active_call_id, latency_ms=elapsed_ms, model=model
+                len(text),
+                call_id=self._active_call_id,
+                latency_ms=elapsed_ms,
+                model=model,
+                mode=mode,
+                metadata={
+                    "source_lang": source_lang,
+                    "target_lang": target_lang,
+                    "speaker_gender": speaker_gender,
+                    "output_script": output_script,
+                    "numerals_format": numerals_format,
+                },
             )
 
-        return await self._timed_api_call(
-            "Translation",
-            api_call,
-            record_cost,
-            lambda r: r.translated_text,
-            {"model": model, "src": source_lang, "tgt": target_lang, "chars": len(text)},
+        return cast(
+            str,
+            await self._timed_api_call(
+                "Translation",
+                api_call,
+                record_cost,
+                lambda r: r.translated_text,
+                {"model": model, "src": source_lang, "tgt": target_lang, "chars": len(text)},
+            ),
         )
 
     async def tts(
@@ -350,16 +506,32 @@ class SarvamClient:
 
         def record_cost(elapsed_ms: float, _response: Any) -> None:
             self.costs.record_tts(
-                len(truncated), call_id=self._active_call_id, latency_ms=elapsed_ms, model=model
+                len(truncated),
+                call_id=self._active_call_id,
+                latency_ms=elapsed_ms,
+                model=model,
+                mode="rest",
+                metadata={
+                    "language": language,
+                    "speaker": speaker,
+                    "pace": pace,
+                    "temperature": temperature,
+                    "speech_sample_rate": speech_sample_rate,
+                    "output_audio_codec": output_audio_codec,
+                    "truncated": len(truncated) < len(text),
+                },
             )
 
-        return await self._timed_api_call(
-            "TTS",
-            api_call,
-            record_cost,
-            lambda r: r.audios[0] if r.audios else None,
-            {"model": model, "speaker": speaker, "lang": language},
-            on_error="return_none",
+        return cast(
+            bytes | None,
+            await self._timed_api_call(
+                "TTS",
+                api_call,
+                record_cost,
+                lambda r: r.audios[0] if r.audios else None,
+                {"model": model, "speaker": speaker, "lang": language},
+                on_error="return_none",
+            ),
         )
 
     @staticmethod
@@ -414,21 +586,47 @@ class SarvamClient:
                 **kwargs,
             )
 
-        def record_cost(elapsed_ms: float, _response: Any) -> None:
-            duration_seconds = elapsed_ms / 1000.0
+        estimated_duration, estimated_source = _estimate_audio_duration_seconds(audio_file)
+
+        def record_cost(elapsed_ms: float, response: Any) -> None:
+            response_duration = _duration_from_stt_response(response)
+            if response_duration is not None:
+                duration_seconds = response_duration
+                duration_source = "response_timestamps"
+            elif estimated_duration is not None:
+                duration_seconds = estimated_duration
+                duration_source = estimated_source
+            else:
+                duration_seconds = elapsed_ms / 1000.0
+                duration_source = "api_latency_fallback"
             self.costs.record_stt(
-                duration_seconds, call_id=self._active_call_id, latency_ms=elapsed_ms, model=model
+                duration_seconds,
+                call_id=self._active_call_id,
+                latency_ms=elapsed_ms,
+                model=model,
+                mode=mode,
+                with_diarization=with_diarization,
+                metadata={
+                    "api_mode": "rest",
+                    "duration_source": duration_source,
+                    "language": language,
+                    "with_timestamps": with_timestamps,
+                    "num_speakers": num_speakers,
+                },
             )
 
         def extract(response: Any) -> tuple[str, str, float]:
             return (response.transcript, response.language_code, response.language_probability)
 
-        return await self._timed_api_call(
-            "STT",
-            api_call,
-            record_cost,
-            extract,
-            {"model": model, "mode": mode},
+        return cast(
+            tuple[str, str, float],
+            await self._timed_api_call(
+                "STT",
+                api_call,
+                record_cost,
+                extract,
+                {"model": model, "mode": mode},
+            ),
         )
 
     async def stream_stt(
@@ -452,9 +650,30 @@ class SarvamClient:
         }
         if language:
             kwargs["language_code"] = language
+        start = time.perf_counter()
         async with async_client.speech_to_text_streaming.connect(**kwargs) as ws:
             await ws.transcribe(audio=audio_data)
             response = await ws.recv()
+            elapsed_ms = (time.perf_counter() - start) * 1000
+            duration_seconds, duration_source = _estimate_audio_duration_seconds(
+                audio_data,
+                raw_sample_rate=sample_rate,
+            )
+            self.costs.record_stt(
+                duration_seconds if duration_seconds is not None else elapsed_ms / 1000.0,
+                call_id=self._active_call_id,
+                latency_ms=elapsed_ms,
+                model=model,
+                mode=mode,
+                metadata={
+                    "api_mode": "streaming",
+                    "duration_source": duration_source
+                    if duration_seconds is not None
+                    else "api_latency_fallback",
+                    "language": language,
+                    "sample_rate": sample_rate,
+                },
+            )
             return response
 
     async def stream_tts(
@@ -468,6 +687,7 @@ class SarvamClient:
         from sarvamai import AsyncSarvamAI
 
         async_client = AsyncSarvamAI(api_subscription_key=self._api_key)
+        start = time.perf_counter()
         async with async_client.text_to_speech_streaming.connect(
             model=model,
             speaker=speaker,
@@ -475,6 +695,15 @@ class SarvamClient:
         ) as ws:
             await ws.send(text=text)
             audio = await ws.recv()
+            elapsed_ms = (time.perf_counter() - start) * 1000
+            self.costs.record_tts(
+                len(text),
+                call_id=self._active_call_id,
+                latency_ms=elapsed_ms,
+                model=model,
+                mode="streaming",
+                metadata={"language": language, "speaker": speaker},
+            )
             return audio
 
     async def identify_language(self, text: str) -> tuple[str, str]:
@@ -494,18 +723,24 @@ class SarvamClient:
 
         def record_cost(elapsed_ms: float, _response: Any) -> None:
             self.costs.record_language_id(
-                len(text), call_id=self._active_call_id, latency_ms=elapsed_ms
+                len(text),
+                call_id=self._active_call_id,
+                latency_ms=elapsed_ms,
+                metadata={"api_mode": "text"},
             )
 
         def extract(response: Any) -> tuple[str, str]:
             return response.language_code, getattr(response, "script_code", "")
 
-        return await self._timed_api_call(
-            "Language identification",
-            api_call,
-            record_cost,
-            extract,
-            {},
+        return cast(
+            tuple[str, str],
+            await self._timed_api_call(
+                "Language identification",
+                api_call,
+                record_cost,
+                extract,
+                {},
+            ),
         )
 
     async def transliterate(
@@ -539,15 +774,27 @@ class SarvamClient:
 
         def record_cost(elapsed_ms: float, _response: Any) -> None:
             self.costs.record_transliterate(
-                len(text), call_id=self._active_call_id, latency_ms=elapsed_ms
+                len(text),
+                call_id=self._active_call_id,
+                latency_ms=elapsed_ms,
+                metadata={
+                    "source_lang": source_lang,
+                    "target_lang": target_lang,
+                    "numerals_format": numerals_format,
+                    "spoken_form": spoken_form,
+                    "spoken_form_numerals_language": spoken_form_numerals_language,
+                },
             )
 
-        return await self._timed_api_call(
-            "Transliteration",
-            api_call,
-            record_cost,
-            lambda r: r.transliterated_text,
-            {"src": source_lang, "tgt": target_lang},
+        return cast(
+            str,
+            await self._timed_api_call(
+                "Transliteration",
+                api_call,
+                record_cost,
+                lambda r: r.transliterated_text,
+                {"src": source_lang, "tgt": target_lang},
+            ),
         )
 
 
@@ -562,14 +809,53 @@ def parse_llm_json(raw: str | None) -> dict[str, Any]:
         lines = [line for line in lines if not line.strip().startswith("```")]
         cleaned = "\n".join(lines).strip()
     try:
-        return json.loads(cleaned)
+        loaded = json.loads(cleaned)
+        if isinstance(loaded, dict):
+            return cast(dict[str, Any], loaded)
     except json.JSONDecodeError:
-        start = cleaned.find("{")
-        end = cleaned.rfind("}") + 1
-        if start != -1 and end > start:
+        for candidate in reversed(_balanced_json_object_candidates(cleaned)):
             try:
-                return json.loads(cleaned[start:end])
+                loaded = json.loads(candidate)
+                if isinstance(loaded, dict):
+                    return cast(dict[str, Any], loaded)
             except json.JSONDecodeError:
-                pass
-        logger.warning("Failed to parse LLM JSON", extra={"raw": raw[:200]})
-        return {"_raw": cleaned, "_parse_error": True}
+                continue
+    logger.warning("Failed to parse LLM JSON", extra={"raw": raw[:200]})
+    return {"_raw": cleaned, "_parse_error": True}
+
+
+def _balanced_json_object_candidates(text: str) -> list[str]:
+    """Return balanced top-level JSON-object substrings found in text."""
+    candidates: list[str] = []
+    start: int | None = None
+    depth = 0
+    in_string = False
+    escaped = False
+
+    for index, char in enumerate(text):
+        if in_string:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+            continue
+
+        if char == '"':
+            in_string = True
+            continue
+
+        if char == "{":
+            if depth == 0:
+                start = index
+            depth += 1
+            continue
+
+        if char == "}" and depth > 0:
+            depth -= 1
+            if depth == 0 and start is not None:
+                candidates.append(text[start : index + 1])
+                start = None
+
+    return candidates
