@@ -60,6 +60,9 @@ async def test_lifespan_wires_conversation_manager():
         guidance_model="sarvam-30b",
         orchestrator_model="sarvam-30b",
         agent_timeout_seconds=15.0,
+        scheme_eval_batch_size=20,
+        scheme_eval_max_parallel_batches=3,
+        scheme_retrieval_rank_top_k=10,
         environment="test",
     )
     mock_settings = MagicMock(**attrs)

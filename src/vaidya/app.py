@@ -48,7 +48,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Bug 11: Optional Sentry error tracking
     if settings.sentry_dsn:
         try:
-            import sentry_sdk
+            import sentry_sdk  # type: ignore[import-not-found]
 
             sentry_sdk.init(
                 dsn=settings.sentry_dsn,
@@ -124,12 +124,17 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         schemes,
         store=store,
         reasoning_effort=settings.eligibility_reasoning_effort,
+        batch_size=settings.scheme_eval_batch_size,
+        max_parallel_batches=settings.scheme_eval_max_parallel_batches,
+        retrieval_rank_top_k=settings.scheme_retrieval_rank_top_k,
     )
     reviewer = ReviewerAgent(
         client,
         settings.reviewer_model,
         schemes,
         reasoning_effort=settings.reviewer_reasoning_effort,
+        batch_size=settings.scheme_eval_batch_size,
+        max_parallel_batches=settings.scheme_eval_max_parallel_batches,
     )
     guidance = GuidanceAgent(
         client,

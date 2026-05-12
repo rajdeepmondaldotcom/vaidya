@@ -21,8 +21,10 @@ SILENCE_STEPS: list[tuple[float, str, bool]] = [
     (20.0, "silence_closure", True),
 ]
 
-# Scheme processing
+# Scheme processing. MAX_SCHEMES_PER_LLM_CALL is a per-call batch size, not a
+# corpus-wide cap; callers must batch when evaluating larger candidate sets.
 MAX_SCHEMES_PER_LLM_CALL = 20
+MAX_PARALLEL_SCHEME_BATCHES = 3
 RAG_TOP_K = 10
 
 # Confidence penalties applied during convergence
