@@ -61,13 +61,21 @@ class Settings(BaseSettings):
     translate_model_text: str = "sarvam-translate:v1"  # formal, 23 languages
 
     # TTS
+    tts_model: str = "bulbul:v3"
     tts_sample_rate: int = 8000
-    tts_default_pace: float = 1.0
+    tts_default_pace: float = 0.94
+    tts_repair_pace: float = 0.88
     tts_distress_pace: float = 0.85
+    tts_results_pace: float = 0.92
+    tts_temperature: float = 0.55
+    tts_min_buffer_size: int = 35
+    tts_max_chunk_length: int = 130
 
     # STT
     stt_model: str = "saaras:v3"
     stt_mode: str = "transcribe"
+    voice_stt_mode: str = "codemix"
+    stt_interrupt_min_speech_frames: int = 3
 
     # Resilience
     retry_max_attempts: int = 3
@@ -90,6 +98,8 @@ class Settings(BaseSettings):
     voice_websocket_url: str = ""
     voice_status_callback_url: str = ""
     default_voice_language: str = "hi-IN"
+    telephony_provider: str = "twilio"
+    telephony_rate_inr_per_minute: float = 0.0
 
     # Simulation
     max_simulation_turns: int = 20
