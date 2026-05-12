@@ -324,6 +324,58 @@
     "od-IN": "Kshama karantu, gotie samasya aasichhi.",
     "en-IN": "Sorry, something went wrong."
   },
+  "repair_low_confidence": {
+    "hi-IN": "Maaf kijiye, awaaz clear nahi aayi. Main wahi sawaal phir poochta hoon.",
+    "ta-IN": "Mannikkavum, kural theLivaga varalai. Adhe kelviyai meendum ketkiren.",
+    "bn-IN": "Dukkhito, awaz clear chilo na. Ami oi proshnota abar jigges korchi.",
+    "te-IN": "Kshaminchandi, voice clear ga raledu. Ade prashna malli adugutaanu.",
+    "gu-IN": "Maaf karo, awaaz clear na aavi. Hu ej prashna fari puchhu chhu.",
+    "kn-IN": "Kshamisi, dhwani spashtavaagi baralilla. Ade prashneyannu matte keluttene.",
+    "ml-IN": "Kshamikku, shabdam clear aayilla. Athe chodhyam veendum chodikkam.",
+    "mr-IN": "Maaf kara, awaaz clear aala nahi. Toch prashna punha vicharto.",
+    "pa-IN": "Maafi, awaaz clear nahi aayi. Main ohi sawaal dubara puchda haan.",
+    "od-IN": "Kshama karantu, swara clear aasila nahi. Sei prashna punithare puchibi.",
+    "en-IN": "Sorry, the audio was not clear. I'll ask the same question again."
+  },
+  "repair_wait": {
+    "hi-IN": "Theek hai, aap aaram se soch lijiye. Main line par hoon.",
+    "ta-IN": "Sari, neenga amaidhiyaga yosikkalaam. Naan line-il irukkiren.",
+    "bn-IN": "Thik ache, apni aaram kore bhebe nin. Ami line-e achi.",
+    "te-IN": "Sare, meeru aalochinchi cheppandi. Nenu line lo unnanu.",
+    "gu-IN": "Saras, tame aaram thi vichari lo. Hu line par chhu.",
+    "kn-IN": "Sari, neevu nidhaanavaagi yochisi. Naanu line nalli iddene.",
+    "ml-IN": "Sheri, ningal samadhanamaayi aalochikku. Njaan line-il undu.",
+    "mr-IN": "Theek aahe, tumhi aaramat vichar kara. Mi line var aahe.",
+    "pa-IN": "Theek hai, tusi aaram naal soch lo. Main line te haan.",
+    "od-IN": "Thik achhi, apane aaramare bhabantu. Mu line re achhi.",
+    "en-IN": "Sure, take your time. I'm on the line."
+  },
+  "repair_side_question": {
+    "hi-IN": "Yeh sirf sahi yojana dhundhne ke liye hai, aur private rahega.",
+    "ta-IN": "Idhu sariyana thittam kandupidikka mattum; private-a irukkum.",
+    "bn-IN": "Eta shudhu thik yojana khunje ber korar jonno, aar private thakbe.",
+    "te-IN": "Idi sariaina scheme kanugonadaaniki maathrame; private ga untundi.",
+    "gu-IN": "Aa faqat sahi yojana shodhva mate chhe, ane private rahe chhe.",
+    "kn-IN": "Idu sariyada yojane hudukalu maathra; private agiruttade.",
+    "ml-IN": "Ithu sariyaya padhathi kandethaan maathram; private aayirikkum.",
+    "mr-IN": "He phakt yogya yojana shodhnyasathi aahe, aani private raahil.",
+    "pa-IN": "Eh sirf sahi yojana labhan layi hai, te private rahega.",
+    "od-IN": "Eha kebala thik yojana khojibaku, ebam private rahiba.",
+    "en-IN": "This is only to find the right scheme, and it stays private."
+  },
+  "repair_correction": {
+    "hi-IN": "Theek hai, sudhaar kar lete hain.",
+    "ta-IN": "Sari, adhai sari seivom.",
+    "bn-IN": "Thik ache, eta thik kore ni.",
+    "te-IN": "Sare, sari chesthaam.",
+    "gu-IN": "Saras, sudhaari laiye.",
+    "kn-IN": "Sari, sari maadona.",
+    "ml-IN": "Sheri, athu thirutham.",
+    "mr-IN": "Theek aahe, durusti karuya.",
+    "pa-IN": "Theek hai, sudhaar kar lainde haan.",
+    "od-IN": "Thik achhi, sudhari neba.",
+    "en-IN": "Okay, let's correct that."
+  },
   "negative_words": {
     "hi-IN": "nahi,no,bas,enough,nah",
     "ta-IN": "venda,vendam,pothum,illai",

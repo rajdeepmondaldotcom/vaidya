@@ -31,6 +31,8 @@ env/
 .coverage
 htmlcov/
 .mypy_cache/
+eval_report.md
+reports/
 
 # ChromaDB local storage
 chroma_data/

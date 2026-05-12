@@ -84,6 +84,27 @@ class TestIncomingCall:
         assert 'statusCallback="https://voice.example.com/voice/status"' in body
         assert 'statusCallbackMethod="POST"' in body
 
+    async def test_valid_public_https_signature_behind_proxy(self, client_factory):
+        token = "test-token"
+        settings = _settings(
+            twilio_auth_token=token,
+            voice_status_callback_url="https://voice.example.com/voice/status",
+        )
+        client = await client_factory(settings)
+        params = {"From": "+15551234567", "CallSid": "CA123"}
+        headers = {
+            "X-Twilio-Signature": _signature(
+                "https://voice.example.com/voice/incoming",
+                params,
+                token,
+            )
+        }
+
+        response = await client.post("/voice/incoming", data=params, headers=headers)
+
+        assert response.status_code == 200
+        assert '<Stream url="wss://voice.example.com/voice/stream"' in response.text
+
     async def test_invalid_twilio_signature_rejects(self, client_factory):
         settings = _settings(twilio_auth_token="test-token")
         client = await client_factory(settings)
@@ -167,6 +188,26 @@ class TestCallStatus:
         assert record.call_sid_hash == expected_hash
         assert not hasattr(record, "call_sid")
         assert "CA123" not in caplog.text
+
+    async def test_valid_public_https_signature_for_status_behind_proxy(self, client_factory):
+        token = "test-token"
+        settings = _settings(
+            twilio_auth_token=token,
+            voice_status_callback_url="https://voice.example.com/voice/status",
+        )
+        client = await client_factory(settings)
+        params = {"CallStatus": "completed", "CallSid": "CA123", "CallDuration": "42"}
+        headers = {
+            "X-Twilio-Signature": _signature(
+                "https://voice.example.com/voice/status",
+                params,
+                token,
+            )
+        }
+
+        response = await client.post("/voice/status", data=params, headers=headers)
+
+        assert response.status_code == 200
 
     async def test_invalid_twilio_signature_rejects_status_callback(self, client_factory):
         settings = _settings(twilio_auth_token="test-token")

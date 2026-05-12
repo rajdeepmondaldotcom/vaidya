@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Awaitable, Callable
-from typing import Any
+from typing import Any, cast
 
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import JSONResponse
@@ -109,7 +109,7 @@ async def ready(request: Request) -> JSONResponse:
 async def costs(
     request: Request,
     detailed: bool = Query(default=False, description="Include per-call breakdown"),
-) -> dict:
+) -> dict[str, Any]:
     """API cost summary (Sarvam usage tracking).
 
     Pass ``?detailed=true`` for per-call breakdowns and monthly projections.
@@ -117,7 +117,10 @@ async def costs(
     """
     client = getattr(request.app.state, "client", None)
     if client and hasattr(client, "costs"):
-        result = client.costs.detailed_summary() if detailed else client.costs.summary()
+        result = cast(
+            dict[str, Any],
+            client.costs.detailed_summary() if detailed else client.costs.summary(),
+        )
 
         # Add recent_calls: last 10 unique call IDs with totals
         all_call_ids = []
@@ -136,6 +139,9 @@ async def costs(
     return {
         "total_inr": 0,
         "by_service": {},
+        "by_model": {},
+        "by_mode": {},
+        "by_service_model_mode": {},
         "call_count": 0,
         "api_calls": 0,
         "avg_cost_per_call_inr": 0,
@@ -147,16 +153,17 @@ async def costs(
 async def costs_for_call(
     call_id: str,
     request: Request,
-) -> dict:
+) -> dict[str, Any]:
     """Per-call cost breakdown (Sarvam usage tracking)."""
     client = getattr(request.app.state, "client", None)
     if client and hasattr(client, "costs"):
-        return client.costs.breakdown_for_call(call_id)
+        return cast(dict[str, Any], client.costs.breakdown_for_call(call_id))
     return {
         "call_id": call_id,
         "total_inr": 0,
         "by_service": {},
         "api_call_count": 0,
+        "entries": [],
     }
 
 
@@ -164,7 +171,7 @@ async def costs_for_call(
 async def costs_daily(
     day: str,
     request: Request,
-) -> dict:
+) -> dict[str, Any]:
     """Daily cost summary. Pass date as YYYY-MM-DD."""
     from datetime import date as _date
 
@@ -174,8 +181,14 @@ async def costs_daily(
             d = _date.fromisoformat(day)
         except ValueError:
             return {"error": "Invalid date format. Use YYYY-MM-DD."}
-        return client.costs.daily_summary(d)
-    return {"date": day, "total_inr": 0, "by_service": {}, "api_calls": 0}
+        return cast(dict[str, Any], client.costs.daily_summary(d))
+    return {
+        "date": day,
+        "total_inr": 0,
+        "by_service": {},
+        "by_service_model_mode": {},
+        "api_calls": 0,
+    }
 
 
 @router.get("/costs/monthly/{year}/{month}")
@@ -183,16 +196,23 @@ async def costs_monthly(
     year: int,
     month: int,
     request: Request,
-) -> dict:
+) -> dict[str, Any]:
     """Monthly cost summary."""
     client = getattr(request.app.state, "client", None)
     if client and hasattr(client, "costs"):
-        return client.costs.monthly_summary(year, month)
-    return {"year": year, "month": month, "total_inr": 0, "by_service": {}, "api_calls": 0}
+        return cast(dict[str, Any], client.costs.monthly_summary(year, month))
+    return {
+        "year": year,
+        "month": month,
+        "total_inr": 0,
+        "by_service": {},
+        "by_service_model_mode": {},
+        "api_calls": 0,
+    }
 
 
 @router.get("/costs/alerts")
-async def cost_alerts(request: Request) -> dict:
+async def cost_alerts(request: Request) -> dict[str, list[str]]:
     """Active cost threshold warnings."""
     client = getattr(request.app.state, "client", None)
     if client and hasattr(client, "costs"):

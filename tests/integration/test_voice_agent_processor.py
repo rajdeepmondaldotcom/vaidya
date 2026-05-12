@@ -324,6 +324,67 @@ class TestTranscriptionRouting:
 
 
 # ---------------------------------------------------------------------------
+# Twilio playback marks
+# ---------------------------------------------------------------------------
+
+
+class TestPlaybackMarks:
+    @pytest.mark.asyncio
+    async def test_bot_stop_waits_for_twilio_mark_before_idle_watch(self):
+        from pipecat.frames.frames import BotStoppedSpeakingFrame, TranscriptionFrame
+        from pipecat.processors.frame_processor import FrameDirection
+
+        from vaidya.telephony.twilio_serializer import (
+            TwilioPlaybackMarkFrame,
+            TwilioPlaybackMarkRequestFrame,
+        )
+
+        proc, _, captured = _make_processor()
+
+        frame = TranscriptionFrame(
+            text="Mujhe scheme chahiye",
+            user_id="u1",
+            timestamp="2026-04-17T00:00:00Z",
+            language="hi-IN",
+        )
+        await proc._on_transcription(frame)
+
+        marks = [f for f, _ in captured if isinstance(f, TwilioPlaybackMarkRequestFrame)]
+        assert len(marks) == 1
+
+        await proc.process_frame(BotStoppedSpeakingFrame(), FrameDirection.DOWNSTREAM)
+        assert proc._idle_task is None
+
+        import asyncio
+
+        async def _noop_idle_loop():
+            return None
+
+        proc._idle_loop = _noop_idle_loop  # type: ignore[method-assign]
+        proc.create_task = lambda coro: asyncio.create_task(coro)  # type: ignore[method-assign]
+        proc._on_playback_mark(TwilioPlaybackMarkFrame(mark_name=marks[0].mark_name))
+        assert proc._idle_task is not None
+        await proc._idle_task
+
+    @pytest.mark.asyncio
+    async def test_stale_mark_after_interruption_is_ignored(self):
+        from vaidya.telephony.twilio_serializer import (
+            TwilioPlaybackMarkFrame,
+            TwilioPlaybackMarkRequestFrame,
+        )
+
+        proc, _, captured = _make_processor()
+        await proc._emit_bot_text("hello")
+        marks = [f for f, _ in captured if isinstance(f, TwilioPlaybackMarkRequestFrame)]
+        assert marks
+
+        proc._cancel_idle_watch(interrupted=True)
+        proc._on_playback_mark(TwilioPlaybackMarkFrame(mark_name=marks[0].mark_name))
+
+        assert proc._idle_task is None
+
+
+# ---------------------------------------------------------------------------
 # Idle loop (silence watcher)
 # ---------------------------------------------------------------------------
 
@@ -347,6 +408,7 @@ class TestIdleLoop:
         )
 
         proc, mgr, captured = _make_processor()
+        proc._playback_marks_enabled = False
 
         # Sequence of (spoken, terminal) responses — mirrors the real ConversationManager
         mgr.handle_silence = AsyncMock(
@@ -394,6 +456,7 @@ class TestIdleLoop:
         )
 
         proc, mgr, captured = _make_processor()
+        proc._playback_marks_enabled = False
         proc._wake = asyncio.Event()
         # Caller "speaks" before any threshold fires
         proc._wake.set()

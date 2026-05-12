@@ -189,6 +189,14 @@ class _FakeChromaClient:
         return 1
 
 
+def _fallback_store() -> KnowledgeStore:
+    with patch(
+        "vaidya.knowledge.store.chromadb.PersistentClient",
+        side_effect=RuntimeError("sqlite fts5 unavailable"),
+    ):
+        return KnowledgeStore(chromadb_path="/tmp/test_chroma_unavailable")
+
+
 @pytest.fixture()
 def store() -> KnowledgeStore:
     """KnowledgeStore backed by an in-memory fake ChromaDB client."""
@@ -273,6 +281,44 @@ class TestIndexScheme:
         record = store.get_scheme("IDX-002")
         assert record is not None
         assert record.canonical_name == "Version 2"
+
+
+class TestInMemoryFallback:
+    def test_chromadb_startup_failure_uses_in_memory_index(self) -> None:
+        store = _fallback_store()
+        scheme = _make_scheme(
+            scheme_id="FB-001",
+            canonical_name="Fallback Scheme",
+            description="fallback maternity healthcare support",
+            keywords=["fallback", "maternity"],
+        )
+
+        store.index_scheme(scheme)
+
+        assert store.count == 1
+        assert store.is_healthy() is False
+        assert store.get_scheme("FB-001").canonical_name == "Fallback Scheme"
+        assert store.search("maternity", n_results=1)[0].scheme_id == "FB-001"
+
+    def test_fallback_state_filter_matches_state_and_central_schemes(self) -> None:
+        store = _fallback_store()
+        central = _make_scheme(scheme_id="CENTRAL", jurisdiction=Jurisdiction.CENTRAL)
+        tamil_nadu = _make_scheme(
+            scheme_id="TN-ONLY",
+            jurisdiction=Jurisdiction.STATE,
+            state_code="TN",
+        )
+        rajasthan = _make_scheme(
+            scheme_id="RJ-ONLY",
+            jurisdiction=Jurisdiction.STATE,
+            state_code="RJ",
+        )
+        for scheme in (central, tamil_nadu, rajasthan):
+            store.index_scheme(scheme)
+
+        scheme_ids = {scheme.scheme_id for scheme in store.list_schemes("TN")}
+
+        assert scheme_ids == {"CENTRAL", "TN-ONLY"}
 
 
 # ---------------------------------------------------------------------------

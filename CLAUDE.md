@@ -39,7 +39,7 @@ User speech → STT → ORCHESTRATOR (state machine, NOT LLM) → AGENTS → TTS
 src/vaidya/
 ├── agents/          # 5 agents + convergence checker + shared scheme_utils + constants
 ├── models/          # Pydantic v2 data models (conversation, profile, scheme, api)
-├── schemes/data/    # 46 healthcare scheme JSON files (18 central + 28 state)
+├── schemes/data/    # 46 healthcare scheme JSON files (17 central + 29 state)
 ├── prompts/templates/  # 5 LLM prompt templates (.txt files)
 ├── knowledge/       # ChromaDB store, loader, embeddings
 ├── pipeline/        # ConversationManager (turn orchestration), translator, translation_terms
@@ -97,7 +97,7 @@ All AI calls go through `src/vaidya/sarvam/client.py`:
 
 ## Current Scope
 
-- 46 schemes (18 central + 28 state) covering all Indian states/UTs
+- 46 schemes (17 central + 29 state) covering all Indian states/UTs
 - 23 languages: 11 voice (TTS + STT) + 12 text-only (STT + translate)
 - Voice languages: Hindi, Tamil, Bengali, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, English
 - Text simulation mode + real voice calls via Twilio telephony

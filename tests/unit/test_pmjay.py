@@ -342,18 +342,16 @@ class TestPMJAYStateFiltering:
         ids = [s.scheme_id for s in filtered]
         assert pmjay.scheme_id in ids
 
-    def test_pmjay_included_for_west_bengal(
+    def test_pmjay_excluded_for_west_bengal(
         self,
         pmjay: SchemeRecord,
         all_schemes: list[SchemeRecord],
     ) -> None:
-        # filter_schemes_by_state includes ALL central schemes regardless of
-        # geographic_restrictions.  The geographic_restrictions field is used
-        # by the LLM for eligibility decisions, not by this pre-filter.
-        # Central schemes always pass the jurisdiction check.
+        # West Bengal opts out of PM-JAY, so the applicability helper filters
+        # it before the LLM sees the candidate list.
         filtered = filter_schemes_by_state(all_schemes, "West Bengal")
         ids = [s.scheme_id for s in filtered]
-        assert pmjay.scheme_id in ids
+        assert pmjay.scheme_id not in ids
 
     def test_pmjay_serialization_includes_procedures(
         self,
