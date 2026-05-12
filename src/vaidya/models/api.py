@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 from vaidya.models.conversation import ConversationPhase
@@ -50,7 +52,7 @@ class TurnResponse(BaseModel):
     phase: str
     schemes_found: int | None = None
     cost_so_far_inr: float | None = None
-    metadata: dict = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 # ---------------------------------------------------------------------------
@@ -68,7 +70,7 @@ class SimulateRequest(BaseModel):
 class SimulateResponse(BaseModel):
     """Response to a simulation run."""
 
-    conversation: list[dict]
+    conversation: list[dict[str, str]]
     final_phase: str
     eligible_schemes: list[str]  # scheme IDs for eval scoring
     eligible_scheme_names: list[str] = Field(default_factory=list)
@@ -120,5 +122,5 @@ class AgentResponse(BaseModel):
     convergence_result: ConvergenceResult | None = None
     guidance_output: GuidanceOutput | None = None
     already_localized: bool = False
-    metadata: dict = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
     error: str | None = None

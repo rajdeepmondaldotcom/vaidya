@@ -2,16 +2,22 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 from typing import Any
 
 from vaidya.agents.base import BaseAgent
+from vaidya.agents.constants import MAX_PARALLEL_SCHEME_BATCHES, MAX_SCHEMES_PER_LLM_CALL
 from vaidya.agents.scheme_utils import (
+    batch_schemes,
     filter_schemes_by_state,
     json_compact,
+    missing_candidate_ids,
+    normalize_matches_for_candidates,
     parse_verdict,
     serialize_for_prompt,
+    uncertain_matches_for_missing,
 )
 from vaidya.models.api import AgentResponse
 from vaidya.models.conversation import ConversationContext
@@ -47,10 +53,14 @@ class ReviewerAgent(BaseAgent):
         model: str,
         schemes: list[SchemeRecord],
         reasoning_effort: str = "high",
+        batch_size: int = MAX_SCHEMES_PER_LLM_CALL,
+        max_parallel_batches: int = MAX_PARALLEL_SCHEME_BATCHES,
     ) -> None:
         super().__init__(client=client, model=model, agent_name="reviewer")
         self._schemes = schemes
         self._reasoning_effort = reasoning_effort
+        self._batch_size = max(1, batch_size)
+        self._max_parallel_batches = max(1, max_parallel_batches)
 
     async def process(
         self,
@@ -74,6 +84,11 @@ class ReviewerAgent(BaseAgent):
                 "reviewer_matches": len(result.matches),
                 "transcript_evidence_count": len(result.transcript_evidence),
                 "processing_time_ms": result.processing_time_ms,
+                "reviewer_batch_count": context.metadata.get("reviewer_batch_count", 0),
+                "reviewer_missing_scheme_ids": context.metadata.get(
+                    "reviewer_missing_scheme_ids",
+                    [],
+                ),
             },
         )
 
@@ -100,9 +115,91 @@ class ReviewerAgent(BaseAgent):
                 transcript_evidence=[],
             )
 
-        # Filter schemes by state if we can glean it from the profile
-        # (the reviewer should be state-aware even though it reads the transcript)
         candidate_schemes = self._filter_schemes(context.user_profile.state)
+        batches = batch_schemes(candidate_schemes, self._batch_size)
+        context.metadata["reviewer_candidate_count"] = len(candidate_schemes)
+        context.metadata["reviewer_batch_count"] = len(batches)
+        context.metadata["reviewer_missing_scheme_ids"] = []
+
+        batch_results = await self._review_batches(
+            context,
+            transcript_text,
+            batches,
+        )
+        matches_by_id: dict[str, SchemeMatch] = {}
+        transcript_evidence: list[str] = []
+        for result in batch_results:
+            for match in result.matches:
+                matches_by_id.setdefault(match.scheme_id, match)
+            transcript_evidence.extend(result.transcript_evidence)
+
+        matches = [
+            matches_by_id[scheme.scheme_id]
+            for scheme in candidate_schemes
+            if scheme.scheme_id in matches_by_id
+        ]
+        return ReviewerResult(
+            matches=matches,
+            processing_time_ms=0,
+            model_used=self._model,
+            transcript_evidence=transcript_evidence,
+        )
+
+    async def _review_batches(
+        self,
+        context: ConversationContext,
+        transcript_text: str,
+        batches: list[list[SchemeRecord]],
+    ) -> list[ReviewerResult]:
+        """Review scheme batches with bounded concurrency."""
+        semaphore = asyncio.Semaphore(self._max_parallel_batches)
+
+        async def _run(batch: list[SchemeRecord], batch_index: int) -> ReviewerResult:
+            async with semaphore:
+                return await self._review_batch(context, transcript_text, batch, batch_index)
+
+        return await asyncio.gather(*[_run(batch, idx) for idx, batch in enumerate(batches)])
+
+    async def _review_batch(
+        self,
+        context: ConversationContext,
+        transcript_text: str,
+        batch: list[SchemeRecord],
+        batch_index: int,
+    ) -> ReviewerResult:
+        """Review one batch and retry once if scheme IDs are omitted."""
+        result = await self._review_batch_once(transcript_text, batch)
+        result = self._normalize_batch_result(result, batch)
+        missing = missing_candidate_ids(result.matches, batch)
+
+        if missing:
+            logger.warning(
+                "Reviewer batch omitted schemes; retrying once",
+                extra={
+                    "batch_index": batch_index,
+                    "missing_scheme_ids": missing,
+                    "call_id": context.call_id,
+                },
+            )
+            retry = await self._review_batch_once(transcript_text, batch)
+            retry = self._normalize_batch_result(retry, batch)
+            result = self._merge_batch_retry(result, retry, batch)
+            result.transcript_evidence.extend(retry.transcript_evidence)
+            missing = missing_candidate_ids(result.matches, batch)
+
+        if missing:
+            context.metadata.setdefault("reviewer_missing_scheme_ids", []).extend(missing)
+            result.matches.extend(uncertain_matches_for_missing(missing, batch, source="reviewer"))
+
+        result.matches = normalize_matches_for_candidates(result.matches, batch)
+        return result
+
+    async def _review_batch_once(
+        self,
+        transcript_text: str,
+        candidate_schemes: list[SchemeRecord],
+    ) -> ReviewerResult:
+        """Build one reviewer prompt, call the LLM, and parse the batch result."""
         schemes_payload = self._serialize_schemes(candidate_schemes)
 
         system = prompts.render(
@@ -118,6 +215,30 @@ class ReviewerAgent(BaseAgent):
             max_tokens=4096,
         )
         return self._parse_result(raw, candidate_schemes)
+
+    @staticmethod
+    def _normalize_batch_result(
+        result: ReviewerResult,
+        batch: list[SchemeRecord],
+    ) -> ReviewerResult:
+        result.matches = normalize_matches_for_candidates(result.matches, batch)
+        return result
+
+    @staticmethod
+    def _merge_batch_retry(
+        first: ReviewerResult,
+        retry: ReviewerResult,
+        batch: list[SchemeRecord],
+    ) -> ReviewerResult:
+        matches_by_id: dict[str, SchemeMatch] = {}
+        for match in first.matches + retry.matches:
+            matches_by_id.setdefault(match.scheme_id, match)
+        first.matches = [
+            matches_by_id[scheme.scheme_id]
+            for scheme in batch
+            if scheme.scheme_id in matches_by_id
+        ]
+        return first
 
     # ------------------------------------------------------------------
     # Scheme filtering
@@ -164,7 +285,10 @@ class ReviewerAgent(BaseAgent):
         matches: list[SchemeMatch] = []
         all_evidence: list[str] = []
 
-        for item in raw.get("matches", []):
+        raw_matches = raw.get("matches", [])
+        if not isinstance(raw_matches, list):
+            raw_matches = []
+        for item in raw_matches:
             try:
                 verdict_str = str(item.get("verdict", "uncertain")).lower()
                 verdict = parse_verdict(verdict_str)

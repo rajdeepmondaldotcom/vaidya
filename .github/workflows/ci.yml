@@ -40,10 +40,10 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install -e ".[dev]"
+          pip install -e ".[dev,telephony]"
 
-      - name: Unit tests
-        run: pytest tests/unit/ -v --tb=short -p no:logfire
+      - name: Type check
+        run: mypy src/vaidya/
 
-      - name: Integration tests
-        run: pytest tests/integration/ -v --tb=short -p no:logfire
+      - name: Tests with coverage
+        run: pytest tests/ --cov=src/vaidya --cov-report=term-missing:skip-covered --cov-fail-under=80 -q -p no:logfire

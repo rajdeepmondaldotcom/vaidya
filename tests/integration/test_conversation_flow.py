@@ -61,9 +61,9 @@ class MockSarvamClient:
         if "intake" in system_lower:
             return json.dumps(self._intake_response())
         elif "eligibility" in system_lower:
-            return json.dumps(self._eligibility_response())
+            return json.dumps(self._eligibility_response(system))
         elif "reviewer" in system_lower or "review the transcript" in system_lower:
-            return json.dumps(self._reviewer_response())
+            return json.dumps(self._reviewer_response(system))
         elif "guidance" in system_lower:
             return json.dumps(self._guidance_response())
         elif "rephrase" in system_lower:
@@ -122,64 +122,98 @@ class MockSarvamClient:
             "confirmed": True,
         }
 
-    def _eligibility_response(self) -> dict[str, Any]:
-        """Simulates eligibility evaluation with 2 matching schemes."""
+    def _scheme_payload_from_prompt(self, system_prompt: str) -> list[dict[str, Any]]:
+        """Extract compact scheme JSON from an agent system prompt."""
+        marker_index = system_prompt.find("SCHEME DATA")
+        if marker_index == -1:
+            return []
+        json_start = system_prompt.find("[", marker_index)
+        if json_start == -1:
+            return []
+        try:
+            payload, _ = json.JSONDecoder().raw_decode(system_prompt[json_start:])
+        except json.JSONDecodeError:
+            return []
+        return payload if isinstance(payload, list) else []
+
+    def _eligibility_response(self, system_prompt: str = "") -> dict[str, Any]:
+        """Simulates eligibility evaluation with a verdict for every prompted scheme."""
+        payload = self._scheme_payload_from_prompt(system_prompt)
+        if not payload:
+            payload = [
+                {"scheme_id": "PMJAY-2024-v3", "canonical_name": "PM-JAY (Ayushman Bharat)"},
+                {"scheme_id": "CHIR-RJ-2024-v2", "canonical_name": "Chiranjeevi Yojana"},
+            ]
+
+        matches: list[dict[str, Any]] = []
+        for item in payload:
+            scheme_id = item["scheme_id"]
+            eligible = scheme_id in {"PMJAY-2024-v3", "CHIR-RJ-2024-v2"}
+            matches.append(
+                {
+                    "scheme_id": scheme_id,
+                    "scheme_name": item.get("canonical_name", scheme_id),
+                    "verdict": "eligible" if eligible else "ineligible",
+                    "confidence": 0.9 if eligible else 0.8,
+                    "reasoning_trace": (
+                        "Income below threshold and state criteria match"
+                        if eligible
+                        else "Mock scenario criteria do not match"
+                    ),
+                    "matched_criteria": ["income", "state"] if eligible else [],
+                    "failed_criteria": [] if eligible else ["mock_not_applicable"],
+                    "coverage_summary": (
+                        "Rs 25 lakh per family per year"
+                        if scheme_id == "CHIR-RJ-2024-v2"
+                        else "Rs 5 lakh per family per year"
+                    ),
+                }
+            )
+
         return {
-            "matches": [
-                {
-                    "scheme_id": "PMJAY-2024-v3",
-                    "scheme_name": "PM-JAY (Ayushman Bharat)",
-                    "verdict": "eligible",
-                    "confidence": 0.92,
-                    "reasoning_trace": "Income below 2.5L, daily wage, no employer insurance",
-                    "matched_criteria": ["income", "occupation", "no_exclusion"],
-                    "failed_criteria": [],
-                    "coverage_summary": "Rs 5 lakh per family per year",
-                },
-                {
-                    "scheme_id": "CHIR-RJ-2024-v2",
-                    "scheme_name": "Chiranjeevi Yojana",
-                    "verdict": "eligible",
-                    "confidence": 0.88,
-                    "reasoning_trace": "Rajasthan resident, BPL family",
-                    "matched_criteria": ["state", "income"],
-                    "failed_criteria": [],
-                    "coverage_summary": "Rs 25 lakh per family per year",
-                },
-            ],
-            "schemes_evaluated": 8,
+            "matches": matches,
+            "schemes_evaluated": len(payload),
         }
 
-    def _reviewer_response(self) -> dict[str, Any]:
-        """Simulates reviewer output matching eligibility."""
+    def _reviewer_response(self, system_prompt: str = "") -> dict[str, Any]:
+        """Simulates reviewer output matching eligibility for every prompted scheme."""
+        payload = self._scheme_payload_from_prompt(system_prompt)
+        if not payload:
+            payload = [
+                {"scheme_id": "PMJAY-2024-v3", "canonical_name": "PM-JAY (Ayushman Bharat)"},
+                {"scheme_id": "CHIR-RJ-2024-v2", "canonical_name": "Chiranjeevi Yojana"},
+            ]
+
+        matches: list[dict[str, Any]] = []
+        for item in payload:
+            scheme_id = item["scheme_id"]
+            eligible = scheme_id in {"PMJAY-2024-v3", "CHIR-RJ-2024-v2"}
+            matches.append(
+                {
+                    "scheme_id": scheme_id,
+                    "scheme_name": item.get("canonical_name", scheme_id),
+                    "verdict": "eligible" if eligible else "ineligible",
+                    "confidence": 0.88 if eligible else 0.78,
+                    "reasoning_trace": (
+                        "Transcript confirms state and low income"
+                        if eligible
+                        else "Transcript does not support this scheme"
+                    ),
+                    "matched_criteria": ["state", "income"] if eligible else [],
+                    "failed_criteria": [] if eligible else ["mock_not_applicable"],
+                    "coverage_summary": (
+                        "Rs 25 lakh per family per year"
+                        if scheme_id == "CHIR-RJ-2024-v2"
+                        else "Rs 5 lakh per family per year"
+                    ),
+                    "transcript_evidence": ["User confirmed Rajasthan residence"]
+                    if eligible
+                    else [],
+                }
+            )
+
         return {
-            "matches": [
-                {
-                    "scheme_id": "PMJAY-2024-v3",
-                    "scheme_name": "PM-JAY (Ayushman Bharat)",
-                    "verdict": "eligible",
-                    "confidence": 0.90,
-                    "reasoning_trace": "Transcript confirms daily wage, Rajasthan",
-                    "matched_criteria": ["income", "occupation"],
-                    "failed_criteria": [],
-                    "coverage_summary": "Rs 5 lakh per family per year",
-                    "transcript_evidence": [
-                        "User said: Main Jaipur, Rajasthan se hoon",
-                        "User said: daily mazdoori karta hoon",
-                    ],
-                },
-                {
-                    "scheme_id": "CHIR-RJ-2024-v2",
-                    "scheme_name": "Chiranjeevi Yojana",
-                    "verdict": "eligible",
-                    "confidence": 0.85,
-                    "reasoning_trace": "Rajasthan resident per transcript",
-                    "matched_criteria": ["state", "income"],
-                    "failed_criteria": [],
-                    "coverage_summary": "Rs 25 lakh per family per year",
-                    "transcript_evidence": ["User confirmed Rajasthan residence"],
-                },
-            ],
+            "matches": matches,
         }
 
     def _guidance_response(self) -> dict[str, Any]:

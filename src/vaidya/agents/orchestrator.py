@@ -11,13 +11,19 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 
 from vaidya.agents.silence import SilenceHandler
+from vaidya.agents.turn_intent import TurnIntent, classify_turn_intent
 from vaidya.i18n import get_msg
 from vaidya.models.api import AgentResponse
 from vaidya.models.conversation import ConversationContext, ConversationPhase
-from vaidya.models.scheme import ConvergenceResult, EligibilityVerdict
+from vaidya.models.scheme import (
+    ConvergenceResult,
+    EligibilityResult,
+    EligibilityVerdict,
+    ReviewerResult,
+)
 
 if TYPE_CHECKING:
     from vaidya.agents.convergence import ConvergenceChecker
@@ -27,13 +33,13 @@ if TYPE_CHECKING:
     from vaidya.agents.reviewer import ReviewerAgent
     from vaidya.compliance.consent import ConsentTracker
     from vaidya.pipeline.degradation import DegradationManager
-    from vaidya.prompts.registry import PromptRegistry
     from vaidya.sarvam.client import SarvamClient
 
 logger = logging.getLogger(__name__)
 
 _REPEAT_SMS_THRESHOLD = 3
 _REPHRASE_TTS_RATE = 0.80
+_REPAIR_TTS_RATE = 0.88
 _DISTRESS_TTS_RATE = 0.85
 
 
@@ -48,7 +54,7 @@ class Orchestrator:
         reviewer: ReviewerAgent,
         guidance: GuidanceAgent,
         convergence: ConvergenceChecker,
-        prompts: PromptRegistry | None = None,
+        prompts: Any | None = None,
         fallback_model: str = "sarvam-30b",
         agent_timeout: float = 15.0,
         consent_tracker: ConsentTracker | None = None,
@@ -96,11 +102,21 @@ class Orchestrator:
             stt_confidence=stt_confidence,
         )
 
-        response = await self._route_by_phase(context, user_input, stt_confidence, channel)
+        repair_response = await self._pre_route_repair(
+            context,
+            user_input,
+            stt_confidence,
+            channel,
+        )
+        if repair_response is not None:
+            response = repair_response
+        else:
+            if context.metadata.get("silence_schedule") == "patient":
+                context.metadata.pop("silence_schedule", None)
+            response = await self._route_by_phase(context, user_input, stt_confidence, channel)
 
         elapsed = (time.perf_counter() - start) * 1000
-        response.metadata["orchestrator_latency_ms"] = round(elapsed, 1)
-        response.metadata["phase"] = context.phase.value
+        self._decorate_response_metadata(context, response, elapsed, channel)
 
         context.add_turn(
             role="assistant",
@@ -110,6 +126,113 @@ class Orchestrator:
         )
 
         return response
+
+    async def _pre_route_repair(
+        self,
+        context: ConversationContext,
+        user_input: str,
+        stt_confidence: float,
+        channel: str,
+    ) -> AgentResponse | None:
+        """Handle repeat/restart/wait/side-question repair before phase routing."""
+        if context.phase == ConversationPhase.WELCOME:
+            return None
+
+        intent = classify_turn_intent(
+            user_input,
+            phase=context.phase,
+            stt_confidence=stt_confidence,
+            channel=channel,
+        )
+        if intent.action == "continue":
+            return None
+
+        match intent.action:
+            case "repeat":
+                response = await self._handle_repeat(context)
+                response.metadata.update(self._repair_metadata(intent))
+                return response
+            case "restart":
+                response = self._handle_restart(context)
+                response.metadata.update(self._repair_metadata(intent))
+                return response
+            case "end":
+                response = self._handle_end(context)
+                response.metadata.update(self._repair_metadata(intent))
+                return response
+            case "wait":
+                context.metadata["silence_schedule"] = "patient"
+                return AgentResponse(
+                    text=get_msg("orchestrator", "repair_wait", context.language),
+                    metadata={
+                        **self._repair_metadata(intent),
+                        "silence_schedule": "patient",
+                    },
+                )
+            case "side_question":
+                answer = get_msg("orchestrator", "repair_side_question", context.language)
+                return AgentResponse(
+                    text=self._append_last_question(context, answer),
+                    metadata=self._repair_metadata(intent),
+                )
+            case "correction":
+                prompt = get_msg("orchestrator", "repair_correction", context.language)
+                return AgentResponse(
+                    text=self._append_last_question(context, prompt),
+                    metadata=self._repair_metadata(intent),
+                )
+            case "low_confidence":
+                prompt = get_msg("orchestrator", "repair_low_confidence", context.language)
+                metadata = self._repair_metadata(intent)
+                metadata.update(intent.metadata)
+                return AgentResponse(
+                    text=self._append_last_question(context, prompt),
+                    metadata=metadata,
+                )
+
+        return None
+
+    @staticmethod
+    def _repair_metadata(intent: TurnIntent) -> dict[str, str | float | bool]:
+        return {
+            "ux_action": "repair",
+            "repair_type": intent.repair_type,
+            "tts_profile": "repair",
+            "tts_speech_rate_factor": _REPAIR_TTS_RATE,
+        }
+
+    @staticmethod
+    def _append_last_question(context: ConversationContext, prefix: str) -> str:
+        last = next((t.text for t in reversed(context.transcript) if t.role == "assistant"), "")
+        return f"{prefix} {last}".strip() if last else prefix
+
+    @staticmethod
+    def _decorate_response_metadata(
+        context: ConversationContext,
+        response: AgentResponse,
+        elapsed_ms: float,
+        channel: str,
+    ) -> None:
+        response.metadata["orchestrator_latency_ms"] = round(elapsed_ms, 1)
+        response.metadata["phase"] = context.phase.value
+        response.metadata["channel"] = channel
+        response.metadata.setdefault("ux_action", "answer")
+
+        if "tts_profile" not in response.metadata:
+            if response.metadata.get("repeat_escalation"):
+                response.metadata["tts_profile"] = "repair"
+            elif context.emotional_distress_detected:
+                response.metadata["tts_profile"] = "distress"
+            elif context.phase in (ConversationPhase.RESULTS, ConversationPhase.GUIDANCE):
+                response.metadata["tts_profile"] = "results"
+            else:
+                response.metadata["tts_profile"] = "default"
+
+        intake_q = response.metadata.get("intake_q")
+        if intake_q is not None:
+            question_id = f"intake_q{intake_q}"
+            response.metadata["question_id"] = question_id
+            context.metadata["last_question_id"] = question_id
 
     def _check_silence(
         self,
@@ -322,7 +445,10 @@ class Orchestrator:
         """Phase 2: Listen to free-form statement, then transition to intake."""
         context.phase = ConversationPhase.INTAKE
         context.intake_question_index = 0
-        return await self._intake.safe_process(context, user_input)
+        response = await self._intake.safe_process(context, user_input)
+        if response.updated_profile:
+            context.user_profile = response.updated_profile
+        return response
 
     async def _handle_intake(
         self,
@@ -335,10 +461,12 @@ class Orchestrator:
         if response.updated_profile:
             context.user_profile = response.updated_profile
 
-        if context.user_profile.required_fields_complete or context.intake_question_index >= 5:
+        if response.metadata.get("intake_complete"):
             return await self._transition_to_processing(context)
 
-        if context.emotional_distress_detected:
+        if context.emotional_distress_detected and not context.metadata.get(
+            "confirmation_pending"
+        ):
             return await self._fast_track_distress(context)
 
         return response
@@ -353,6 +481,7 @@ class Orchestrator:
         processing_response.text = f"{empathy} {processing_response.text}"
         processing_response.metadata["tts_speech_rate_factor"] = _DISTRESS_TTS_RATE
         processing_response.metadata["emotional_distress_mode"] = True
+        processing_response.metadata["tts_profile"] = "distress"
         return processing_response
 
     async def _transition_to_processing(
@@ -364,6 +493,7 @@ class Orchestrator:
         filler = get_msg("orchestrator", "processing_filler", context.language)
         processing_response = await self._run_eligibility_and_review(context)
         processing_response.text = f"{filler}\n\n{processing_response.text}"
+        processing_response.metadata.setdefault("tts_profile", "processing")
         return processing_response
 
     async def _handle_processing(
@@ -398,25 +528,31 @@ class Orchestrator:
     async def _execute_agents(
         self,
         context: ConversationContext,
-    ) -> tuple:
+    ) -> tuple[EligibilityResult | None, ReviewerResult | None]:
         """Run eligibility + reviewer tasks with timeout; either result may be None."""
         try:
             eligibility_task, reviewer_task = self._create_agent_tasks(context)
             tasks = [eligibility_task] + ([reviewer_task] if reviewer_task else [])
             done, pending = await self._await_agent_tasks(tasks, context)
 
-            eligibility_result = self._collect_task_result(
-                eligibility_task,
-                done,
-                "eligibility",
-                context.call_id,
+            eligibility_result = cast(
+                EligibilityResult | None,
+                self._collect_task_result(
+                    eligibility_task,
+                    done,
+                    "eligibility",
+                    context.call_id,
+                ),
             )
             reviewer_result = (
-                self._collect_task_result(
-                    reviewer_task,
-                    done,
-                    "reviewer",
-                    context.call_id,
+                cast(
+                    ReviewerResult | None,
+                    self._collect_task_result(
+                        reviewer_task,
+                        done,
+                        "reviewer",
+                        context.call_id,
+                    ),
                 )
                 if reviewer_task
                 else None
@@ -432,14 +568,17 @@ class Orchestrator:
             )
             return None, None
 
-    def _create_agent_tasks(self, context: ConversationContext) -> tuple:
+    def _create_agent_tasks(
+        self,
+        context: ConversationContext,
+    ) -> tuple[asyncio.Task[AgentResponse], asyncio.Task[AgentResponse] | None]:
         skip_reviewer = self._should_skip_reviewer(context)
 
         eligibility_task = asyncio.create_task(
             self._eligibility.safe_process(context, ""),
             name="eligibility",
         )
-        reviewer_task = None
+        reviewer_task: asyncio.Task[AgentResponse] | None = None
         if not skip_reviewer:
             reviewer_task = asyncio.create_task(
                 self._reviewer.safe_process(context, ""),
@@ -464,9 +603,9 @@ class Orchestrator:
 
     async def _await_agent_tasks(
         self,
-        tasks: list,
+        tasks: list[asyncio.Task[AgentResponse]],
         context: ConversationContext,
-    ) -> tuple:
+    ) -> tuple[set[asyncio.Task[AgentResponse]], set[asyncio.Task[AgentResponse]]]:
         done, pending = await asyncio.wait(
             tasks,
             timeout=self._agent_timeout,
@@ -485,14 +624,23 @@ class Orchestrator:
 
         return done, pending
 
-    def _collect_task_result(self, task: asyncio.Task, done: set, agent_name: str, call_id: str):
+    def _collect_task_result(
+        self,
+        task: asyncio.Task[AgentResponse],
+        done: set[asyncio.Task[AgentResponse]],
+        agent_name: str,
+        call_id: str,
+    ) -> EligibilityResult | ReviewerResult | None:
         result_attr = f"{agent_name}_result"
 
         if task in done and not task.cancelled():
             try:
                 response = task.result()
                 self._record_degradation(agent_name, success=True)
-                return getattr(response, result_attr)
+                return cast(
+                    EligibilityResult | ReviewerResult | None,
+                    getattr(response, result_attr),
+                )
             except Exception:
                 logger.warning(
                     "%s task raised", agent_name, extra={"call_id": call_id}, exc_info=True
@@ -512,8 +660,8 @@ class Orchestrator:
     def _run_convergence(
         self,
         context: ConversationContext,
-        eligibility_result,
-        reviewer_result,
+        eligibility_result: EligibilityResult | None,
+        reviewer_result: ReviewerResult | None,
     ) -> AgentResponse | None:
         """Returns error AgentResponse if both agents failed, else None."""
         try:
@@ -546,7 +694,10 @@ class Orchestrator:
 
         return None
 
-    def _build_single_agent_convergence(self, eligibility_result) -> ConvergenceResult:
+    def _build_single_agent_convergence(
+        self,
+        eligibility_result: EligibilityResult,
+    ) -> ConvergenceResult:
         return ConvergenceResult(
             agreed_eligible=[
                 m for m in eligibility_result.matches if m.verdict == EligibilityVerdict.ELIGIBLE
@@ -564,10 +715,10 @@ class Orchestrator:
         self,
         context: ConversationContext,
     ) -> AgentResponse:
-        """Transition to results phase and generate guidance response."""
+        """Transition to results phase and deliver the first scheme."""
         context.phase = ConversationPhase.RESULTS
         try:
-            return await self._guidance.safe_process(context, "")
+            return await self._handle_results(context, "")
         except Exception:
             logger.error(
                 "Guidance generation failed in orchestrator",
@@ -589,8 +740,12 @@ class Orchestrator:
             context.metadata["scheme_delivery_index"] = 0
 
         eligible = context.convergence_result.all_eligible if context.convergence_result else []
-        current_idx = context.metadata.get("scheme_delivery_index", 0)
-        if not eligible or current_idx >= len(eligible):
+        current_idx = int(context.metadata.get("scheme_delivery_index", 0))
+        if not eligible:
+            context.phase = ConversationPhase.GUIDANCE
+            return await self._guidance.safe_process(context, user_input)
+
+        if current_idx >= len(eligible):
             context.phase = ConversationPhase.GUIDANCE
             return await self._handle_guidance(context, user_input)
 
@@ -610,7 +765,7 @@ class Orchestrator:
         user_input: str,
     ) -> AgentResponse:
         eligible = context.convergence_result.all_eligible if context.convergence_result else []
-        current_idx: int = context.metadata["scheme_delivery_index"]
+        current_idx = int(context.metadata["scheme_delivery_index"])
 
         if current_idx >= len(eligible):
             context.phase = ConversationPhase.GUIDANCE
@@ -629,6 +784,7 @@ class Orchestrator:
             context.phase = ConversationPhase.GUIDANCE
             scheme_response.phase_transition = ConversationPhase.GUIDANCE
 
+        scheme_response.metadata.setdefault("tts_profile", "results")
         return scheme_response
 
     async def _handle_guidance(
@@ -722,7 +878,7 @@ class Orchestrator:
             [{"role": "system", "content": system}, {"role": "user", "content": user_input}],
         )
 
-        return result.get("category", "UNKNOWN"), result.get("brief_answer", "")
+        return str(result.get("category", "UNKNOWN")), str(result.get("brief_answer", ""))
 
     async def _handle_repeat(
         self,
@@ -785,7 +941,7 @@ class Orchestrator:
                     {"role": "user", "content": text},
                 ],
             )
-            return result.get("rephrased", text)
+            return str(result.get("rephrased", text))
         except Exception:
             return text
 

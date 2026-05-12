@@ -19,8 +19,13 @@ import hashlib
 import logging
 import re
 from html import escape
+from typing import Any, cast
+from urllib.parse import urlsplit, urlunsplit
 
 from fastapi import APIRouter, Request, Response, WebSocket, WebSocketDisconnect
+from starlette.datastructures import FormData
+
+from vaidya.config import Settings
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -50,7 +55,49 @@ def _safe_attr(value: object) -> str:
     return escape(str(value or ""), quote=True)
 
 
-def _phone_hash_from_call_data(call_data: dict) -> str:
+def _twilio_http_validation_urls(request: Request, configured_public_url: str = "") -> list[str]:
+    """Return plausible public URLs Twilio may have signed for this proxied request."""
+    urls = [str(request.url)]
+
+    forwarded_proto = request.headers.get("x-forwarded-proto", "").split(",", 1)[0].strip()
+    forwarded_host = (
+        request.headers.get("x-forwarded-host", request.headers.get("host", ""))
+        .split(",", 1)[0]
+        .strip()
+    )
+    if forwarded_proto and forwarded_host:
+        urls.append(
+            urlunsplit(
+                (
+                    forwarded_proto,
+                    forwarded_host,
+                    request.url.path,
+                    request.url.query,
+                    "",
+                )
+            )
+        )
+
+    parsed = urlsplit(configured_public_url)
+    if parsed.scheme and parsed.netloc:
+        scheme = parsed.scheme
+        if scheme == "wss":
+            scheme = "https"
+        elif scheme == "ws":
+            scheme = "http"
+        urls.append(urlunsplit((scheme, parsed.netloc, request.url.path, request.url.query, "")))
+
+    return list(dict.fromkeys(urls))
+
+
+def _configured_voice_public_url(settings: Settings, request: Request) -> str:
+    """Pick a trusted configured voice URL to reconstruct Railway's public request URL."""
+    if request.url.path.endswith("/status") and settings.voice_status_callback_url:
+        return settings.voice_status_callback_url
+    return settings.voice_websocket_url or settings.voice_status_callback_url
+
+
+def _phone_hash_from_call_data(call_data: dict[str, Any]) -> str:
     """Resolve the privacy-preserving session key from Twilio start data."""
     custom = call_data.get("body") or {}
     candidate = str(custom.get("phone_hash", "")).strip().lower()
@@ -69,12 +116,13 @@ def _phone_hash_from_call_data(call_data: dict) -> str:
 
 def _validate_twilio_http_request(
     request: Request,
-    form,
+    form: FormData,
     auth_token: str,
+    public_url: str = "",
 ) -> str:
     """Validate a Twilio webhook request using the official helper."""
     try:
-        from twilio.request_validator import RequestValidator
+        from twilio.request_validator import RequestValidator  # type: ignore[import-untyped]
     except ImportError:
         logger.error("Twilio auth token configured but twilio package is unavailable")
         return _TWILIO_UNAVAILABLE
@@ -85,8 +133,9 @@ def _validate_twilio_http_request(
         return _TWILIO_INVALID
 
     validator = RequestValidator(auth_token)
-    if validator.validate(str(request.url), form, signature):
-        return _TWILIO_VALID
+    for url in _twilio_http_validation_urls(request, public_url):
+        if validator.validate(url, form, signature):
+            return _TWILIO_VALID
     return _TWILIO_INVALID
 
 
@@ -140,7 +189,7 @@ async def incoming_call(request: Request) -> Response:
     Returns TwiML that tells Twilio to open a bidirectional Media Stream
     to our WebSocket endpoint.
     """
-    settings = request.app.state.settings
+    settings = cast(Settings, request.app.state.settings)
     ws_url = settings.voice_websocket_url
 
     form = await request.form()
@@ -156,7 +205,12 @@ async def incoming_call(request: Request) -> Response:
 
     # Twilio signature verification
     if settings.twilio_auth_token:
-        validation = _validate_twilio_http_request(request, form, settings.twilio_auth_token)
+        validation = _validate_twilio_http_request(
+            request,
+            form,
+            settings.twilio_auth_token,
+            public_url=_configured_voice_public_url(settings, request),
+        )
         if validation != _TWILIO_VALID:
             return _twilio_http_failure_response(validation)
 
@@ -192,7 +246,7 @@ async def voice_stream(websocket: WebSocket) -> None:
     the first messages on the stream. Caller info is extracted from
     those custom parameters.
     """
-    settings = websocket.app.state.settings
+    settings = cast(Settings, websocket.app.state.settings)
 
     if not PIPECAT_AVAILABLE:
         await websocket.close(code=1011, reason="pipecat not installed")
@@ -249,6 +303,8 @@ async def voice_stream(websocket: WebSocket) -> None:
     try:
         from vaidya.telephony.pipeline import run_voice_pipeline
 
+        sarvam_client = getattr(websocket.app.state, "client", None)
+        cost_tracker = getattr(sarvam_client, "costs", None)
         await run_voice_pipeline(
             websocket=websocket,
             conversation_manager=mgr,
@@ -261,6 +317,25 @@ async def voice_stream(websocket: WebSocket) -> None:
             welcome_text=welcome,
             transport_type=transport_type,
             call_data=call_data,
+            cost_tracker=cost_tracker,
+            stt_model=getattr(settings, "stt_model", "saaras:v3"),
+            stt_mode=getattr(settings, "voice_stt_mode", "codemix"),
+            stt_interrupt_min_speech_frames=getattr(
+                settings,
+                "stt_interrupt_min_speech_frames",
+                3,
+            ),
+            tts_model=getattr(settings, "tts_model", "bulbul:v3"),
+            tts_pace=getattr(settings, "tts_default_pace", 0.94),
+            tts_temperature=getattr(settings, "tts_temperature", 0.55),
+            tts_min_buffer_size=getattr(settings, "tts_min_buffer_size", 35),
+            tts_max_chunk_length=getattr(settings, "tts_max_chunk_length", 130),
+            telephony_provider=getattr(settings, "telephony_provider", "twilio"),
+            telephony_rate_inr_per_minute=getattr(
+                settings,
+                "telephony_rate_inr_per_minute",
+                0.0,
+            ),
         )
     except WebSocketDisconnect:
         logger.info("Caller disconnected", extra={"call_id": call_id})
@@ -279,20 +354,25 @@ async def voice_stream(websocket: WebSocket) -> None:
 
 
 @router.post("/status", response_model=None)
-async def call_status(request: Request) -> dict | Response:
+async def call_status(request: Request) -> dict[str, str] | Response:
     """Twilio status callback: tracks call lifecycle events.
 
     Twilio POSTs here when a call is initiated, ringing, answered, or completed.
     We log the event for monitoring and debugging.
     """
-    settings = request.app.state.settings
+    settings = cast(Settings, request.app.state.settings)
     form = await request.form()
     status = form.get("CallStatus", "unknown")
     call_sid = form.get("CallSid", "")
     duration = form.get("CallDuration", "0")
 
     if settings.twilio_auth_token:
-        validation = _validate_twilio_http_request(request, form, settings.twilio_auth_token)
+        validation = _validate_twilio_http_request(
+            request,
+            form,
+            settings.twilio_auth_token,
+            public_url=_configured_voice_public_url(settings, request),
+        )
         if validation != _TWILIO_VALID:
             return _twilio_http_failure_response(validation)
 

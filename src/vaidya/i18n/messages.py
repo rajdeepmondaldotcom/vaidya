@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
+from typing import Any, cast
 
 logger = logging.getLogger(__name__)
 
@@ -42,8 +43,9 @@ def _load_domain(domain: str) -> dict[str, dict[str, str]]:
         return _CACHE[domain]
 
     with path.open(encoding="utf-8") as f:
-        data = json.load(f)
+        raw: Any = json.load(f)
 
+    data = cast(dict[str, dict[str, str]], raw)
     _CACHE[domain] = data
     return data
 

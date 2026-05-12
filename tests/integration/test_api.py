@@ -156,6 +156,15 @@ class TestListSchemes:
         assert "central" in jurisdictions
         assert "state" in jurisdictions
 
+    async def test_state_filter_respects_pmjay_opt_out(self, client: AsyncClient):
+        """WB state filter includes Swasthya Sathi but excludes PM-JAY."""
+        response = await client.get("/schemes?state=West%20Bengal")
+        assert response.status_code == 200
+
+        scheme_ids = {s["scheme_id"] for s in response.json()}
+        assert "SS-WB-2024-v2" in scheme_ids
+        assert "PMJAY-2024-v3" not in scheme_ids
+
 
 class TestGetSchemeById:
     """GET /schemes/{scheme_id} -- single scheme detail."""

@@ -96,9 +96,13 @@ class MockSarvamClient:
         if "intake" in system_lower:
             return json.dumps(self._intake_override or self._intake_response())
         if "eligibility" in system_lower:
-            return json.dumps(self._eligibility_override or self._eligibility_response())
+            if self._eligibility_override is not None:
+                return json.dumps(self._expand_empty_override(system, self._eligibility_override))
+            return json.dumps(self._eligibility_response(system))
         if "reviewer" in system_lower or "review the transcript" in system_lower:
-            return json.dumps(self._reviewer_override or self._reviewer_response())
+            if self._reviewer_override is not None:
+                return json.dumps(self._expand_empty_override(system, self._reviewer_override))
+            return json.dumps(self._reviewer_response(system))
         if "guidance" in system_lower:
             return json.dumps(self._guidance_override or self._guidance_response())
         if "rephrase" in system_lower:
@@ -150,41 +154,120 @@ class MockSarvamClient:
             "confirmed": True,
         }
 
-    def _eligibility_response(self) -> dict[str, Any]:
-        return {
-            "matches": [
+    def _scheme_payload_from_prompt(self, system_prompt: str) -> list[dict[str, Any]]:
+        marker_index = system_prompt.find("SCHEME DATA")
+        if marker_index == -1:
+            return []
+        json_start = system_prompt.find("[", marker_index)
+        if json_start == -1:
+            return []
+        try:
+            payload, _ = json.JSONDecoder().raw_decode(system_prompt[json_start:])
+        except json.JSONDecodeError:
+            return []
+        return payload if isinstance(payload, list) else []
+
+    def _ineligible_matches_for_prompt(self, system_prompt: str) -> list[dict[str, Any]]:
+        return [
+            {
+                "scheme_id": item["scheme_id"],
+                "scheme_name": item.get("canonical_name", item["scheme_id"]),
+                "verdict": "ineligible",
+                "confidence": 0.8,
+                "reasoning_trace": "Mock criteria do not match",
+                "matched_criteria": [],
+                "failed_criteria": ["mock_not_applicable"],
+                "coverage_summary": "Mock ineligible",
+                "transcript_evidence": [],
+            }
+            for item in self._scheme_payload_from_prompt(system_prompt)
+        ]
+
+    def _expand_empty_override(
+        self,
+        system_prompt: str,
+        override: dict[str, Any],
+    ) -> dict[str, Any]:
+        if override.get("matches") != []:
+            return override
+        expanded = dict(override)
+        expanded["matches"] = self._ineligible_matches_for_prompt(system_prompt)
+        if "schemes_evaluated" in expanded:
+            expanded["schemes_evaluated"] = len(expanded["matches"])
+        return expanded
+
+    def _eligibility_response(self, system_prompt: str = "") -> dict[str, Any]:
+        payload = self._scheme_payload_from_prompt(system_prompt) or [
+            {"scheme_id": "PMJAY-2024-v3", "canonical_name": "PM-JAY (Ayushman Bharat)"}
+        ]
+        matches = self._ineligible_matches_for_prompt(system_prompt)
+        if not matches:
+            matches = [
                 {
-                    "scheme_id": "PMJAY-2024-v3",
-                    "scheme_name": "PM-JAY (Ayushman Bharat)",
-                    "verdict": "eligible",
-                    "confidence": 0.92,
-                    "reasoning_trace": "Income below 2.5L, daily wage, no employer insurance",
-                    "matched_criteria": ["income", "occupation", "no_exclusion"],
-                    "failed_criteria": [],
-                    "coverage_summary": "Rs 5 lakh per family per year",
-                },
-            ],
-            "schemes_evaluated": 8,
+                    "scheme_id": item["scheme_id"],
+                    "scheme_name": item.get("canonical_name", item["scheme_id"]),
+                    "verdict": "ineligible",
+                    "confidence": 0.8,
+                    "reasoning_trace": "Mock criteria do not match",
+                    "matched_criteria": [],
+                    "failed_criteria": ["mock_not_applicable"],
+                    "coverage_summary": "Mock ineligible",
+                }
+                for item in payload
+            ]
+        for match in matches:
+            if match["scheme_id"] == "PMJAY-2024-v3":
+                match.update(
+                    {
+                        "verdict": "eligible",
+                        "confidence": 0.92,
+                        "reasoning_trace": (
+                            "Income below 2.5L, daily wage, no employer insurance"
+                        ),
+                        "matched_criteria": ["income", "occupation", "no_exclusion"],
+                        "failed_criteria": [],
+                        "coverage_summary": "Rs 5 lakh per family per year",
+                    }
+                )
+        return {
+            "matches": matches,
+            "schemes_evaluated": len(matches),
         }
 
-    def _reviewer_response(self) -> dict[str, Any]:
-        return {
-            "matches": [
+    def _reviewer_response(self, system_prompt: str = "") -> dict[str, Any]:
+        matches = self._ineligible_matches_for_prompt(system_prompt)
+        if not matches:
+            matches = [
                 {
                     "scheme_id": "PMJAY-2024-v3",
                     "scheme_name": "PM-JAY (Ayushman Bharat)",
-                    "verdict": "eligible",
-                    "confidence": 0.90,
-                    "reasoning_trace": "Transcript confirms daily wage, Rajasthan",
-                    "matched_criteria": ["income", "occupation"],
-                    "failed_criteria": [],
-                    "coverage_summary": "Rs 5 lakh per family per year",
-                    "transcript_evidence": [
-                        "User said: Main Jaipur se hoon",
-                        "User said: daily mazdoori karta hoon",
-                    ],
-                },
-            ],
+                    "verdict": "ineligible",
+                    "confidence": 0.8,
+                    "reasoning_trace": "Mock criteria do not match",
+                    "matched_criteria": [],
+                    "failed_criteria": ["mock_not_applicable"],
+                    "coverage_summary": "Mock ineligible",
+                    "transcript_evidence": [],
+                }
+            ]
+        for match in matches:
+            if match["scheme_id"] == "PMJAY-2024-v3":
+                match.update(
+                    {
+                        "verdict": "eligible",
+                        "confidence": 0.90,
+                        "reasoning_trace": "Transcript confirms daily wage, Rajasthan",
+                        "matched_criteria": ["income", "occupation"],
+                        "failed_criteria": [],
+                        "coverage_summary": "Rs 5 lakh per family per year",
+                        "transcript_evidence": [
+                            "User said: Main Jaipur se hoon",
+                            "User said: daily mazdoori karta hoon",
+                        ],
+                    }
+                )
+        return {
+            "matches": matches,
         }
 
     def _guidance_response(self) -> dict[str, Any]:
@@ -616,6 +699,7 @@ class TestHappyPathFlows:
             ConversationPhase.RESULTS,
             ConversationPhase.GUIDANCE,
             ConversationPhase.PROCESSING,
+            ConversationPhase.CLOSURE,
         )
 
 

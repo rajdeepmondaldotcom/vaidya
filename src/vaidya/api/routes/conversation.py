@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from vaidya.dependencies import get_client, get_conversation_manager
@@ -60,6 +62,7 @@ async def _build_turn_response(
         phase=phase,
         schemes_found=schemes_found,
         cost_so_far_inr=cost_so_far,
+        metadata=updated.metadata.get("last_turn_metadata", {}) if updated else {},
     )
 
 
@@ -89,7 +92,7 @@ async def conversation_turn(
 async def get_conversation(
     call_id: str,
     manager: ConversationManager = Depends(get_conversation_manager),
-) -> dict:
+) -> dict[str, Any]:
     """Get current conversation state."""
     context = await manager.get_context(call_id)
     if context is None:

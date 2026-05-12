@@ -75,6 +75,18 @@ from vaidya.voice.language import (  # noqa: E402, I001
 # BCP-47 codes required by Sarvam APIs (same as Language enum values)
 LANGUAGE_TO_SARVAM_CODE: dict[Language, str] = {lang: lang.value for lang in Language}
 
+__all__ = [
+    "DEFAULT_LLM_MODEL",
+    "DEFAULT_TRANSLATE_MODEL",
+    "LANGUAGE_TO_SARVAM_CODE",
+    "Language",
+    "SARVAM_105B",
+    "SARVAM_30B",
+    "STT_MODEL",
+    "TTS_MODEL",
+    "TTS_MAX_CHARS_V3",
+]
+
 # STT modes for saaras:v3
 STT_MODE_TRANSCRIBE = "transcribe"
 STT_MODE_TRANSLATE = "translate"

@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from vaidya.agents.eligibility import EligibilityAgent
-from vaidya.agents.scheme_utils import parse_verdict
+from vaidya.agents.scheme_utils import parse_verdict, serialize_for_prompt
 from vaidya.models.conversation import ConversationContext, ConversationPhase
 from vaidya.models.scheme import (
     EligibilityVerdict,
@@ -105,7 +106,10 @@ class TestFilterSchemes:
     def test_central_schemes_always_included(self):
         central = _make_scheme("pmjay", jurisdiction=Jurisdiction.CENTRAL)
         state = _make_scheme(
-            "aarogyasri", jurisdiction=Jurisdiction.STATE, geo_restrictions=["Telangana"]
+            "aarogyasri",
+            jurisdiction=Jurisdiction.STATE,
+            state_code="TS",
+            geo_restrictions=["Telangana"],
         )
         agent = EligibilityAgent(
             client=_mock_client(), model="sarvam-105b", schemes=[central, state]
@@ -116,7 +120,10 @@ class TestFilterSchemes:
 
     def test_state_scheme_included_when_state_matches(self):
         state_scheme = _make_scheme(
-            "aarogyasri", jurisdiction=Jurisdiction.STATE, geo_restrictions=["Telangana"]
+            "aarogyasri",
+            jurisdiction=Jurisdiction.STATE,
+            state_code="TS",
+            geo_restrictions=["Telangana"],
         )
         agent = EligibilityAgent(
             client=_mock_client(), model="sarvam-105b", schemes=[state_scheme]
@@ -126,7 +133,10 @@ class TestFilterSchemes:
 
     def test_state_scheme_excluded_when_state_differs(self):
         state_scheme = _make_scheme(
-            "aarogyasri", jurisdiction=Jurisdiction.STATE, geo_restrictions=["Telangana"]
+            "aarogyasri",
+            jurisdiction=Jurisdiction.STATE,
+            state_code="TS",
+            geo_restrictions=["Telangana"],
         )
         agent = EligibilityAgent(
             client=_mock_client(), model="sarvam-105b", schemes=[state_scheme]
@@ -134,16 +144,24 @@ class TestFilterSchemes:
         result = agent._filter_schemes("Kerala")
         assert state_scheme not in result
 
-    def test_no_geo_restrictions_always_included(self):
-        scheme = _make_scheme("open", jurisdiction=Jurisdiction.STATE, geo_restrictions=[])
+    def test_empty_geo_restrictions_do_not_make_state_scheme_universal(self):
+        scheme = _make_scheme(
+            "open",
+            jurisdiction=Jurisdiction.STATE,
+            state_code="KA",
+            geo_restrictions=[],
+        )
         agent = EligibilityAgent(client=_mock_client(), model="sarvam-105b", schemes=[scheme])
-        result = agent._filter_schemes("AnyState")
-        assert scheme in result
+        result = agent._filter_schemes("Maharashtra")
+        assert scheme not in result
 
     def test_none_state_returns_all_schemes(self):
         central = _make_scheme("pmjay", jurisdiction=Jurisdiction.CENTRAL)
         state = _make_scheme(
-            "aarogyasri", jurisdiction=Jurisdiction.STATE, geo_restrictions=["Telangana"]
+            "aarogyasri",
+            jurisdiction=Jurisdiction.STATE,
+            state_code="TS",
+            geo_restrictions=["Telangana"],
         )
         agent = EligibilityAgent(
             client=_mock_client(), model="sarvam-105b", schemes=[central, state]
@@ -151,13 +169,34 @@ class TestFilterSchemes:
         result = agent._filter_schemes(None)
         assert len(result) == 2
 
+    def test_unknown_state_returns_all_schemes(self):
+        central = _make_scheme("pmjay", jurisdiction=Jurisdiction.CENTRAL)
+        state = _make_scheme("aarogyasri", jurisdiction=Jurisdiction.STATE, state_code="TS")
+        agent = EligibilityAgent(
+            client=_mock_client(), model="sarvam-105b", schemes=[central, state]
+        )
+        result = agent._filter_schemes("Unknown Place")
+        assert len(result) == 2
+
     def test_case_insensitive_state_match(self):
         scheme = _make_scheme(
-            "aarogyasri", jurisdiction=Jurisdiction.STATE, geo_restrictions=["Telangana"]
+            "aarogyasri",
+            jurisdiction=Jurisdiction.STATE,
+            state_code="TS",
+            geo_restrictions=["Telangana"],
         )
         agent = EligibilityAgent(client=_mock_client(), model="sarvam-105b", schemes=[scheme])
         result = agent._filter_schemes("telangana")
         assert scheme in result
+
+    def test_central_scheme_excluded_for_opt_out_state(self):
+        pmjay = _make_scheme(
+            "pmjay",
+            jurisdiction=Jurisdiction.CENTRAL,
+            geo_restrictions=["WB", "DL"],
+        )
+        agent = EligibilityAgent(client=_mock_client(), model="sarvam-105b", schemes=[pmjay])
+        assert pmjay not in agent._filter_schemes("Delhi")
 
 
 # ---------------------------------------------------------------------------
@@ -180,10 +219,112 @@ class TestSerializeSchemes:
         result = EligibilityAgent._serialize_schemes([scheme])
         assert len(result[0]["covered_procedures"]) <= 10
 
-    def test_max_schemes_cap(self):
+    def test_no_default_max_schemes_cap(self):
         schemes = [_make_scheme(f"s{i}") for i in range(30)]
         result = EligibilityAgent._serialize_schemes(schemes)
+        assert len(result) == 30
+
+    def test_explicit_max_schemes_cap(self):
+        schemes = [_make_scheme(f"s{i}") for i in range(30)]
+        result = serialize_for_prompt(schemes, max_schemes=20)
         assert len(result) == 20
+
+
+# ---------------------------------------------------------------------------
+# Batched evaluation
+# ---------------------------------------------------------------------------
+
+
+class TestBatchedEvaluation:
+    @pytest.mark.asyncio
+    async def test_evaluates_all_candidates_across_batches(self):
+        schemes = [_make_scheme(f"s{i}") for i in range(46)]
+        agent = EligibilityAgent(
+            client=_mock_client(),
+            model="sarvam-105b",
+            schemes=schemes,
+            batch_size=20,
+            max_parallel_batches=1,
+        )
+        ctx = _make_context(state=None)
+
+        async def fake_llm(system_prompt: str, *_args: Any, **_kwargs: Any) -> dict[str, Any]:
+            payload = json.loads(system_prompt)
+            return {
+                "schemes_evaluated": len(payload),
+                "matches": [
+                    {
+                        "scheme_id": item["scheme_id"],
+                        "scheme_name": item["canonical_name"],
+                        "verdict": "ineligible",
+                        "confidence": 0.8,
+                        "reasoning_trace": "batch evaluated",
+                        "matched_criteria": [],
+                        "failed_criteria": ["test"],
+                        "coverage_summary": "test coverage",
+                    }
+                    for item in payload
+                ],
+            }
+
+        with patch("vaidya.agents.eligibility.prompts.render") as mock_render:
+            mock_render.side_effect = lambda _name, **kwargs: kwargs["schemes"]
+            agent._call_llm_json = AsyncMock(side_effect=fake_llm)  # type: ignore[method-assign]
+            result = await agent._evaluate(ctx, "sarvam-105b")
+
+        assert result.schemes_evaluated == 46
+        assert len(result.matches) == 46
+        assert agent._call_llm_json.call_count == 3
+        assert ctx.metadata["eligibility_batch_count"] == 3
+
+    @pytest.mark.asyncio
+    async def test_retry_fills_missing_scheme_ids(self):
+        schemes = [_make_scheme(f"s{i}") for i in range(3)]
+        agent = EligibilityAgent(
+            client=_mock_client(),
+            model="sarvam-105b",
+            schemes=schemes,
+            batch_size=3,
+            max_parallel_batches=1,
+        )
+        ctx = _make_context(state=None)
+
+        responses = [
+            {"matches": [{"scheme_id": "s0", "verdict": "ineligible", "confidence": 0.8}]},
+            {
+                "matches": [
+                    {"scheme_id": "s1", "verdict": "ineligible", "confidence": 0.8},
+                    {"scheme_id": "s2", "verdict": "ineligible", "confidence": 0.8},
+                ]
+            },
+        ]
+
+        with patch("vaidya.agents.eligibility.prompts.render", return_value="[]"):
+            agent._call_llm_json = AsyncMock(side_effect=responses)  # type: ignore[method-assign]
+            result = await agent._evaluate(ctx, "sarvam-105b")
+
+        assert [m.scheme_id for m in result.matches] == ["s0", "s1", "s2"]
+        assert ctx.metadata["eligibility_missing_scheme_ids"] == []
+
+    @pytest.mark.asyncio
+    async def test_persistent_missing_scheme_ids_become_uncertain(self):
+        schemes = [_make_scheme("s0"), _make_scheme("s1")]
+        agent = EligibilityAgent(
+            client=_mock_client(),
+            model="sarvam-105b",
+            schemes=schemes,
+            batch_size=2,
+            max_parallel_batches=1,
+        )
+        ctx = _make_context(state=None)
+
+        with patch("vaidya.agents.eligibility.prompts.render", return_value="[]"):
+            agent._call_llm_json = AsyncMock(return_value={"matches": []})  # type: ignore[method-assign]
+            result = await agent._evaluate(ctx, "sarvam-105b")
+
+        assert [m.scheme_id for m in result.matches] == ["s0", "s1"]
+        assert all(m.verdict == EligibilityVerdict.UNCERTAIN for m in result.matches)
+        assert ctx.metadata["eligibility_missing_scheme_ids"] == ["s0", "s1"]
 
 
 # ---------------------------------------------------------------------------

@@ -23,16 +23,22 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING
+from collections.abc import Coroutine
+from typing import TYPE_CHECKING, Any, cast
 
 from vaidya.agents.constants import SILENCE_STEPS
 from vaidya.i18n import get_msg
+from vaidya.telephony.twilio_serializer import (
+    TwilioPlaybackMarkFrame,
+    TwilioPlaybackMarkRequestFrame,
+)
 from vaidya.voice.language import (
     TTS_SPEAKERS,
     detect_language_from_text,
     is_voice_language,
     normalize_language,
 )
+from vaidya.voice.prosody import format_for_tts
 
 logger = logging.getLogger(__name__)
 
@@ -55,34 +61,34 @@ except ImportError:
 
     # Stubs so the module can be imported without pipecat.
     class FrameProcessor:  # type: ignore[no-redef]
-        def __init__(self, **kwargs):
+        def __init__(self, **kwargs: Any) -> None:
             pass
 
-        async def process_frame(self, frame, direction):
+        async def process_frame(self, frame: object, direction: object) -> None:
             pass
 
-        async def push_frame(self, frame, direction=None):
+        async def push_frame(self, frame: object, direction: object | None = None) -> None:
             pass
 
-        def create_task(self, coro):
+        def create_task(self, coro: Coroutine[Any, Any, None]) -> asyncio.Task[None]:
             return asyncio.create_task(coro)
 
-        async def cancel_task(self, task):
+        async def cancel_task(self, task: asyncio.Task[None] | None) -> None:
             if task:
                 task.cancel()
 
-        async def cleanup(self):
+        async def cleanup(self) -> None:
             pass
 
     class Frame:  # type: ignore[no-redef]
         pass
 
     class TextFrame(Frame):  # type: ignore[no-redef]
-        def __init__(self, text: str = ""):
+        def __init__(self, text: str = "") -> None:
             self.text = text
 
     class TranscriptionFrame(Frame):  # type: ignore[no-redef]
-        def __init__(self, text: str = "", language: str | None = None):
+        def __init__(self, text: str = "", language: str | None = None) -> None:
             self.text = text
             self.language = language
 
@@ -96,12 +102,12 @@ except ImportError:
         pass
 
     class TTSUpdateSettingsFrame(Frame):  # type: ignore[no-redef]
-        def __init__(self, settings: dict | None = None, delta=None):
+        def __init__(self, settings: dict[str, Any] | None = None, delta: object = None) -> None:
             self.settings = settings or {}
             self.delta = delta
 
     class SarvamTTSSettings:  # type: ignore[no-redef]
-        def __init__(self, **kwargs):
+        def __init__(self, **kwargs: Any) -> None:
             self.__dict__.update(kwargs)
 
     class FrameDirection:  # type: ignore[no-redef]
@@ -110,6 +116,7 @@ except ImportError:
 
 
 if TYPE_CHECKING:
+    from vaidya.models.conversation import ConversationContext
     from vaidya.pipeline.conversation import ConversationManager
 
 
@@ -125,24 +132,33 @@ class VaidyaAgentProcessor(FrameProcessor):
         conversation_manager: ConversationManager,
         call_id: str,
         language: str,
-        **kwargs,
+        playback_marks_enabled: bool = True,
+        **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
         self._mgr = conversation_manager
         self._call_id = call_id
         self._language = language
         self._wake: asyncio.Event = asyncio.Event()
-        self._idle_task: asyncio.Task | None = None
+        self._idle_task: asyncio.Task[None] | None = None
         self._language_locked: bool = False
+        self._playback_marks_enabled = playback_marks_enabled
+        self._pending_playback_mark: str | None = None
+        self._mark_counter = 0
 
     async def process_frame(self, frame: Frame, direction: FrameDirection) -> None:
         """Route frames: handle silence signals, auto-switch language, route transcriptions."""
         await super().process_frame(frame, direction)
 
+        if isinstance(frame, TwilioPlaybackMarkFrame):
+            self._on_playback_mark(frame)
+            return
+
         if isinstance(frame, BotStoppedSpeakingFrame):
-            self._start_idle_watch()
+            if not self._pending_playback_mark:
+                self._start_idle_watch()
         elif isinstance(frame, UserStartedSpeakingFrame | TranscriptionFrame):
-            self._cancel_idle_watch()
+            self._cancel_idle_watch(interrupted=True)
 
         if isinstance(frame, TranscriptionFrame):
             await self._on_transcription(frame)
@@ -175,10 +191,11 @@ class VaidyaAgentProcessor(FrameProcessor):
                 self._call_id,
                 user_text,
                 self._language,
+                stt_confidence=float(getattr(frame, "confidence", 1.0) or 1.0),
                 channel="voice",
             )
             await self._sync_language_from_context()
-            await self.push_frame(TextFrame(text=response))
+            await self._emit_bot_text(response)
         except Exception as exc:
             error_type = type(exc).__name__
             logger.error(
@@ -188,18 +205,19 @@ class VaidyaAgentProcessor(FrameProcessor):
                 exc_info=True,
             )
             fallback = get_msg("conversation", "error", self._language)
-            await self.push_frame(TextFrame(text=fallback))
+            await self._emit_bot_text(fallback, profile="repair")
 
-    async def _get_context(self):
+    async def _get_context(self) -> ConversationContext | None:
         getter = getattr(self._mgr, "get_context", None)
         if getter is None:
             return None
         try:
-            return await getter(self._call_id)
+            context = await getter(self._call_id)
+            return None if context is None else cast("ConversationContext", context)
         except (AttributeError, TypeError):
             return None
 
-    async def _language_signal_for_turn(self, user_text: str, stt_language: object) -> object:
+    async def _language_signal_for_turn(self, user_text: str, stt_language: object) -> str | None:
         """Prefer explicit language-name utterances over STT language tags.
 
         During the opening prompt, callers often say a language name in a
@@ -214,7 +232,10 @@ class VaidyaAgentProcessor(FrameProcessor):
             detected = detect_language_from_text(user_text)
             if detected is not None:
                 return detected.value
-        return stt_language
+        if stt_language is None:
+            return None
+        value = getattr(stt_language, "value", stt_language)
+        return str(value)
 
     async def _sync_language_from_context(self) -> None:
         """Reflect orchestrator-side language changes into the downstream TTS."""
@@ -290,6 +311,28 @@ class VaidyaAgentProcessor(FrameProcessor):
         )
         return True
 
+    async def _emit_bot_text(self, text: str, profile: str = "default") -> None:
+        """Push text to TTS and, for Twilio, request a playback-complete mark."""
+        spoken = format_for_tts(text, profile=profile)
+        await self.push_frame(TextFrame(text=spoken))
+        if self._playback_marks_enabled:
+            await self._send_playback_mark()
+
+    async def _send_playback_mark(self) -> None:
+        self._mark_counter += 1
+        mark_name = f"vaidya-bot-{self._mark_counter}"
+        self._pending_playback_mark = mark_name
+        await self.push_frame(TwilioPlaybackMarkRequestFrame(mark_name=mark_name))
+
+    def _on_playback_mark(self, frame: TwilioPlaybackMarkFrame) -> None:
+        """Start silence timing only after Twilio confirms playback completion."""
+        if not self._pending_playback_mark:
+            return
+        if frame.mark_name != self._pending_playback_mark:
+            return
+        self._pending_playback_mark = None
+        self._start_idle_watch()
+
     # ------------------------------------------------------------------
     # Idle timer (silence watcher)
     # ------------------------------------------------------------------
@@ -299,7 +342,9 @@ class VaidyaAgentProcessor(FrameProcessor):
         self._wake = asyncio.Event()
         self._idle_task = self.create_task(self._idle_loop())
 
-    def _cancel_idle_watch(self) -> None:
+    def _cancel_idle_watch(self, *, interrupted: bool = False) -> None:
+        if interrupted:
+            self._pending_playback_mark = None
         if self._idle_task is not None:
             self._wake.set()
             self._idle_task = None
@@ -307,16 +352,17 @@ class VaidyaAgentProcessor(FrameProcessor):
     async def cleanup(self) -> None:
         """Stop the idle watcher when Pipecat tears down the processor."""
         task = self._idle_task
+        self._pending_playback_mark = None
         if task is not None:
             self._wake.set()
             self._idle_task = None
             await self.cancel_task(task)
-        await super().cleanup()
+        await super().cleanup()  # type: ignore[no-untyped-call]
 
     async def _idle_loop(self) -> None:
         """Wait through SILENCE_STEPS thresholds, escalating on each timeout."""
         elapsed = 0.0
-        for threshold, _key, terminal in SILENCE_STEPS:
+        for threshold, _key, terminal in await self._silence_steps():
             wait_for = threshold - elapsed
             try:
                 await asyncio.wait_for(self._wake.wait(), timeout=wait_for)
@@ -338,12 +384,21 @@ class VaidyaAgentProcessor(FrameProcessor):
             if not spoken:
                 continue
 
-            await self.push_frame(TextFrame(text=spoken))
+            await self._emit_bot_text(spoken, profile="repair")
 
             if is_terminal or terminal:
                 # Give the TTS a moment to flush, then end the task.
                 await self.push_frame(EndTaskFrame(), FrameDirection.UPSTREAM)
                 return
+            if self._playback_marks_enabled:
+                return
+
+    async def _silence_steps(self) -> list[tuple[float, str, bool]]:
+        try:
+            steps = await self._mgr.voice_silence_steps(self._call_id)
+        except (AttributeError, TypeError):
+            return SILENCE_STEPS
+        return steps or SILENCE_STEPS
 
 
 def _speaker_for_language(language: str) -> str:

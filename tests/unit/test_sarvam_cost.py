@@ -69,6 +69,25 @@ class TestRecordStt:
 
         assert tracker.total_cost_inr == pytest.approx(30.0 / 3600)
 
+    def test_stt_rounds_up_to_billable_second(self) -> None:
+        tracker = CostTracker()
+
+        tracker.record_stt(0.1, call_id="c1", mode="transcribe")
+
+        assert tracker.total_cost_inr == pytest.approx(30.0 / 3600)
+        entry = tracker.entries[0]
+        assert entry.units == pytest.approx(0.1)
+        assert entry.billable_units == 1.0
+        assert entry.mode == "transcribe"
+
+    def test_stt_with_diarization_uses_diarization_rate(self) -> None:
+        tracker = CostTracker()
+
+        tracker.record_stt(3600.0, call_id="c1", with_diarization=True)
+
+        assert tracker.total_cost_inr == pytest.approx(45.0)
+        assert tracker.entries[0].metadata["with_diarization"] is True
+
 
 class TestRecordTts:
     """TTS: Rs 30/10K chars."""
@@ -137,6 +156,26 @@ class TestRecordVision:
         tracker.record_vision(pages=5, call_id="c1")
 
         assert tracker.total_cost_inr == pytest.approx(7.5)
+
+
+class TestRecordTelephony:
+    """Telephony is optional and uses deployment-configured rates."""
+
+    def test_telephony_uses_billable_minutes(self) -> None:
+        tracker = CostTracker()
+
+        tracker.record_telephony(
+            61.0,
+            rate_per_minute_inr=1.25,
+            call_id="c1",
+            provider="twilio",
+        )
+
+        assert tracker.total_cost_inr == pytest.approx(2.5)
+        entry = tracker.entries[0]
+        assert entry.service == "telephony"
+        assert entry.model == "twilio"
+        assert entry.billable_units == 2.0
 
 
 # ---------------------------------------------------------------------------
@@ -225,20 +264,22 @@ class TestBreakdownForCall:
     def test_structure(self) -> None:
         tracker = CostTracker()
 
-        tracker.record_tts(5000, call_id="c1")
-        tracker.record_translate(2000, call_id="c1")
-        tracker.record_llm(100, call_id="c1")
+        tracker.record_tts(5000, call_id="c1", mode="streaming")
+        tracker.record_translate(2000, call_id="c1", mode="modern-colloquial")
+        tracker.record_llm(100, call_id="c1", model="sarvam-30b", mode="low")
 
         bd = tracker.breakdown_for_call("c1")
 
         assert bd["call_id"] == "c1"
         assert bd["api_call_count"] == 3
+        assert len(bd["entries"]) == 3
         assert "tts" in bd["by_service"]
         assert "translate" in bd["by_service"]
         assert "llm" in bd["by_service"]
         assert bd["by_service"]["tts"]["unit_type"] == "chars"
         assert bd["by_service"]["translate"]["unit_type"] == "chars"
         assert bd["by_service"]["llm"]["unit_type"] == "tokens"
+        assert bd["by_service"]["tts"]["by_mode"]["streaming"] == pytest.approx(15.0)
 
     def test_total_inr_matches_sum(self) -> None:
         tracker = CostTracker()
@@ -280,6 +321,9 @@ class TestSummary:
         assert "call_count" in s
         assert "api_calls" in s
         assert "avg_cost_per_call_inr" in s
+        assert "by_model" in s
+        assert "by_mode" in s
+        assert "by_service_model_mode" in s
 
     def test_call_count(self) -> None:
         tracker = CostTracker()
@@ -302,3 +346,14 @@ class TestSummary:
         s = tracker.summary()
 
         assert s["avg_cost_per_call_inr"] == pytest.approx(30.0)
+
+    def test_mixed_modes_are_separated(self) -> None:
+        tracker = CostTracker()
+
+        tracker.record_tts(1000, call_id="c1", model="bulbul:v3", mode="rest")
+        tracker.record_tts(1000, call_id="c1", model="bulbul:v3", mode="pipecat_streaming")
+
+        s = tracker.summary()
+
+        assert s["by_service_model_mode"]["tts:bulbul:v3:rest"] == pytest.approx(3.0)
+        assert s["by_service_model_mode"]["tts:bulbul:v3:pipecat_streaming"] == pytest.approx(3.0)
