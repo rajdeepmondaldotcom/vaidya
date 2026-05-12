@@ -50,6 +50,11 @@ class Settings(BaseSettings):
     guidance_reasoning_effort: str = "low"
     wiki_grounding: bool = True
 
+    # Scheme evaluation
+    scheme_eval_batch_size: int = 20
+    scheme_eval_max_parallel_batches: int = 3
+    scheme_retrieval_rank_top_k: int = 10
+
     # Language & translation
     default_language: str = "hi-IN"
     translate_model_voice: str = "mayura:v1"  # colloquial, 11 voice languages
