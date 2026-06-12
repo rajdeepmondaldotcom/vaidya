@@ -20,6 +20,9 @@ def format_for_tts(text: str, *, profile: str = "default") -> str:
     spoken = re.sub(r"\n{2,}", ". ", spoken)
     spoken = re.sub(r"\n", " ", spoken)
     spoken = spoken.replace("...", ". ")
+    # Underscores in any leaked internal token (field names, scheme IDs)
+    # otherwise get spoken as "underscore". Space them out.
+    spoken = spoken.replace("_", " ")
     spoken = re.sub(r"\bRs\.?\s*", "rupees ", spoken)
     spoken = spoken.replace("₹", "rupees ")
     spoken = spoken.replace("PM-JAY", "P M JAY")
