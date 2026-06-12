@@ -63,7 +63,7 @@ class BaseAgent:
         model: str | None = None,
         temperature: float = 0.2,
         reasoning_effort: str | None = None,
-        max_tokens: int = 2048,
+        max_tokens: int = 4096,
         wiki_grounding: bool = False,
     ) -> str:
         """Call LLM with system + user messages. Returns raw text.
@@ -93,7 +93,7 @@ class BaseAgent:
         model: str | None = None,
         temperature: float = 0.1,
         reasoning_effort: str | None = None,
-        max_tokens: int = 2048,
+        max_tokens: int = 4096,
         wiki_grounding: bool = False,
     ) -> dict[str, Any]:
         """Call LLM and parse JSON response.

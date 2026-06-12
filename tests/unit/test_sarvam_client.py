@@ -242,23 +242,25 @@ class TestCostTrackerIntegration:
 
 class TestChatJson:
     @patch("vaidya.sarvam.client.SarvamAI")
-    async def test_retries_without_reasoning_effort_after_parse_error(self, mock_sarvam_cls):
+    async def test_retries_at_low_reasoning_after_parse_error(self, mock_sarvam_cls):
         client = SarvamClient(api_key="test-key-123")
         client.chat = AsyncMock(side_effect=["thinking aloud", '{"ok": true}'])
 
         result = await client.chat_json(
             "sarvam-30b",
             [{"role": "user", "content": "Return JSON"}],
-            reasoning_effort="low",
+            reasoning_effort="medium",
         )
 
         assert result == {"ok": True}
         assert client.chat.await_count == 2
-        assert client.chat.await_args_list[0].kwargs["reasoning_effort"] == "low"
-        assert client.chat.await_args_list[1].kwargs["reasoning_effort"] is None
+        assert client.chat.await_args_list[0].kwargs["reasoning_effort"] == "medium"
+        # Retry pins explicit "low" — omitting the param triggers the
+        # model's verbose default reasoning and content comes back None.
+        assert client.chat.await_args_list[1].kwargs["reasoning_effort"] == "low"
 
     @patch("vaidya.sarvam.client.SarvamAI")
-    async def test_does_not_retry_parse_error_without_reasoning_effort(self, mock_sarvam_cls):
+    async def test_parse_error_still_retries_once_without_reasoning_effort(self, mock_sarvam_cls):
         client = SarvamClient(api_key="test-key-123")
         client.chat = AsyncMock(return_value="thinking aloud")
 
@@ -269,7 +271,8 @@ class TestChatJson:
         )
 
         assert result["_parse_error"] is True
-        client.chat.assert_awaited_once()
+        assert client.chat.await_count == 2
+        assert client.chat.await_args_list[1].kwargs["reasoning_effort"] == "low"
 
 
 class TestSarvamHelpers:

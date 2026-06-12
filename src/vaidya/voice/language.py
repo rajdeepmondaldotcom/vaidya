@@ -101,8 +101,11 @@ SARVAM_LANG_MAP: dict[str, Language] = {
 }
 
 # ---------------------------------------------------------------------------
-# TTS speaker per language (Bulbul v3 — 39 speakers, all cross-language)
-# All speaker names verified against sarvamai.TextToSpeechSpeaker enum.
+# TTS speaker per language (Bulbul v3 — all cross-language)
+# Names must be valid for BOTH bulbul:v3 surfaces: the REST API and the
+# streaming API accept different speaker lists (e.g. "anushka"/"abhilash"
+# are streaming-only, "amelia" is v2-only and 400s everywhere). Only use
+# names from the intersection of the two lists.
 # Each language gets a distinct speaker for variety.
 # ---------------------------------------------------------------------------
 
@@ -117,7 +120,7 @@ TTS_SPEAKERS: dict[Language, str] = {
     Language.MARATHI: "neha",
     Language.PUNJABI: "simran",
     Language.ODIA: "pooja",
-    Language.ENGLISH: "amelia",
+    Language.ENGLISH: "ritu",
 }
 
 # ---------------------------------------------------------------------------
@@ -154,21 +157,45 @@ LANGUAGE_MENU_ORDER: tuple[Language, ...] = (
 )
 
 # Extra lexical keys for text detection (autonyms + common romanisations).
+# STT transcribes spoken language names in whatever script matches its
+# language guess — "Bengali" said by a Hindi-tagged caller comes back as
+# "बंगाली" — so every voice language needs its common cross-script names.
 _TEXT_KEYWORDS: dict[str, Language] = {
     "हिन्दी": Language.HINDI,
     "हिंदी": Language.HINDI,
+    "হিন্দি": Language.HINDI,
+    "হিন্দী": Language.HINDI,
     "தமிழ்": Language.TAMIL,
     "tamizh": Language.TAMIL,
+    "तमिल": Language.TAMIL,
     "বাংলা": Language.BENGALI,
     "bangla": Language.BENGALI,
+    "बंगाली": Language.BENGALI,
+    "बांग्ला": Language.BENGALI,
+    "बंगला": Language.BENGALI,
+    "বাংলায়": Language.BENGALI,
     "తెలుగు": Language.TELUGU,
+    "तेलुगु": Language.TELUGU,
+    "तेलगु": Language.TELUGU,
     "ગુજરાતી": Language.GUJARATI,
+    "गुजराती": Language.GUJARATI,
     "ಕನ್ನಡ": Language.KANNADA,
+    "कन्नड़": Language.KANNADA,
+    "कन्नड": Language.KANNADA,
     "മലയാളം": Language.MALAYALAM,
+    "मलयालम": Language.MALAYALAM,
     "मराठी": Language.MARATHI,
     "ਪੰਜਾਬੀ": Language.PUNJABI,
+    "पंजाबी": Language.PUNJABI,
     "ଓଡ଼ିଆ": Language.ODIA,
     "ଓଡିଆ": Language.ODIA,
+    "उड़िया": Language.ODIA,
+    "ओड़िया": Language.ODIA,
+    "ओडिया": Language.ODIA,
+    "अंग्रेजी": Language.ENGLISH,
+    "इंग्लिश": Language.ENGLISH,
+    "ইংরেজি": Language.ENGLISH,
+    "ইংলিশ": Language.ENGLISH,
 }
 
 
@@ -247,6 +274,81 @@ def is_text_language(lang: str) -> bool:
 def is_any_supported_language(lang: str) -> bool:
     """Return ``True`` if *lang* is supported in any tier (voice or text)."""
     return is_voice_language(lang) or is_text_language(lang)
+
+
+# Short acknowledgements and greetings that say nothing reliable about the
+# caller's language ("Okay" is universal). STT still tags them with *some*
+# language, so locking the session language on one of these mis-routes the
+# whole call. Romanized + Devanagari + Bengali cover the common cases.
+_FILLER_UTTERANCES: frozenset[str] = frozenset(
+    {
+        "ok",
+        "okay",
+        "oke",
+        "okey",
+        "k",
+        "hmm",
+        "hm",
+        "huh",
+        "ha",
+        "haan",
+        "han",
+        "haanji",
+        "haan ji",
+        "ji",
+        "ji haan",
+        "yes",
+        "yeah",
+        "yep",
+        "yo",
+        "no",
+        "nahi",
+        "hello",
+        "hallo",
+        "helo",
+        "hi",
+        "hey",
+        "namaste",
+        "namaskar",
+        "theek hai",
+        "thik hai",
+        "theek",
+        "thik",
+        "accha",
+        "acha",
+        "achha",
+        "ஓகே",
+        "சரி",
+        "సరే",
+        "ಸರಿ",
+        "ശരി",
+        "ठीक है",
+        "ठीक",
+        "अच्छा",
+        "हाँ",
+        "हां",
+        "जी",
+        "ओके",
+        "हेलो",
+        "नमस्ते",
+        "ঠিক আছে",
+        "আচ্ছা",
+        "হ্যাঁ",
+        "ওকে",
+        "হেলো",
+        "নমস্কার",
+    }
+)
+
+
+def is_filler_utterance(text: str) -> bool:
+    """Return ``True`` for short acknowledgements/greetings ("Okay", "हाँ").
+
+    These carry no reliable language signal, so callers should not lock or
+    switch the session language based on them.
+    """
+    cleaned = "".join(ch for ch in text.strip().lower() if ch not in ".,!?।|'\"-").strip()
+    return bool(cleaned) and cleaned in _FILLER_UTTERANCES
 
 
 def detect_language_from_text(text: str) -> Language | None:

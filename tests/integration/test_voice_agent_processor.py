@@ -11,6 +11,7 @@ so the tests complete quickly without real-time sleeps.
 
 from __future__ import annotations
 
+import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -49,7 +50,20 @@ def _make_processor(language: str = "hi-IN") -> tuple[VaidyaAgentProcessor, Magi
         captured.append((frame, direction))
 
     proc.push_frame = _capture  # type: ignore[assignment]
+    proc.create_task = lambda coro, name=None: asyncio.create_task(coro)  # type: ignore[assignment]
     return proc, mgr, captured
+
+
+async def _transcribe_and_wait(proc: VaidyaAgentProcessor, frame) -> None:
+    """Feed a transcription and wait through debounce + the spawned turn."""
+    await proc._on_transcription(frame)
+    for _ in range(600):  # generous cap; debounce is 1.2s
+        if proc._debounce_task is None and not proc._turn_tasks:
+            return
+        if proc._turn_tasks:
+            await asyncio.gather(*list(proc._turn_tasks))
+        else:
+            await asyncio.sleep(0.05)
 
 
 def _tts_setting(frame, key: str):
@@ -76,7 +90,7 @@ class TestLanguageAutoSwitch:
             timestamp="2026-04-17T00:00:00Z",
             language="ta-IN",
         )
-        await proc._on_transcription(frame)
+        await _transcribe_and_wait(proc, frame)
 
         mgr.switch_language.assert_awaited_once_with("test-call", "ta-IN")
         # First captured frame should be the TTS settings update
@@ -99,7 +113,7 @@ class TestLanguageAutoSwitch:
             timestamp="2026-04-17T00:00:00Z",
             language="en-IN",
         )
-        await proc._on_transcription(frame)
+        await _transcribe_and_wait(proc, frame)
 
         mgr.switch_language.assert_awaited_once_with("test-call", "ta-IN")
         tts_frames = [f for f, _ in captured if isinstance(f, TTSUpdateSettingsFrame)]
@@ -127,7 +141,7 @@ class TestLanguageAutoSwitch:
             timestamp="2026-04-17T00:00:00Z",
             language="hi-IN",
         )
-        await proc._on_transcription(frame)
+        await _transcribe_and_wait(proc, frame)
 
         mgr.switch_language.assert_not_awaited()
         assert [f for f, _ in captured if isinstance(f, TTSUpdateSettingsFrame)] == []
@@ -142,7 +156,7 @@ class TestLanguageAutoSwitch:
         frame = TranscriptionFrame(
             text="Namaste", user_id="u1", timestamp="2026-04-17T00:00:00Z", language="hi-IN"
         )
-        await proc._on_transcription(frame)
+        await _transcribe_and_wait(proc, frame)
 
         mgr.switch_language.assert_not_awaited()
         tts_frames = [f for f, _ in captured if isinstance(f, TTSUpdateSettingsFrame)]
@@ -159,7 +173,7 @@ class TestLanguageAutoSwitch:
         frame = TranscriptionFrame(
             text="Bonjour", user_id="u1", timestamp="2026-04-17T00:00:00Z", language="fr-FR"
         )
-        await proc._on_transcription(frame)
+        await _transcribe_and_wait(proc, frame)
 
         tts_frames = [f for f, _ in captured if isinstance(f, TTSUpdateSettingsFrame)]
         assert tts_frames == []
@@ -180,7 +194,7 @@ class TestLanguageAutoSwitch:
         frame_noisy = TranscriptionFrame(
             text="ahh umm", user_id="u1", timestamp="2026-04-17T00:00:00Z", language=None
         )
-        await proc._on_transcription(frame_noisy)
+        await _transcribe_and_wait(proc, frame_noisy)
         # Not locked yet
         assert proc._language_locked is False
         mgr.switch_language.assert_not_awaited()
@@ -192,7 +206,7 @@ class TestLanguageAutoSwitch:
             timestamp="2026-04-17T00:00:00Z",
             language="ta-IN",
         )
-        await proc._on_transcription(frame_clear)
+        await _transcribe_and_wait(proc, frame_clear)
         # Now locked, and switch happened
         assert proc._language_locked is True
         mgr.switch_language.assert_awaited_once_with("test-call", "ta-IN")
@@ -208,7 +222,7 @@ class TestLanguageAutoSwitch:
         frame = TranscriptionFrame(
             text="Bonjour", user_id="u1", timestamp="2026-04-17T00:00:00Z", language="fr-FR"
         )
-        await proc._on_transcription(frame)
+        await _transcribe_and_wait(proc, frame)
 
         # Locked
         assert proc._language_locked is True
@@ -246,7 +260,7 @@ class TestTranscriptionRouting:
             timestamp="2026-04-17T00:00:00Z",
             language="hi-IN",
         )
-        await proc._on_transcription(frame)
+        await _transcribe_and_wait(proc, frame)
 
         mgr.handle_turn.assert_awaited_once()
         call_args = mgr.handle_turn.await_args
@@ -272,7 +286,7 @@ class TestTranscriptionRouting:
             timestamp="2026-04-17T00:00:00Z",
             language="hi-IN",
         )
-        await proc._on_transcription(frame)
+        await _transcribe_and_wait(proc, frame)
         mgr.handle_turn.assert_not_awaited()
         assert captured == []
 
@@ -289,7 +303,7 @@ class TestTranscriptionRouting:
             timestamp="2026-04-17T00:00:00Z",
             language="hi-IN",
         )
-        await proc._on_transcription(frame)
+        await _transcribe_and_wait(proc, frame)
 
         text_frames = [f for f, _ in captured if isinstance(f, TextFrame)]
         assert len(text_frames) == 1
@@ -311,7 +325,7 @@ class TestTranscriptionRouting:
             timestamp="2026-04-17T00:00:00Z",
             language=None,
         )
-        await proc._on_transcription(frame)
+        await _transcribe_and_wait(proc, frame)
 
         tts_indices = [
             idx for idx, (f, _) in enumerate(captured) if isinstance(f, TTSUpdateSettingsFrame)
@@ -347,7 +361,7 @@ class TestPlaybackMarks:
             timestamp="2026-04-17T00:00:00Z",
             language="hi-IN",
         )
-        await proc._on_transcription(frame)
+        await _transcribe_and_wait(proc, frame)
 
         marks = [f for f, _ in captured if isinstance(f, TwilioPlaybackMarkRequestFrame)]
         assert len(marks) == 1

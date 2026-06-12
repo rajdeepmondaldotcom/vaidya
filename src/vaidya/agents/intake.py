@@ -439,6 +439,15 @@ class IntakeAgent(BaseAgent):
             metadata={"confirmation_pending": True},
         )
 
+    # Explicit "this is wrong / change it" intent. Input reaches here
+    # already translated to English, but cover romanized + native negations
+    # too in case translation passes them through.
+    _CORRECTION_RE = re.compile(
+        r"\b(no|not|wrong|incorrect|change|edit|fix|nahi+n?|galat|ghalat|bhul|"
+        r"badal|alag)\b|ভুল|ভূল|নয়|গলত",
+        re.IGNORECASE,
+    )
+
     async def _handle_confirmation_response(
         self,
         context: ConversationContext,
@@ -446,13 +455,25 @@ class IntakeAgent(BaseAgent):
         user_input: str,
         language: str,
     ) -> AgentResponse:
-        """Route the user's confirmation response to yes or no handler."""
-        confirmation_result = await self._extract_confirmation(user_input, language)
+        """Route the confirmation response, BIASED toward proceeding.
+
+        A false "not confirmed" traps the caller in a correction loop
+        forever; a false "confirmed" merely advances to the results, which
+        are already conservative ("you MAY qualify, confirm at CSC"). So we
+        only branch to correction on an EXPLICIT correction request and
+        otherwise proceed — the flaky LLM confirmation verdict is no longer
+        on the critical path.
+        """
         context.metadata.pop("confirmation_pending", None)
+        text = (user_input or "").strip()
 
-        if confirmation_result.get("confirmed", False):
-            return self._handle_confirmation_yes(profile, confirmation_result)
+        wants_correction = bool(self._CORRECTION_RE.search(text)) and not _heuristic_confirmation(
+            text
+        )
+        if not wants_correction:
+            return self._handle_confirmation_yes(profile, {"spoken_text": ""})
 
+        confirmation_result = await self._extract_confirmation(user_input, language)
         return self._handle_confirmation_no(context, profile, confirmation_result, language)
 
     @staticmethod
@@ -604,8 +625,15 @@ class IntakeAgent(BaseAgent):
         extracted: dict[str, Any],
     ) -> UserProfile:
         """Apply LLM-extracted fields to the profile with confidence tracking."""
+        # The LLM sometimes returns these as a scalar/list instead of an
+        # object (e.g. field_confidence: 0.9). Coerce to dict so the later
+        # .get() calls can't crash the whole turn into an error fallback.
         fields = extracted.get("extracted_fields", {})
         confidence = extracted.get("field_confidence", {})
+        if not isinstance(fields, dict):
+            fields = {}
+        if not isinstance(confidence, dict):
+            confidence = {}
 
         if not fields:
             extracted = extracted or {}
@@ -664,9 +692,15 @@ class IntakeAgent(BaseAgent):
         confidence = {} if not isinstance(confidence, dict) else dict(confidence)
 
         for field, value in heuristic_fields.items():
-            if fields.get(field) in (None, "", "null"):
+            # income_bracket is computed deterministically from a stated
+            # rupee/lakh figure — more reliable than the LLM, which often
+            # mis-brackets boundary incomes (a stated "2 lakh" came back as
+            # "2.5-5 lakh"). Override the LLM for it; fill-only otherwise.
+            if field == "income_bracket" or fields.get(field) in (None, "", "null"):
                 fields[field] = value
-                confidence.setdefault(field, 0.85)
+                confidence[field] = 0.9 if field == "income_bracket" else confidence.get(
+                    field, 0.85
+                )
 
         merged["extracted_fields"] = fields
         merged["field_confidence"] = confidence
@@ -759,20 +793,52 @@ class IntakeAgent(BaseAgent):
         if "income tax" in lower_text or "tax bharta" in lower_text:
             return "above_5l"
 
+        # "X lakh" amounts — the most common phrasing for annual income.
+        annual_lakh = IntakeAgent._extract_annual_lakh_rupees(lower_text)
+        if annual_lakh is not None:
+            return IntakeAgent._bracket_for_annual(annual_lakh)
+
         monthly_amount = IntakeAgent._extract_monthly_rupees(lower_text)
         if monthly_amount is None:
             if "below 1 lakh" in lower_text or "bpl" in lower_text:
                 return "below_1l"
             return None
 
-        annual = monthly_amount * 12
-        if annual < 100_000:
+        return IntakeAgent._bracket_for_annual(monthly_amount * 12)
+
+    @staticmethod
+    def _bracket_for_annual(annual_rupees: float) -> str:
+        if annual_rupees < 100_000:
             return "below_1l"
-        if annual <= 250_000:
+        if annual_rupees <= 250_000:
             return "1l_to_2.5l"
-        if annual <= 500_000:
+        if annual_rupees <= 500_000:
             return "2.5l_to_5l"
         return "above_5l"
+
+    @staticmethod
+    def _extract_annual_lakh_rupees(lower_text: str) -> float | None:
+        """Parse "2 lakh" / "two lakh" / "2.5 lakhs" amounts.
+
+        Lakh figures are treated as annual income unless a monthly marker
+        appears ("mahina", "per month"), in which case they are annualized.
+        """
+        match = re.search(r"\b(\d+(?:\.\d+)?)\s*(?:lakhs?|lacs?|लाख|লাখ)\b", lower_text)
+        amount: float | None = float(match.group(1)) if match else None
+
+        if amount is None:
+            for word, value in _NUMBER_WORDS.items():
+                if re.search(rf"\b{re.escape(word)}\s+(?:lakhs?|lacs?|लाख|লাখ)\b", lower_text):
+                    amount = float(value)
+                    break
+
+        if amount is None:
+            return None
+
+        annual = amount * 100_000
+        if any(marker in lower_text for marker in ("mahina", "mahine", "per month", "monthly")):
+            annual *= 12
+        return annual
 
     @staticmethod
     def _extract_monthly_rupees(lower_text: str) -> int | None:
@@ -788,12 +854,19 @@ class IntakeAgent(BaseAgent):
             return int(amount_match.group(1))
         return None
 
+    _NEGATION_RE = re.compile(
+        r"\b(no|not|none|never|don'?t|doesn'?t|without|nahi+n?|nei|kono|naai|illa|"
+        r"নেই|নাই|নয়|নেহি)\b"
+    )
+
     @staticmethod
     def _extract_coverage(lower_text: str) -> str | None:
-        insurance_words = ("insurance", "coverage", "bima", "बीमा")
-        no_words = ("nahi", "nahin", "no ", "none", "nei", "kono")
-        if any(word in lower_text for word in insurance_words) and any(
-            word in lower_text for word in no_words
+        insurance_words = ("insurance", "coverage", "bima", "बीमा", "card", "scheme")
+        # Word-boundary negation so "No, we don't have insurance" /
+        # "kono insurance nahi" / "কোনো বীমা নেই" all read as none — a
+        # plain "no " substring missed "no," and dropped the whole answer.
+        if any(word in lower_text for word in insurance_words) and (
+            IntakeAgent._NEGATION_RE.search(lower_text)
         ):
             return "none"
         if any(marker in lower_text for marker in ("company insurance", "employer insurance")):
@@ -811,25 +884,21 @@ class IntakeAgent(BaseAgent):
         extracted: dict[str, Any],
         question_number: int,
     ) -> bool:
-        """Return True when a caller answer needs one bounded clarification."""
+        """Return True when a caller answer needs one bounded clarification.
+
+        Profile state is ground truth: once the question's required fields
+        are on the profile, never re-ask — the LLM's hesitancy flags
+        (``needs_followup``, low confidence) routinely fire on answers that
+        extracted fine, and re-asking an answered question reads as broken.
+        The end-of-intake confirmation step catches wrong extractions.
+        """
+        if self._question_complete(context, profile, question_number):
+            return False
+
         if question_number == 5 and not extracted.get("needs_followup"):
             return False
 
-        if extracted.get("needs_followup") and not extracted.get("question_complete"):
-            return True
-
-        if not self._question_complete(context, profile, question_number):
-            return True
-
-        confidence = extracted.get("field_confidence", {})
-        if not isinstance(confidence, dict):
-            return False
-
-        for field in _QUESTION_REQUIRED_FIELDS.get(question_number, ()):
-            raw = confidence.get(field)
-            if raw is not None and self._as_confidence(raw) < _LOW_FIELD_CONFIDENCE:
-                return True
-        return False
+        return True
 
     def _repair_or_skip_question(
         self,
@@ -854,6 +923,10 @@ class IntakeAgent(BaseAgent):
             if extracted.get("needs_followup")
             else ""
         )
+        # Guard against ack-only LLM output ("Accha,") — a follow-up spoken
+        # to the caller must actually ask something or the turn is dead air.
+        if len(followup) < 12 and "?" not in followup:
+            followup = ""
         if not followup:
             followup = self._get_question_text(question_number, language, fallback=True)
 

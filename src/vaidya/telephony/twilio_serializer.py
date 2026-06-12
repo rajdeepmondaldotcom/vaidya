@@ -10,7 +10,7 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 try:
-    from pipecat.frames.frames import Frame
+    from pipecat.frames.frames import Frame, OutputTransportMessageFrame
     from pipecat.serializers.twilio import TwilioFrameSerializer as _PipecatTwilioFrameSerializer
 
     PIPECAT_AVAILABLE = True
@@ -20,6 +20,10 @@ except ImportError:
     @dataclass
     class Frame:  # type: ignore[no-redef]
         pass
+
+    @dataclass
+    class OutputTransportMessageFrame(Frame):  # type: ignore[no-redef]
+        message: Any = None
 
     class _PipecatTwilioFrameSerializer:  # type: ignore[no-redef]
         def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -35,10 +39,17 @@ except ImportError:
 
 
 @dataclass
-class TwilioPlaybackMarkRequestFrame(Frame):
-    """Outbound control frame asking Twilio to ack playback completion."""
+class TwilioPlaybackMarkRequestFrame(OutputTransportMessageFrame):
+    """Outbound control frame asking Twilio to ack playback completion.
 
-    mark_name: str
+    Subclasses ``OutputTransportMessageFrame`` so the output transport
+    queues it *in order behind the reply audio* and hands it to the
+    serializer — a plain ``Frame`` would never be serialized and the mark
+    would silently never reach Twilio.
+    """
+
+    message: Any = None  # unused; serialization is driven by mark_name
+    mark_name: str = ""
 
 
 @dataclass

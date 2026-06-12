@@ -7,6 +7,7 @@ import io
 import json
 import logging
 import os
+import re
 import time
 import wave
 from typing import Any, cast
@@ -17,6 +18,26 @@ from vaidya.sarvam.models import TTS_MAX_CHARS_V3
 from vaidya.sarvam.resilience import CircuitOpenError, ServiceCircuitBreakers
 
 logger = logging.getLogger(__name__)
+
+# Trailing commas before } or ] — frequent LLM JSON malformation.
+_TRAILING_COMMA_RE = re.compile(r",\s*([}\]])")
+
+# Free/credit-tier hard cap on completion tokens (a higher value 400s).
+_MAX_OUTPUT_TOKENS = 4096
+
+_VALID_REASONING_EFFORTS = frozenset({"low", "medium", "high"})
+
+
+def _coerce_reasoning_effort(value: str | None) -> str:
+    """Map any input to a server-accepted reasoning_effort (low/medium/high).
+
+    The API rejects anything else, and OMITTING the field triggers a
+    verbose default that starves the content channel — so we never return
+    None. Unknown / "none" / empty all fall back to the fast "low" floor.
+    """
+    if value and value.lower() in _VALID_REASONING_EFFORTS:
+        return value.lower()
+    return "low"
 
 
 async def _retry_async(
@@ -308,10 +329,18 @@ class SarvamClient:
             "model": model,
             "messages": messages,
             "temperature": temperature,
-            "max_tokens": max_tokens,
+            # The API hard-caps max_tokens at 4096 (free/credit tier); a
+            # higher value is a 400. Reasoning models also need a generous
+            # budget or content truncates to empty, so clamp UP into a safe
+            # band rather than letting tiny values starve the output.
+            "max_tokens": max(1024, min(int(max_tokens), _MAX_OUTPUT_TOKENS)),
         }
         optional = {
-            "reasoning_effort": reasoning_effort,
+            # The API ONLY accepts low/medium/high. Omitting it makes the
+            # model reason at a verbose default (all budget -> reasoning,
+            # content empty), so always coerce to a valid value; "low" is
+            # the fast, reliable floor.
+            "reasoning_effort": _coerce_reasoning_effort(reasoning_effort),
             "wiki_grounding": wiki_grounding or None,
             "top_p": top_p,
             "frequency_penalty": frequency_penalty,
@@ -394,6 +423,8 @@ class SarvamClient:
         wiki_grounding: bool = False,
     ) -> dict[str, Any]:
         """Call LLM and parse JSON response, with code-fence stripping."""
+        if not reasoning_effort or reasoning_effort == "none":
+            reasoning_effort = None  # also skips the pointless no-reasoning retry
         raw = await self.chat(
             model,
             messages,
@@ -403,14 +434,17 @@ class SarvamClient:
             wiki_grounding=wiki_grounding,
         )
         parsed = parse_llm_json(raw)
-        if parsed.get("_parse_error") and reasoning_effort:
-            logger.info("Retrying JSON chat without reasoning_effort")
+        if parsed.get("_parse_error"):
+            # Retry once at minimal explicit reasoning. Never omit the
+            # param: the model then reasons at a verbose default and the
+            # JSON often never reaches the content channel at all.
+            logger.info("Retrying JSON chat with reasoning_effort=low")
             raw = await self.chat(
                 model,
                 messages,
                 temperature,
                 max_tokens=max_tokens,
-                reasoning_effort=None,
+                reasoning_effort="low",
                 wiki_grounding=wiki_grounding,
             )
             parsed = parse_llm_json(raw)
@@ -819,7 +853,13 @@ def parse_llm_json(raw: str | None) -> dict[str, Any]:
                 if isinstance(loaded, dict):
                     return cast(dict[str, Any], loaded)
             except json.JSONDecodeError:
-                continue
+                # Models commonly emit trailing commas; salvage those.
+                try:
+                    loaded = json.loads(_TRAILING_COMMA_RE.sub(r"\1", candidate))
+                    if isinstance(loaded, dict):
+                        return cast(dict[str, Any], loaded)
+                except json.JSONDecodeError:
+                    continue
     logger.warning("Failed to parse LLM JSON", extra={"raw": raw[:200]})
     return {"_raw": cleaned, "_parse_error": True}
 

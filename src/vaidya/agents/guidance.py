@@ -134,7 +134,7 @@ class GuidanceAgent(BaseAgent):
             system_prompt,
             user_message,
             reasoning_effort=self._reasoning_effort,
-            max_tokens=2048,
+            max_tokens=4096,
         )
 
         return self._parse_guidance_output(result, eligible, convergence, language)

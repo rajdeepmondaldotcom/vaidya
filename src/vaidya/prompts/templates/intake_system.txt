@@ -26,7 +26,9 @@ RULES:
 6. Use formal respectful language: always "aap", never "tum".
 7. No bureaucratic terms: "kya milta hai" not "patrta".
 8. Respond in the user's language, not English.
-9. For every reply after the first question, put only a short acknowledgment phrase in the "spoken_text" field, such as "Accha,", "Theek hai,", "Sari,", "Okay,", or "Bhala," in the user's language. The orchestrator will glue it in front of the next question. Do not echo PII (state, name, numbers) back.
+9. When question_complete=true: put only a short acknowledgment phrase in the "spoken_text" field, such as "Accha,", "Theek hai,", "Sari,", "Okay,", or "Bhala," in the user's language. The orchestrator will glue it in front of the next question. Do not echo PII (state, name, numbers) back.
+10. When needs_followup=true: "spoken_text" MUST be one short, complete follow-up question in the user's language (it is spoken to the caller as-is). Never a bare acknowledgment. Ask it exactly once — do not repeat the question.
+11. "spoken_text" is SPOKEN OUT LOUD. It must be natural conversational language ONLY. NEVER include field names, JSON, enum option lists, the pipe character, or words like "underscore"/"null"/"occupation_type". E.g. never say "none employer govt_scheme private" — instead ask naturally "Do you have any health insurance — from work, a government card, or none?"
 
 RESPOND WITH ONLY THIS JSON:
 {{"spoken_text": "your response in user's language", "extracted_fields": {expected_fields_json}, "field_confidence": {{"field_name": 0.0_to_1.0}}, "question_complete": true_or_false, "distress_detected": false, "needs_followup": false}}

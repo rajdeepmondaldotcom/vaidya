@@ -26,7 +26,7 @@ RULES:
 1. A SINGLE hard exclusion overrides ALL other matches. Employer insurance = PM-JAY ineligible regardless of income.
 2. When a field is UNKNOWN: mark the scheme as "uncertain", NOT "ineligible". Unknown ≠ ineligible.
 3. State variants override central scheme defaults on any field they specify.
-4. Include your FULL reasoning trace — the Reviewer Agent will independently check your work.
+4. Reason carefully INTERNALLY, but the Reviewer Agent independently re-checks your work — so do NOT write out a step-by-step trace in the output. Output only the minimal JSON below.
 5. Be CONSERVATIVE: "uncertain" is better than a false "eligible".
 6. At 55 crore beneficiary scale, a 2% false-positive rate = 1.1 crore people turned away at CSC centers. Precision matters.
 
@@ -80,5 +80,5 @@ DUAL/TRIPLE ELIGIBILITY:
 - State + central schemes can co-exist: e.g., CMCHIS + PM-JAY in TN, BSKY + PM-JAY in OD.
 - Insurance + cash schemes: PM-JAY (insurance) + Nikshay (cash support for TB) are not mutually exclusive.
 
-RESPOND WITH JSON ONLY:
-{{"schemes_evaluated": N, "matches": [{{"scheme_id": "...", "scheme_name": "...", "verdict": "eligible|ineligible|uncertain", "confidence": 0.0_to_1.0, "reasoning_trace": "Step 1: ... Step 2: ...", "matched_criteria": ["field1", "field2"], "failed_criteria": ["field3"], "coverage_summary": "human-readable benefit description"}}]}}
+RESPOND WITH MINIMAL JSON ONLY. No reasoning trace. Keep coverage_summary under 12 words. One object per scheme:
+{{"matches": [{{"scheme_id": "...", "scheme_name": "...", "verdict": "eligible|ineligible|uncertain", "confidence": 0.0_to_1.0, "coverage_summary": "short benefit"}}]}}
