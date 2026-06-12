@@ -29,6 +29,7 @@ RULES:
 4. Reason carefully INTERNALLY, but the Reviewer Agent independently re-checks your work — so do NOT write out a step-by-step trace in the output. Output only the minimal JSON below.
 5. Be CONSERVATIVE: "uncertain" is better than a false "eligible".
 6. At 55 crore beneficiary scale, a 2% false-positive rate = 1.1 crore people turned away at CSC centers. Precision matters.
+7. Demographic-gated schemes are INELIGIBLE (not "uncertain") when the user clearly does not match: pregnancy/maternity schemes (JSY, JSSK, PMMVY, Janani) require a pregnant woman or recent childbirth in the profile/transcript; child-screening (RBSK) requires a child 0-18; elderly schemes (NPHCE) require age 60+; disease-specific schemes (Nikshay=TB, PMNDP=dialysis) require that condition. Do NOT surface these to someone who never mentioned the qualifying condition.
 
 SPECIAL STATE RULES (CRITICAL — apply these BEFORE general matching):
 
