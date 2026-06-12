@@ -112,6 +112,18 @@ class TestParseLlmJson:
         result = parse_llm_json(raw)
         assert result == {"status": "ok"}
 
+    def test_bare_top_level_array_is_wrapped_as_matches(self):
+        """The reviewer emits a bare JSON array; it must parse, not error
+        (a bare array was the cause of every reviewer batch failing)."""
+        raw = '```json\n[{"scheme_id": "PMJAY", "verdict": "eligible"}]\n```'
+        result = parse_llm_json(raw)
+        assert not result.get("_parse_error")
+        assert result["matches"] == [{"scheme_id": "PMJAY", "verdict": "eligible"}]
+
+    def test_bare_array_without_fence(self):
+        result = parse_llm_json('[{"a": 1}, {"b": 2}]')
+        assert result["matches"] == [{"a": 1}, {"b": 2}]
+
     def test_json_embedded_in_text(self):
         raw = 'Here is the result: {"eligible": true} Hope this helps!'
         result = parse_llm_json(raw)
@@ -152,9 +164,12 @@ class TestParseLlmJson:
         result = parse_llm_json('  \n  {"key": "value"}  \n  ')
         assert result == {"key": "value"}
 
-    def test_array_json_not_extracted_as_object(self):
+    def test_bare_array_is_wrapped_not_errored(self):
+        # A bare top-level array is valid LLM output (the reviewer emits it)
+        # and is wrapped as {"matches": [...]}, not treated as a parse error.
         result = parse_llm_json('[{"a": 1}]')
-        assert result["_parse_error"] is True
+        assert not result.get("_parse_error")
+        assert result["matches"] == [{"a": 1}]
 
 
 # ---------------------------------------------------------------------------

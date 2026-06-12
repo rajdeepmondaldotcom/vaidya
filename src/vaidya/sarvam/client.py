@@ -846,6 +846,12 @@ def parse_llm_json(raw: str | None) -> dict[str, Any]:
         loaded = json.loads(cleaned)
         if isinstance(loaded, dict):
             return cast(dict[str, Any], loaded)
+        # A bare top-level JSON array is valid output (the reviewer emits
+        # `[{...}, ...]` rather than `{"matches": [...]}`). Wrap it so the
+        # agent parsers, which read `.get("matches")`, find it. Without this
+        # a perfectly valid array fell through to _parse_error.
+        if isinstance(loaded, list):
+            return {"matches": loaded}
     except json.JSONDecodeError:
         for candidate in reversed(_balanced_json_object_candidates(cleaned)):
             try:
