@@ -439,12 +439,16 @@ class IntakeAgent(BaseAgent):
             metadata={"confirmation_pending": True},
         )
 
-    # Explicit "this is wrong / change it" intent. Input reaches here
-    # already translated to English, but cover romanized + native negations
-    # too in case translation passes them through.
+    # Explicit "this is WRONG / change it" intent only. A bare "no" must
+    # NOT match: intake can desync (an off-script follow-up shifts question
+    # alignment) so a question-answer like "No, we don't have insurance" or
+    # "No specific illness" can land on the confirmation step — treating that
+    # "no" as a correction trapped the caller in a re-ask loop. Require a
+    # real correction word so confirmation stays biased to proceed.
     _CORRECTION_RE = re.compile(
-        r"\b(no|not|wrong|incorrect|change|edit|fix|nahi+n?|galat|ghalat|bhul|"
-        r"badal|alag)\b|ভুল|ভূল|নয়|গলত",
+        r"\b(wrong|incorrect|mistake|change it|change kar|edit|galat|ghalat|"
+        r"bhul|badlo|badal do|theek nahi|sahi nahi|not correct|not right)\b"
+        r"|ভুল|ভূল|গলত|ঠিক নয়|ঠিক নেই",
         re.IGNORECASE,
     )
 
@@ -918,17 +922,11 @@ class IntakeAgent(BaseAgent):
             return None
 
         counts[key] = repair_count + 1
-        followup = (
-            str(extracted.get("spoken_text", "") or "").strip()
-            if extracted.get("needs_followup")
-            else ""
-        )
-        # Guard against ack-only LLM output ("Accha,") — a follow-up spoken
-        # to the caller must actually ask something or the turn is dead air.
-        if len(followup) < 12 and "?" not in followup:
-            followup = ""
-        if not followup:
-            followup = self._get_question_text(question_number, language, fallback=True)
+        # Always re-ask the CANONICAL question (a clearer variant), never the
+        # LLM's free-form follow-up. Those drift off-script (e.g. "what's your
+        # rent?"), which desyncs the 5-question flow and lands later answers
+        # on the wrong question — and a stray "no" then derails confirmation.
+        followup = self._get_question_text(question_number, language, fallback=True)
 
         return AgentResponse(
             text=followup,

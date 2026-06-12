@@ -138,3 +138,27 @@ class TestRobustConfirmation:
         )
         assert not resp.metadata.get("intake_complete")
         assert resp.metadata.get("intake_correction")
+
+    @pytest.mark.asyncio
+    async def test_bare_no_answer_does_not_block(self):
+        """A desynced question-answer that lands on confirmation ("No, we
+        don't have insurance" / "No specific illness") must NOT be read as a
+        correction — a bare 'no' should proceed, not trap the caller."""
+        from unittest.mock import AsyncMock
+
+        from vaidya.models.conversation import ConversationContext, ConversationPhase
+        from vaidya.models.user_profile import UserProfile
+
+        agent = IntakeAgent(client=object(), model="mock")
+        agent._extract_confirmation = AsyncMock(return_value={"confirmed": False})
+        ctx = ConversationContext(
+            call_id="c", phone_number_hash="h", language="en-IN", phase=ConversationPhase.INTAKE
+        )
+        for ans in [
+            "No, we don't have any health insurance or government card",
+            "No specific illness, just want to know schemes",
+            "নাই কোনো বীমা",
+        ]:
+            ctx.metadata["confirmation_pending"] = True
+            resp = await agent._handle_confirmation_response(ctx, UserProfile(), ans, "en-IN")
+            assert resp.metadata.get("intake_complete"), ans
