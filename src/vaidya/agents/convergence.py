@@ -170,10 +170,32 @@ class ConvergenceChecker:
         disagreements: list[DisagreementRecord],
         conservative_eligible: list[SchemeMatch],
     ) -> None:
-        """Resolve a disagreement and route the result."""
+        """Resolve a disagreement and route the result.
+
+        Surface BOTH eligible and uncertain outcomes conservatively — an
+        unresolved disagreement becomes UNCERTAIN, and dropping those (the
+        old behaviour) turned a genuinely-maybe-eligible caller away with
+        "no scheme matched". Guidance frames uncertain schemes as "you may
+        qualify, confirm at the Jan Seva Kendra", which is the correct
+        conservative answer. Only a disagreement that resolves to a clear
+        INELIGIBLE (reviewer found disqualifying transcript evidence) is
+        dropped.
+        """
         record = self._resolve_disagreement(e_match, r_match, context)
         disagreements.append(record)
-        if record.final_verdict == EligibilityVerdict.ELIGIBLE:
+        # An unresolved disagreement becomes UNCERTAIN. Surface those as
+        # conservative ("you may qualify, confirm at CSC") UNLESS one agent
+        # found an explicit ineligibility (a real disqualifier) — then stay
+        # conservative the other way and drop it. This keeps the
+        # eligible-vs-uncertain case (where neither found a disqualifier)
+        # from being silently turned away as "no scheme matched".
+        neither_found_disqualifier = (
+            e_match.verdict != EligibilityVerdict.INELIGIBLE
+            and r_match.verdict != EligibilityVerdict.INELIGIBLE
+        )
+        if record.final_verdict == EligibilityVerdict.ELIGIBLE or (
+            record.final_verdict == EligibilityVerdict.UNCERTAIN and neither_found_disqualifier
+        ):
             conservative_eligible.append(self._merge_into_match(e_match, r_match, record))
 
     def _resolve_disagreement(

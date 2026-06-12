@@ -698,8 +698,8 @@ class IntakeAgent(BaseAgent):
             # "2.5-5 lakh"). Override the LLM for it; fill-only otherwise.
             if field == "income_bracket" or fields.get(field) in (None, "", "null"):
                 fields[field] = value
-                confidence[field] = 0.9 if field == "income_bracket" else confidence.get(
-                    field, 0.85
+                confidence[field] = (
+                    0.9 if field == "income_bracket" else confidence.get(field, 0.85)
                 )
 
         merged["extracted_fields"] = fields
