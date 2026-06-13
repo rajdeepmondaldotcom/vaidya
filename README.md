@@ -1,5 +1,7 @@
 # Vaidya
 
+[![CI](https://github.com/rajdeepmondaldotcom/vaidya/actions/workflows/ci.yml/badge.svg)](https://github.com/rajdeepmondaldotcom/vaidya/actions/workflows/ci.yml)
+
 **One phone call. Any Indian language. Find out which government healthcare schemes you qualify for.**
 
 *Vaidya* (वैद्य) is the Sanskrit word for healer. In rural India, the vaidya was the person you went to when you didn't know what was wrong or where to go. Not a specialist. A guide. Someone who listened, understood your situation, and told you what to do next in words you understood.
@@ -80,6 +82,12 @@ Docker + docker-compose for local dev
 
 Zero dependencies outside the Sarvam SDK and FastAPI ecosystem. No LangChain. No CrewAI. The orchestration is custom because the routing decisions are deterministic and the failure modes are specific to this domain.
 
+## Documentation
+
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — the deterministic orchestrator, the five agents, the reviewer → convergence safety pattern, Sarvam model routing, and the resilience layer.
+- [docs/EVALUATION.md](docs/EVALUATION.md) — the 81-scenario evaluation suite: what it measures, the precision/recall + latency methodology, and how to run it.
+- [docs/DEMO.md](docs/DEMO.md) — a guided walkthrough with copy-pasteable multi-language demo scripts.
+
 ## Run it
 
 ```bash
@@ -129,15 +137,18 @@ API key: sign up at [dashboard.sarvam.ai](https://dashboard.sarvam.ai). Free tie
 ## Testing
 
 ```bash
-make test              # 216 tests, runs in under a second
+make test              # 950+ unit + integration tests, runs in a few seconds
 make lint              # ruff check + format
+make check             # the full CI gate locally: lint + strict mypy + coverage
 ```
 
-64 evaluation scenarios covering: per-scheme eligibility, exclusion rules, cross-language parity, adversarial inputs (prompt injection, Aadhaar probing), emotional distress handling, and the reviewer-catches-what-eligibility-missed scenario.
+Every push and PR runs the CI gate ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)): `ruff`, `mypy --strict`, and the full suite with a coverage floor.
+
+Beyond unit tests, an **81-scenario evaluation suite** scores end-to-end eligibility accuracy: per-scheme eligibility, exclusion rules, cross-language parity (the same profile in Hindi/Tamil/Bengali must yield identical results), adversarial inputs (prompt injection, Aadhaar probing), emotional-distress handling, and the reviewer-catches-what-eligibility-missed case. It reports precision, recall, and latency per scenario — see [docs/EVALUATION.md](docs/EVALUATION.md).
 
 ```bash
 python -m eval --scenarios quick    # 5-scenario smoke test
-python -m eval --scenarios all      # full 64-scenario suite
+python -m eval --scenarios all      # full 81-scenario suite
 ```
 
 ## Latency budget
@@ -149,6 +160,8 @@ python -m eval --scenarios all      # full 64-scenario suite
 | Eligibility + Reviewer | ~1200ms (parallel via asyncio.gather) |
 | Translation | ~400ms (skipped if same language) |
 | **Total per turn** | **Under 3 seconds** |
+
+These are per-turn compute budgets for Vaidya's own orchestration. End-to-end latency is dominated by Sarvam API response time, which varies with load; see [docs/EVALUATION.md](docs/EVALUATION.md) for measured numbers.
 
 ## Cost per call
 
