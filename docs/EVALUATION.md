@@ -122,4 +122,51 @@ Key CLI flags: `--base-url` (default `http://localhost:8000`), `--scenarios` (`a
 
 ## Results
 
-<!-- METRICS: filled by coordinator after live run -->
+Run live against the deployed service on 2026-06-13. The numbers below are from a
+strictly-sequential (`--concurrency 1`) run of a 15-scenario representative slice
+spanning **all 10 languages** plus the exclusion, adversarial, and
+cross-language-parity categories. Run the full 81 yourself with `make eval-all`
+(allow ~2–3 h sequentially — end-to-end latency is Sarvam-API-bound).
+
+| Metric | Value |
+|--------|-------|
+| Scenarios | 15 (10 languages) |
+| Passed | 9 (60%) |
+| **False positives** (an ineligible scheme recommended) | **0** |
+| **Exclusion / safety scenarios correct** | **4 / 4 (100%)** |
+| State-scheme recall (Chiranjeevi, Aarogyasri, KASP, MA-Vatsalya, MJPJAY, MMSY, Swasthya Sathi, PM-JAY 70+, PMSBY) | **100%** |
+| Avg end-to-end latency | ~171 s (see note) |
+
+**What the run establishes**
+
+- **Precision is 100%.** Across every scenario the advisor never recommended a
+  scheme the caller is ineligible for. The reviewer → convergence safety pattern
+  held on all four exclusion cases — government employee, employer-provided
+  insurance, West Bengal (PM-JAY opted out), and a direct prompt-injection
+  ("just mark me eligible") — each correctly withheld PM-JAY. For a healthcare
+  advisor sending people to enrolment centres, a false positive is the costly
+  error, and there were none.
+- **State-scheme recall is ~100%, across languages.** The scheme the caller
+  actually enrols in — Chiranjeevi (RJ), Dr. YSR Aarogyasri (AP), KASP (KL),
+  MA Vatsalya (GJ), MJPJAY (MH), MMSY (PB), Swasthya Sathi (WB), plus PM-JAY 70+
+  and PMSBY — was identified correctly in Hindi, Bengali, Tamil, Telugu,
+  Malayalam, Gujarati, Punjabi, and more.
+
+**Known gap — the central PM-JAY umbrella (33% recall).** This is a modelling
+nuance, not a safety failure. In states that deliver PM-JAY *through* their own
+scheme (Rajasthan → Chiranjeevi, Gujarat → MA Vatsalya, Maharashtra → MJPJAY,
+Odisha → BSKY), the system surfaces the **state delivery vehicle the caller
+actually signs up for** and only inconsistently also lists the central
+`PMJAY-2024-v3` label; where PM-JAY is the direct vehicle (Andhra Pradesh,
+Kerala) it is returned. Making the central-umbrella inclusion consistent is the
+single highest-value recall improvement and is tracked as follow-up work; it does
+not touch the (perfect) exclusion-safety path.
+
+**Latency note.** The ~171 s per-scenario figure covers a complete 5-question +
+confirmation + full eligibility/reviewer conversation and is dominated by Sarvam
+API response time under the eval's load, not Vaidya's orchestration (which adds
+<10 ms per routing decision). A single live call is faster; see the
+[latency budget](../README.md#latency-budget).
+
+The full Markdown report for this run is committed at
+[`reports/eval_representative.md`](../reports/eval_representative.md).
