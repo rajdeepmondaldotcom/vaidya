@@ -1,15 +1,15 @@
 {
   "fallback": {
-    "hi-IN": "Maaf kijiye, thodi dikkat aa rahi hai. Kya aap phir se bata sakte hain?",
-    "ta-IN": "Mannikkavum, sila thozhilnutpa prachanai. Thayavu seythu meendum sollunga?",
-    "bn-IN": "Dukkhito, ektu somossa hocche. Abar bolben please?",
-    "te-IN": "Kshaminchaandi, samasya vachindi. Malli cheppandi?",
-    "gu-IN": "Maaf karo, thodi taklif chhe. Fari kahesho?",
-    "kn-IN": "Kshamisi, swalpa samasye ide. Matte heli?",
-    "ml-IN": "Kshamikku, oru prayaasam undu. ViiNdum parayoo?",
-    "mr-IN": "Maaf karaa, thodi adchan aahe. Punha saangaal kaa?",
-    "pa-IN": "Maafi, thodi dikkat hai. Fir dassoge?",
-    "od-IN": "Kshama karantu, gotie samasya achhi. Punithare kahantu?",
-    "en-IN": "Sorry, there's a small issue. Could you say that again?"
+    "hi-IN": "Maaf kijiye, mujhe theek se sun nahi aaya. Koi baat nahi — ek baar phir bata dijiye?",
+    "ta-IN": "Mannikkavum, enakku sariyaa kekkala. Paravaayilla — innoru murai sollunga?",
+    "bn-IN": "Maaf korben, thik moto shunte parlam na. Kono byapaar na — aar ekbaar bolben?",
+    "te-IN": "Kshaminchandi, naaku sariga vinipinchaledu. Pravaledu — inkokasaari cheppagalaraa?",
+    "gu-IN": "Maaf karjo, mane barabar sambhlaayu nahi. Vandho nahi — ek vaar fari kahesho?",
+    "kn-IN": "Kshamisi, nanage sariyaagi kelisalilla. Paravagilla — inomme heli?",
+    "ml-IN": "Kshamikkuka, enikku nannaayi kettilla. Kuzhappamilla — onnu koodi parayaamo?",
+    "mr-IN": "Maaf kara, mala neet aikaayla aala nahi. Harkat nahi — punha ekada saangaal kaa?",
+    "pa-IN": "Maafi, mainu theek tarah sunaai nahi ditta. Koi gall nahi — ik vaar fir dasso?",
+    "od-IN": "Kshama karantu, mu thik bhaabare shunipaarili nahin. Kichhi katha nuhe — aau thare kahantu?",
+    "en-IN": "Sorry, I didn't quite catch that. No problem — could you tell me once more?"
   }
 }
