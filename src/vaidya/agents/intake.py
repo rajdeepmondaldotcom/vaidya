@@ -91,6 +91,11 @@ _CONFIRMATION_WORDS = frozenset(
 _LOW_FIELD_CONFIDENCE = 0.55
 _MAX_REPAIRS_PER_QUESTION = 2
 
+# Fast path: a short, unambiguous answer the deterministic heuristics fully cover
+# skips the LLM extraction entirely (an instant turn). Long or ambiguous answers
+# fall back to the LLM. A mis-read is caught by the confirmation step.
+_FAST_PATH_MAX_WORDS = 12
+
 _QUESTION_REQUIRED_FIELDS: dict[int, tuple[str, ...]] = {
     1: ("state",),
     2: ("family_size",),
@@ -365,6 +370,45 @@ class IntakeAgent(BaseAgent):
             },
         )
 
+    def _try_fast_extract(
+        self,
+        user_input: str,
+        q_index: int,
+        language: str,
+    ) -> dict[str, Any] | None:
+        """Deterministic fast path: skip the LLM when the heuristics fully and
+        unambiguously cover this question's required field(s).
+
+        Returns an ``extracted``-shaped dict (so the normal apply/advance flow is
+        unchanged) on a confident match, or ``None`` to fall back to the LLM.
+        Only the single-field factual questions (1-4) qualify; the free-form
+        initial turn (0) and the health-need question (5) always use the LLM. A
+        mis-read here is caught by the end-of-intake confirmation step, which
+        recaps the profile and lets the caller correct it.
+        """
+        required = _QUESTION_REQUIRED_FIELDS.get(q_index)
+        if not required or q_index not in (1, 2, 3, 4):
+            return None
+        # Long answers tend to carry context/qualifiers the heuristics miss.
+        if len(user_input.split()) > _FAST_PATH_MAX_WORDS:
+            return None
+        # Negation flips meaning on the entity questions (state/occupation), where
+        # a naive keyword grab could pick the negated value — let the LLM handle
+        # those. (Coverage/family negation is handled by their own heuristics.)
+        if q_index in (1, 3) and self._NEGATION_RE.search(user_input.lower()):
+            return None
+        heuristic = self._heuristic_fields(user_input, q_index)
+        if not all(field in heuristic for field in required):
+            return None
+        confidence = {f: (0.9 if f == "income_bracket" else 0.85) for f in heuristic}
+        ack = get_msg("intake", "ack", language)
+        return {
+            "extracted_fields": heuristic,
+            "field_confidence": confidence,
+            "question_complete": True,
+            "spoken_text": ack if ack != "ack" else "",
+        }
+
     async def _handle_question_answer(
         self,
         context: ConversationContext,
@@ -373,13 +417,19 @@ class IntakeAgent(BaseAgent):
         q_index: int,
         language: str,
     ) -> AgentResponse:
-        """Extract answer, handle distress/followup, advance to next question or confirm."""
-        extracted = await self._extract_answer(user_input, q_index, profile, language)
+        """Extract the answer, handle distress/followup, advance or confirm.
 
-        if extracted.get("distress_detected"):
-            return self._handle_distress_response(context, profile, extracted, language)
+        Tries a deterministic fast path first (skips the LLM for short, clear
+        answers the heuristics fully cover — an instant turn); falls back to the
+        LLM for anything ambiguous.
+        """
+        extracted = self._try_fast_extract(user_input, q_index, language)
+        if extracted is None:
+            extracted = await self._extract_answer(user_input, q_index, profile, language)
+            if extracted.get("distress_detected"):
+                return self._handle_distress_response(context, profile, extracted, language)
+            extracted = self._merge_heuristic_fields(extracted, user_input, q_index)
 
-        extracted = self._merge_heuristic_fields(extracted, user_input, q_index)
         profile = self._apply_extracted(profile, extracted)
 
         if self._needs_repair(context, profile, extracted, q_index):

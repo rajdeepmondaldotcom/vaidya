@@ -42,8 +42,9 @@ def test_scheme_evaluation_defaults():
 def test_conversational_llm_timeout_is_shorter_than_eligibility():
     settings = Settings()
 
-    # Fast conversational calls must fail fast (12s) and never inherit the
-    # long 45s eligibility tail, or one hung Sarvam call stalls a simple turn.
-    assert settings.conversational_llm_timeout_seconds == 12.0
+    # Fast conversational calls fail faster (30s) than the 45s eligibility tail,
+    # but stay above Sarvam's slow-spell latency (measured 12-26s) so legitimate
+    # slow calls aren't killed + retried. (Tuned up from 12s after live measurement.)
+    assert settings.conversational_llm_timeout_seconds == 30.0
     assert settings.llm_timeout_seconds == 45.0
     assert settings.conversational_llm_timeout_seconds < settings.llm_timeout_seconds
