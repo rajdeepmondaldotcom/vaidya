@@ -1,0 +1,127 @@
+{
+  "scheme_id": "ABHA-ABDM-2024-v1",
+  "canonical_name": "Ayushman Bharat Digital Mission (ABHA Health Account)",
+  "aliases": [
+    "ABHA",
+    "ABDM",
+    "Ayushman Bharat Health Account",
+    "Health ID",
+    "ABHA Number",
+    "ABHA Card",
+    "National Digital Health Mission",
+    "NDHM",
+    "Digital Health ID"
+  ],
+  "local_names": {
+    "hi": "आयुष्मान भारत डिजिटल मिशन (आभा स्वास्थ्य खाता)",
+    "bn": "আয়ুষ্মান ভারত ডিজিটাল মিশন (আভা স্বাস্থ্য অ্যাকাউন্ট)",
+    "ta": "ஆயுஷ்மான் பாரத் டிஜிட்டல் மிஷன் (ஆபா சுகாதார கணக்கு)",
+    "te": "ఆయుష్మాన్ భారత్ డిజిటల్ మిషన్ (ఆభా ఆరోగ్య ఖాతా)",
+    "mr": "आयुष्मान भारत डिजिटल मिशन (आभा आरोग्य खाते)",
+    "gu": "આયુષ્માન ભારત ડિજિટલ મિશન (આભા આરોગ્ય ખાતું)",
+    "kn": "ಆಯುಷ್ಮಾನ್ ಭಾರತ್ ಡಿಜಿಟಲ್ ಮಿಷನ್ (ಆಭಾ ಆರೋಗ್ಯ ಖಾತೆ)",
+    "ml": "ആയുഷ്മാൻ ഭാരത് ഡിജിറ്റൽ മിഷൻ (ആഭ ഹെൽത്ത് അക്കൗണ്ട്)",
+    "pa": "ਆਯੁਸ਼ਮਾਨ ਭਾਰਤ ਡਿਜੀਟਲ ਮਿਸ਼ਨ (ਆਭਾ ਸਿਹਤ ਖਾਤਾ)",
+    "or": "ଆୟୁଷ୍ମାନ ଭାରତ ଡିଜିଟାଲ ମିଶନ (ଆଭା ସ୍ୱାସ୍ଥ୍ୟ ଖାତା)"
+  },
+  "state_variant_of": null,
+  "jurisdiction": "central",
+  "state_code": null,
+  "income_thresholds": [],
+  "secc_categories": [],
+  "occupation_included": [
+    "all_indian_citizens"
+  ],
+  "occupation_excluded": [],
+  "exclusion_rules": [
+    {
+      "rule_id": "ABHA-EX-001",
+      "exclusion_type": "hard",
+      "field": "citizenship",
+      "condition": "is_indian_resident == false",
+      "description": "ABHA enrollment is open to all residents of India. There is no income, occupation, age, or category bar — it is universal digital-health infrastructure, not a benefit scheme. ABHA can also be created for children under 18.",
+      "override_by_state": false
+    }
+  ],
+  "age_criteria": null,
+  "family_criteria": {
+    "max_family_size": null,
+    "family_definition": "ABHA is an individual health account — every person, including children under 18, gets their own 14-digit ABHA number. It is not a family-floater benefit; each family member enrolls separately.",
+    "head_of_family_required": false
+  },
+  "geographic_restrictions": [],
+  "coverage_amount_inr": 0,
+  "coverage_type": "per_person_per_year",
+  "covered_procedures": [
+    "Creation of a unique 14-digit ABHA number (Ayushman Bharat Health Account) — free of cost",
+    "ABHA address (e.g. name@abdm) for sharing health records digitally",
+    "Linking and storing of personal health records (prescriptions, lab reports, discharge summaries) in a digital locker",
+    "Consent-based sharing of health records with doctors and hospitals",
+    "Access to the Health Facility Registry (HFR) of verified hospitals/clinics",
+    "Access to the Healthcare Professionals Registry (HPR) of verified doctors",
+    "Scan-and-share OPD registration at participating hospitals to reduce queue time",
+    "Interoperable, portable health history accessible across providers nationwide",
+    "Increasingly used as the digital identity layer to access PM-JAY and other scheme benefits"
+  ],
+  "excluded_procedures": [
+    "Hospitalization or treatment cost (ABHA is NOT health insurance and pays no medical bills)",
+    "Cash benefits of any kind",
+    "Any monetary coverage — ABHA only stores and shares health records"
+  ],
+  "required_documents": [
+    {
+      "name": "Aadhaar Card",
+      "category": "identity",
+      "mandatory": false,
+      "alternatives": ["Driving Licence", "PAN Card"],
+      "local_name_hi": "आधार कार्ड",
+      "notes": "Aadhaar with a linked mobile number is the fastest route — ABHA is generated instantly via OTP and is auto-verified. Driving licence or PAN can be used as alternatives."
+    },
+    {
+      "name": "Mobile Number",
+      "category": "contact",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "मोबाइल नंबर",
+      "notes": "Required to receive the OTP for verification and to access the ABHA app and records."
+    }
+  ],
+  "enrollment_channels": [
+    "ABHA portal (abha.abdm.gov.in)",
+    "ABHA mobile app (Android/iOS)",
+    "Scan ABDM QR code at any participating health facility",
+    "Common Service Centre (CSC)",
+    "Healthcare facilities and hospitals enrolled under ABDM"
+  ],
+  "enrollment_steps": [
+    "Step 1: Visit abha.abdm.gov.in or download the official ABHA app (or scan the ABDM QR at a hospital)",
+    "Step 2: Choose to create ABHA using Aadhaar (fastest, auto-verified) or driving licence",
+    "Step 3: Enter the Aadhaar/ID number and the OTP received on your linked mobile number",
+    "Step 4: Complete KYC verification — for children under 18 a parent/guardian can create it",
+    "Step 5: A unique 14-digit ABHA number is generated free of cost",
+    "Step 6: Create a memorable ABHA address (e.g. yourname@abdm) for easy record sharing",
+    "Step 7: Link existing health records and use the account to share records with doctors via consent",
+    "Note: ABHA is a free digital health ID and record locker — it does NOT itself pay for treatment. To get financial cover, also enrol in PM-JAY or your applicable state health insurance scheme."
+  ],
+  "processing_time_days": 1,
+  "helpline_number": "1800-11-4477",
+  "portal_url": "https://abha.abdm.gov.in",
+  "version": "1.0",
+  "effective_date": "2021-09-27",
+  "expiry_date": null,
+  "last_verified": "2026-06-13",
+  "source_url": "https://abdm.gov.in",
+  "confidence_level": "provisional",
+  "description_for_embedding": "The Ayushman Bharat Digital Mission (ABDM), launched in September 2021, builds India's integrated digital health infrastructure. Its core component is the ABHA (Ayushman Bharat Health Account) — a free, unique 14-digit health ID available to every resident of India, including children under 18. ABHA is NOT health insurance and pays no medical bills; instead it lets a person store, link, and consent-share their personal health records (prescriptions, lab reports, discharge summaries) digitally across hospitals and doctors nationwide, giving a portable, interoperable health history. There is no income, occupation, age, or category eligibility bar — enrollment is universal and free. The fastest way to create an ABHA is via Aadhaar with a linked mobile number (instant OTP verification and auto-verification); a driving licence is an alternative. Each person also gets an ABHA address (like name@abdm) for easy record sharing, and can use scan-and-share for faster OPD registration. ABDM also maintains the Health Facility Registry (HFR) of verified hospitals and the Healthcare Professionals Registry (HPR) of verified doctors. Over 68 crore ABHA numbers have been created. The ABHA number is increasingly required as the digital identity layer to access PM-JAY and other government scheme benefits, so creating one is a useful first step before applying for health insurance schemes. Enrollment is via abha.abdm.gov.in, the ABHA app, a CSC, or by scanning an ABDM QR code at a participating facility.",
+  "keywords": [
+    "abha", "abdm", "ayushman bharat digital mission", "health id",
+    "digital health account", "14 digit number", "health records",
+    "abha card", "ndhm", "national digital health mission", "free health id",
+    "आयुष्मान भारत डिजिटल मिशन", "आभा", "स्वास्थ्य खाता", "हेल्थ आईडी",
+    "डिजिटल स्वास्थ्य", "मुफ्त हेल्थ कार्ड", "14 अंक",
+    "abha address", "health locker", "consent sharing", "interoperable",
+    "scan and share", "abha.abdm.gov.in", "aadhaar health id",
+    "not insurance", "digital health infrastructure", "HFR", "HPR",
+    "health professional registry", "1800-11-4477", "universal enrollment"
+  ]
+}

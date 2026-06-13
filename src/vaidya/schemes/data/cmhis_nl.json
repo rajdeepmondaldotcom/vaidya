@@ -1,0 +1,157 @@
+{
+  "scheme_id": "CMHIS-NL-2024-v1",
+  "canonical_name": "Chief Minister's Health Insurance Scheme (Nagaland)",
+  "aliases": [
+    "CMHIS",
+    "CMHIS Nagaland",
+    "Nagaland Health Insurance Scheme",
+    "Chief Minister Health Insurance Scheme Nagaland",
+    "CMHIS EP",
+    "CMHIS GEN"
+  ],
+  "local_names": {
+    "hi": "मुख्यमंत्री स्वास्थ्य बीमा योजना (नागालैंड)",
+    "en": "Chief Minister's Health Insurance Scheme Nagaland",
+    "as": "মুখ্যমন্ত্ৰীৰ স্বাস্থ্য বীমা আঁচনি (নাগালেণ্ড)"
+  },
+  "state_variant_of": null,
+  "jurisdiction": "state",
+  "state_code": "NL",
+  "income_thresholds": [],
+  "secc_categories": [],
+  "occupation_included": [
+    "all_nagaland_residents",
+    "government_employee",
+    "pensioner",
+    "contractual_worker",
+    "ad_hoc_employee",
+    "accredited_journalist",
+    "indigenous_inhabitant"
+  ],
+  "occupation_excluded": [],
+  "exclusion_rules": [
+    {
+      "rule_id": "CMHIS-NL-EX-001",
+      "exclusion_type": "hard",
+      "field": "state",
+      "condition": "state != 'NL'",
+      "description": "Only Indigenous Inhabitants or Permanent Residents of Nagaland (and eligible state government employees/pensioners) are covered. A valid Indigenous Inhabitant Certificate (IIC) or Permanent Resident Certificate (PRC) is required for the General category.",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "CMHIS-NL-EX-002",
+      "exclusion_type": "soft",
+      "field": "existing_coverage",
+      "condition": "covered_under_pmjay == true",
+      "description": "The General (GEN) category specifically targets Nagaland residents NOT already covered under AB PM-JAY. Households already covered by PM-JAY use that scheme; CMHIS-GEN fills the gap for those left out.",
+      "override_by_state": true
+    }
+  ],
+  "age_criteria": null,
+  "family_criteria": {
+    "max_family_size": null,
+    "family_definition": "Beneficiary and dependents as declared at enrollment, identified by a Household ID. For the Employee & Pensioner (EP) category, this covers the government employee/pensioner and their declared dependents. For the General (GEN) category, it covers the indigenous/resident household. Coverage is a family floater.",
+    "head_of_family_required": true
+  },
+  "geographic_restrictions": [],
+  "coverage_amount_inr": 500000,
+  "coverage_type": "per_family_per_year",
+  "covered_procedures": [
+    "Cashless hospitalization at empanelled government and private hospitals (within and outside Nagaland)",
+    "General surgery requiring admission",
+    "Cardiology and cardiothoracic procedures",
+    "Oncology (chemotherapy, radiation, surgical oncology)",
+    "Orthopedics (joint replacement, fracture and spine surgery)",
+    "Nephrology and dialysis",
+    "Neurology and neurosurgery",
+    "Maternity and neonatal care",
+    "Emergency and trauma care",
+    "Critical-illness inpatient treatment",
+    "Pre- and post-hospitalization expenses as per scheme package rules",
+    "Higher Rs 20 lakh annual cover for the Employee & Pensioner (EP) category"
+  ],
+  "excluded_procedures": [
+    "OPD (Out-Patient Department) consultation without hospitalization",
+    "Cosmetic and aesthetic surgery",
+    "Fertility treatment and IVF",
+    "Drug and alcohol rehabilitation",
+    "Treatment costs above the applicable annual family ceiling"
+  ],
+  "required_documents": [
+    {
+      "name": "Indigenous Inhabitant Certificate (IIC) or Permanent Resident Certificate (PRC)",
+      "category": "eligibility_proof",
+      "mandatory": true,
+      "alternatives": ["PRC issued after 2016"],
+      "local_name_hi": "स्वदेशी निवासी प्रमाणपत्र (IIC) या स्थायी निवासी प्रमाणपत्र (PRC)",
+      "notes": "Required for the General (GEN) category; the IIC/PRC must be issued after 2016. Government employees use their PIMS code instead."
+    },
+    {
+      "name": "Aadhaar Card",
+      "category": "identity",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "आधार कार्ड",
+      "notes": "Identity and e-KYC proof for the beneficiary and dependents."
+    },
+    {
+      "name": "PIMS Code (government employees) / PPO Book (pensioners)",
+      "category": "eligibility_proof",
+      "mandatory": false,
+      "alternatives": [],
+      "local_name_hi": "पीआईएमएस कोड (सरकारी कर्मचारी) / पीपीओ पुस्तिका (पेंशनभोगी)",
+      "notes": "Required for the Employee & Pensioner (EP) category. PIMS code for serving employees; Pension Payment Order (PPO) book for pensioners."
+    },
+    {
+      "name": "Mobile Number",
+      "category": "contact",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "मोबाइल नंबर",
+      "notes": "For OTP verification and Household ID communications."
+    },
+    {
+      "name": "Dependent Supporting Documents",
+      "category": "family",
+      "mandatory": false,
+      "alternatives": [],
+      "local_name_hi": "आश्रितों के सहायक दस्तावेज",
+      "notes": "Proof of dependency for spouse, children, and dependent parents."
+    }
+  ],
+  "enrollment_channels": [
+    "Primary Health Centres (PHC) and Community Health Centres (CHC)",
+    "Treasury Offices (for employees and pensioners)",
+    "Designated empanelled hospitals",
+    "CMHIS online portal (cmhis.nagaland.gov.in)"
+  ],
+  "enrollment_steps": [
+    "Step 1: Determine your category — Employee & Pensioner (EP) for government staff/pensioners, or General (GEN) for indigenous residents not covered by PM-JAY",
+    "Step 2: Gather documents — IIC/PRC (GEN) or PIMS code / PPO book (EP), plus Aadhaar and mobile number",
+    "Step 3: Submit documents at a PHC, CHC, Treasury Office, or designated hospital (or apply on cmhis.nagaland.gov.in)",
+    "Step 4: Details are verified by the implementing authority",
+    "Step 5: On approval, a Household ID is generated for the family",
+    "Step 6: Use the Household ID at any empanelled hospital for cashless treatment up to the applicable annual cover (Rs 5 lakh GEN / Rs 20 lakh EP)"
+  ],
+  "processing_time_days": 15,
+  "helpline_number": "1800-202-3380",
+  "portal_url": "https://cmhis.nagaland.gov.in",
+  "version": "1.0",
+  "effective_date": "2022-10-14",
+  "expiry_date": null,
+  "last_verified": "2026-06-13",
+  "source_url": "https://cmhis.nagaland.gov.in/pages/cmhis",
+  "confidence_level": "provisional",
+  "description_for_embedding": "The Chief Minister's Health Insurance Scheme (CMHIS) is Nagaland's flagship state health insurance programme, providing cashless treatment at empanelled government and private hospitals within and outside the state. It operates in two categories. CMHIS (EP) — the Employee & Pensioner category — gives Rs 20 lakh per family per year to regular state government employees, pensioners receiving a medical allowance, legislators, public-sector workers, and their dependents. CMHIS (GEN), the General category, gives Rs 5 lakh per family per year to Indigenous Inhabitants or Permanent Residents of Nagaland who are NOT covered under Ayushman Bharat PM-JAY, as well as state contractual and ad-hoc workers, accredited journalists, and households without other coverage. Eligibility for the General category requires a valid Indigenous Inhabitant Certificate (IIC) or Permanent Resident Certificate (PRC) issued after 2016, plus Aadhaar; employees and pensioners enroll using their PIMS code or PPO book respectively. There is no income test — the scheme is designed to give universal coverage to bona fide residents not otherwise insured. Enrollment is done at Primary Health Centres, Community Health Centres, Treasury Offices, designated hospitals, or the online portal, after which a Household ID is issued. The scheme covers hospitalization for surgery, cardiology, oncology, orthopedics, dialysis, neurology, maternity, and critical illnesses. Helpline 1800-202-3380; portal cmhis.nagaland.gov.in.",
+  "keywords": [
+    "cmhis", "nagaland", "chief minister health insurance",
+    "indigenous inhabitant", "permanent resident", "IIC", "PRC",
+    "20 lakh", "5 lakh", "government employee", "pensioner", "household id",
+    "मुख्यमंत्री स्वास्थ्य बीमा योजना", "नागालैंड", "मुफ्त इलाज",
+    "स्वदेशी निवासी", "स्थायी निवासी", "20 लाख", "5 लाख",
+    "north east health scheme", "EP category", "GEN category",
+    "cashless treatment", "empanelled hospital", "not under pmjay",
+    "PIMS code", "PPO book", "cmhis.nagaland.gov.in", "1800-202-3380",
+    "state health insurance", "nagaland residents"
+  ]
+}

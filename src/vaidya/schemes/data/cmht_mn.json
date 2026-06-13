@@ -1,0 +1,143 @@
+{
+  "scheme_id": "CMHT-MN-2024-v1",
+  "canonical_name": "Chief Minister-gi Hakshelgi Tengbang (Manipur)",
+  "aliases": [
+    "CMHT",
+    "CMHT Manipur",
+    "Chief Minister-gi Hakshelgi Tenbang",
+    "Chief Minister Hakselgi Tengbang",
+    "Manipur Health Assurance Scheme"
+  ],
+  "local_names": {
+    "hi": "मुख्यमंत्री-गी हकशेलगी तेंगबांग (मणिपुर)",
+    "en": "Chief Minister-gi Hakshelgi Tengbang",
+    "bn": "মুখ্যমন্ত্রী-গী হকশেলগী তেংবাং (মণিপুর)"
+  },
+  "state_variant_of": null,
+  "jurisdiction": "state",
+  "state_code": "MN",
+  "income_thresholds": [],
+  "secc_categories": ["AAY", "SECC_deprived"],
+  "occupation_included": [
+    "bpl_household",
+    "aay_card_holder",
+    "widow",
+    "disabled_person",
+    "anganwadi_worker",
+    "anganwadi_helper",
+    "asha_worker",
+    "ima_market_woman_vendor",
+    "newspaper_hawker",
+    "local_media_person"
+  ],
+  "occupation_excluded": [],
+  "exclusion_rules": [
+    {
+      "rule_id": "CMHT-MN-EX-001",
+      "exclusion_type": "hard",
+      "field": "state",
+      "condition": "state != 'MN'",
+      "description": "Only bona fide residents of Manipur are eligible. The scheme targets poor and needy families registered under it.",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "CMHT-MN-EX-002",
+      "exclusion_type": "hard",
+      "field": "eligibility_category",
+      "condition": "is_bpl == false and not (in_secc or aay_card or is_widow or is_disabled or in_notified_category)",
+      "description": "Eligibility is limited to defined categories: families identified in SECC, BPL/Antyodaya (AAY) card holders, widows, disabled persons, and notified groups (Anganwadi workers/helpers, ASHA workers, Ima Market women vendors, newspaper hawkers/local media). Households outside these categories are not covered.",
+      "override_by_state": true
+    }
+  ],
+  "age_criteria": null,
+  "family_criteria": {
+    "max_family_size": null,
+    "family_definition": "Eligible family registered under the scheme and issued a CMHT card with a unique family identification number (UID). Coverage is a family floater shared across registered members.",
+    "head_of_family_required": true
+  },
+  "geographic_restrictions": [],
+  "coverage_amount_inr": 500000,
+  "coverage_type": "per_family_per_year",
+  "covered_procedures": [
+    "Cashless treatment for 7 critical illness groups at government and empanelled private hospitals",
+    "Cardiovascular diseases (heart conditions, cardiac surgery)",
+    "Kidney ailments and dialysis (nephrology)",
+    "Neurological disorders",
+    "Liver diseases",
+    "Cancer (oncology - chemotherapy, radiation, surgery)",
+    "Burns",
+    "Neonatal disorders",
+    "General hospitalization treatment up to Rs 50,000 per family per year (sub-limit within the cover)",
+    "Transport allowance of Rs 300 per hospital visit (annual cap Rs 3,000)",
+    "Out-of-state treatment daily allowance of Rs 1,000 per hospitalization day (up to Rs 10,000)"
+  ],
+  "excluded_procedures": [
+    "OPD (Out-Patient Department) consultation without hospitalization",
+    "Cosmetic and aesthetic surgery",
+    "Fertility treatment and IVF",
+    "Drug and alcohol rehabilitation",
+    "Treatment costs above the applicable annual family ceiling"
+  ],
+  "required_documents": [
+    {
+      "name": "Identity Proof (Aadhaar / Voter ID / PAN / Driving Licence / Passport)",
+      "category": "identity",
+      "mandatory": true,
+      "alternatives": ["Aadhaar Card", "Voter ID", "PAN Card", "Driving Licence", "Passport"],
+      "local_name_hi": "पहचान प्रमाण (आधार / वोटर आईडी / पैन / ड्राइविंग लाइसेंस / पासपोर्ट)",
+      "notes": "Any one government photo identity document for the beneficiary and family members."
+    },
+    {
+      "name": "AAY (Antyodaya Anna Yojana) Card",
+      "category": "eligibility_proof",
+      "mandatory": false,
+      "alternatives": ["BPL Card", "Widow Pension Document", "Disability Certificate"],
+      "local_name_hi": "एएवाई (अंत्योदय अन्न योजना) कार्ड",
+      "notes": "Required where eligibility is claimed via the AAY category. Widows and disabled persons provide the relevant supporting document."
+    },
+    {
+      "name": "CMHT Registration Fee Rs 50",
+      "category": "financial",
+      "mandatory": false,
+      "alternatives": [],
+      "local_name_hi": "सीएमएचटी पंजीकरण शुल्क 50 रुपये",
+      "notes": "A Rs 50 family registration fee applies, but is waived (exempted) for AAY card holders, disabled persons, and widows."
+    }
+  ],
+  "enrollment_channels": [
+    "ASHA worker notification and assistance",
+    "Designated village/ward enrollment centres",
+    "Community Health Centres (CHC)",
+    "CMHT online portal (cmhtmanipur.gov.in)"
+  ],
+  "enrollment_steps": [
+    "Step 1: ASHA workers notify eligible families at least 2 days before the registration drive in the area",
+    "Step 2: Eligible beneficiaries attend the enrollment centre with identity proof and any category document (AAY card, widow/disability proof)",
+    "Step 3: Documents are verified by the enrollment team",
+    "Step 4: Pay the Rs 50 family registration fee (waived for AAY holders, disabled persons, and widows)",
+    "Step 5: A CMHT card with a unique family identification number (UID) is issued",
+    "Step 6: For treatment, visit a government or empanelled private hospital with the CMHT card and ID proof; the health coordinator facilitates cashless admission after Insurance/ISA approval",
+    "Step 7: Claim the Rs 300 per-visit transport allowance and, for out-of-state referrals, the Rs 1,000/day allowance as applicable"
+  ],
+  "processing_time_days": 7,
+  "helpline_number": "1800-345-9006",
+  "portal_url": "https://cmhtmanipur.gov.in",
+  "version": "1.0",
+  "effective_date": "2018-01-21",
+  "expiry_date": null,
+  "last_verified": "2026-06-13",
+  "source_url": "https://cmhtmanipur.gov.in/cmht/scheme-details.html",
+  "confidence_level": "provisional",
+  "description_for_embedding": "Chief Minister-gi Hakshelgi Tengbang (CMHT) is Manipur's flagship state health assurance scheme providing cashless treatment to poor and needy families at government hospitals, health centres, and empanelled private hospitals. It provides up to Rs 5 lakh per family per year for seven critical illness groups — cardiovascular diseases, kidney ailments, neurological disorders, liver diseases, cancer, burns, and neonatal disorders — with a sub-limit of Rs 50,000 per family per year for general hospitalization treatment. (The scheme launched in January 2018 with a Rs 2 lakh cap, since enhanced; the current cover should be reconfirmed on the official portal before relying on the figure.) Eligibility is category-based rather than income-based: families identified in the Socio-Economic Caste Census (SECC), Antyodaya Anna Yojana (AAY) card holders, widows, disabled persons, and notified groups such as Anganwadi workers and helpers, ASHA workers, Ima Market women vendors, and newspaper hawkers/local media persons. A nominal Rs 50 family registration fee applies but is waived for AAY card holders, widows, and disabled persons. ASHA workers notify eligible families ahead of registration drives; on verification a CMHT card with a unique family identification number (UID) is issued. The scheme also pays a transport allowance of Rs 300 per hospital visit (capped at Rs 3,000 a year) and, for medically referred out-of-state treatment, a daily allowance of Rs 1,000 per hospitalization day up to Rs 10,000. Required documents include any government photo ID (Aadhaar, Voter ID, PAN, driving licence, or passport) and the relevant category document. Portal cmhtmanipur.gov.in.",
+  "keywords": [
+    "cmht", "manipur", "chief minister hakshelgi tengbang",
+    "hakselgi tenbang", "5 lakh", "critical illness", "AAY card",
+    "widow", "disabled", "SECC", "ASHA worker", "ima market",
+    "मुख्यमंत्री हकशेलगी तेंगबांग", "मणिपुर", "मुफ्त इलाज", "5 लाख",
+    "गंभीर बीमारी", "विधवा", "दिव्यांग", "अंत्योदय",
+    "north east health scheme", "cancer", "kidney", "heart disease",
+    "liver disease", "burns", "neonatal", "neurological",
+    "cashless treatment", "empanelled hospital", "transport allowance",
+    "cmhtmanipur.gov.in", "UID card", "anganwadi worker", "newspaper hawker"
+  ]
+}

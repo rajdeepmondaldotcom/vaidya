@@ -75,6 +75,7 @@ class TestSchemeRequiredFields:
             "NPHCE-2024-v1",
             "PMNDP-2024-v1",
             "CMCHCS-SK-2024-v1",  # Sikkim: universal free healthcare
+            "ABHA-ABDM-2024-v1",  # ABDM: digital health ID, not insurance (no payout)
         }
         for s in get_schemes():
             if s.scheme_id not in zero_coverage_ok:
