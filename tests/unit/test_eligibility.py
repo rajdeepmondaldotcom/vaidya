@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -18,7 +19,13 @@ from vaidya.models.scheme import (
     SchemeCoverageType,
     SchemeRecord,
 )
-from vaidya.models.user_profile import IncomeCategory, OccupationType, UserProfile
+from vaidya.models.user_profile import (
+    CoverageType,
+    IncomeCategory,
+    OccupationType,
+    UserProfile,
+)
+from vaidya.prompts import registry as prompts_registry
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -488,3 +495,650 @@ class TestProcess:
 
         assert response.eligibility_result is not None
         assert len(response.eligibility_result.matches) == 1
+
+
+# ---------------------------------------------------------------------------
+# System-prompt render hoist
+# ---------------------------------------------------------------------------
+
+
+def _extract_schemes_payload(system_prompt: str) -> list[dict[str, Any]]:
+    """Recover the serialized schemes list from a prompt.
+
+    Works whether the prompt is the bare schemes JSON (render mocked to echo
+    ``schemes``) or the fully rendered template (render wrapped). In the latter
+    case the compact JSON array immediately follows the SCHEME DATA marker.
+    """
+    text = system_prompt.strip()
+    marker = "SCHEME DATA (retrieved from knowledge base):"
+    if marker in text:
+        after = text.split(marker, 1)[1].lstrip("\n")
+        text = after.split("\n", 1)[0]
+    return json.loads(text)
+
+
+def _ineligible_match_for_each(system_prompt: str) -> dict[str, Any]:
+    """Fake LLM: echo back an ineligible verdict for every scheme in the prompt."""
+    payload = _extract_schemes_payload(system_prompt)
+    return {
+        "matches": [
+            {
+                "scheme_id": item["scheme_id"],
+                "scheme_name": item["canonical_name"],
+                "verdict": "ineligible",
+                "confidence": 0.8,
+                "coverage_summary": "n/a",
+            }
+            for item in payload
+        ]
+    }
+
+
+class TestSystemPromptRenderHoist:
+    @pytest.mark.asyncio
+    async def test_system_prompt_rendered_once_not_per_batch(self):
+        # 46 schemes / batch_size 20 => 3 batches, but a single render call.
+        schemes = [_make_scheme(f"s{i}") for i in range(46)]
+        agent = EligibilityAgent(
+            client=_mock_client(),
+            model="sarvam-105b",
+            schemes=schemes,
+            batch_size=20,
+            max_parallel_batches=1,
+        )
+        ctx = _make_context(state=None)
+
+        async def fake_llm(system_prompt: str, *_a: Any, **_k: Any) -> dict[str, Any]:
+            return _ineligible_match_for_each(system_prompt)
+
+        # Use the real template render so the placeholder substitution path is
+        # exercised, but spy on the render function to count calls.
+        with patch(
+            "vaidya.agents.eligibility.prompts.render",
+            wraps=prompts_registry.render,
+        ) as spy_render:
+            agent._call_llm_json = AsyncMock(side_effect=fake_llm)  # type: ignore[method-assign]
+            result = await agent._evaluate(ctx, "sarvam-105b")
+
+        # One render for the whole call; three LLM calls (one per batch).
+        assert spy_render.call_count == 1
+        assert agent._call_llm_json.call_count == 3
+        # Every candidate still evaluated -- pruning/hoisting must not drop any.
+        assert result.schemes_evaluated == 46
+        assert len(result.matches) == 46
+
+    @pytest.mark.asyncio
+    async def test_each_batch_receives_its_own_schemes_payload(self):
+        # The hoisted template must still splice the correct per-batch schemes.
+        schemes = [_make_scheme(f"s{i}") for i in range(5)]
+        agent = EligibilityAgent(
+            client=_mock_client(),
+            model="sarvam-105b",
+            schemes=schemes,
+            batch_size=2,
+            max_parallel_batches=1,
+        )
+        ctx = _make_context(state=None)
+
+        seen_ids: list[set[str]] = []
+
+        async def fake_llm(system_prompt: str, *_a: Any, **_k: Any) -> dict[str, Any]:
+            payload = _extract_schemes_payload(system_prompt)
+            seen_ids.append({item["scheme_id"] for item in payload})
+            return _ineligible_match_for_each(system_prompt)
+
+        with patch(
+            "vaidya.agents.eligibility.prompts.render",
+            wraps=prompts_registry.render,
+        ):
+            agent._call_llm_json = AsyncMock(side_effect=fake_llm)  # type: ignore[method-assign]
+            result = await agent._evaluate(ctx, "sarvam-105b")
+
+        # 5 schemes / batch 2 => batches of {s0,s1}, {s2,s3}, {s4}
+        assert seen_ids == [{"s0", "s1"}, {"s2", "s3"}, {"s4"}]
+        assert {m.scheme_id for m in result.matches} == {f"s{i}" for i in range(5)}
+
+
+# ---------------------------------------------------------------------------
+# RAG retrieval caching + top-k pruning
+# ---------------------------------------------------------------------------
+
+
+def _mock_store(hits: list[SchemeRecord]) -> MagicMock:
+    """A KnowledgeStore stand-in whose search() returns a fixed hit list."""
+    store = MagicMock()
+    store.search = MagicMock(return_value=list(hits))
+    return store
+
+
+class TestRetrievalCacheAndPruning:
+    @pytest.mark.asyncio
+    async def test_store_search_not_called_again_on_unchanged_fingerprint(self):
+        schemes = [_make_scheme(f"s{i}") for i in range(5)]
+        store = _mock_store(schemes[:3])  # retrieval surfaces s0,s1,s2
+        agent = EligibilityAgent(
+            client=_mock_client(),
+            model="sarvam-105b",
+            schemes=schemes,
+            store=store,
+            batch_size=20,
+            max_parallel_batches=1,
+        )
+        ctx = _make_context(state=None)
+
+        async def fake_llm(system_prompt: str, *_a: Any, **_k: Any) -> dict[str, Any]:
+            return _ineligible_match_for_each(system_prompt)
+
+        with patch(
+            "vaidya.agents.eligibility.prompts.render",
+            side_effect=lambda _name, **kw: kw["schemes"],
+        ):
+            agent._call_llm_json = AsyncMock(side_effect=fake_llm)  # type: ignore[method-assign]
+            # First eligibility turn -- retrieval runs once.
+            await agent._evaluate(ctx, "sarvam-105b")
+            assert store.search.call_count == 1
+            # Second turn on the SAME (unchanged) profile -- cache hit, no search.
+            await agent._evaluate(ctx, "sarvam-105b")
+            assert store.search.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_store_search_recalled_when_fingerprint_changes(self):
+        schemes = [_make_scheme(f"s{i}") for i in range(5)]
+        store = _mock_store(schemes[:3])
+        agent = EligibilityAgent(
+            client=_mock_client(),
+            model="sarvam-105b",
+            schemes=schemes,
+            store=store,
+            batch_size=20,
+            max_parallel_batches=1,
+        )
+        ctx = _make_context(state=None, health_need="heart surgery")
+
+        async def fake_llm(system_prompt: str, *_a: Any, **_k: Any) -> dict[str, Any]:
+            return _ineligible_match_for_each(system_prompt)
+
+        with patch(
+            "vaidya.agents.eligibility.prompts.render",
+            side_effect=lambda _name, **kw: kw["schemes"],
+        ):
+            agent._call_llm_json = AsyncMock(side_effect=fake_llm)  # type: ignore[method-assign]
+            await agent._evaluate(ctx, "sarvam-105b")
+            assert store.search.call_count == 1
+            # Mutate an eligibility-relevant field -> fingerprint changes.
+            ctx.user_profile.health_need = "kidney dialysis"
+            await agent._evaluate(ctx, "sarvam-105b")
+            assert store.search.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_rag_prunes_to_topk_hits_not_full_applicable(self):
+        # 10 applicable schemes, but retrieval only surfaces 3 -> evaluate 3.
+        schemes = [_make_scheme(f"s{i}") for i in range(10)]
+        store = _mock_store([schemes[2], schemes[5], schemes[7]])
+        agent = EligibilityAgent(
+            client=_mock_client(),
+            model="sarvam-105b",
+            schemes=schemes,
+            store=store,
+            batch_size=20,
+            max_parallel_batches=1,
+        )
+        ctx = _make_context(state=None)
+
+        async def fake_llm(system_prompt: str, *_a: Any, **_k: Any) -> dict[str, Any]:
+            return _ineligible_match_for_each(system_prompt)
+
+        with patch(
+            "vaidya.agents.eligibility.prompts.render",
+            side_effect=lambda _name, **kw: kw["schemes"],
+        ):
+            agent._call_llm_json = AsyncMock(side_effect=fake_llm)  # type: ignore[method-assign]
+            result = await agent._evaluate(ctx, "sarvam-105b")
+
+        # Pruned to the retrieval-ranked top-k, preserving retrieval order.
+        assert result.schemes_evaluated == 3
+        assert [m.scheme_id for m in result.matches] == ["s2", "s5", "s7"]
+
+    @pytest.mark.asyncio
+    async def test_empty_rag_result_falls_back_to_full_applicable(self):
+        # Retrieval finds nothing applicable -> evaluate the FULL applicable set
+        # so a weak/empty retrieval can never cause false negatives.
+        schemes = [_make_scheme(f"s{i}") for i in range(4)]
+        store = _mock_store([])
+        agent = EligibilityAgent(
+            client=_mock_client(),
+            model="sarvam-105b",
+            schemes=schemes,
+            store=store,
+            batch_size=20,
+            max_parallel_batches=1,
+        )
+        ctx = _make_context(state=None)
+
+        async def fake_llm(system_prompt: str, *_a: Any, **_k: Any) -> dict[str, Any]:
+            return _ineligible_match_for_each(system_prompt)
+
+        with patch(
+            "vaidya.agents.eligibility.prompts.render",
+            side_effect=lambda _name, **kw: kw["schemes"],
+        ):
+            agent._call_llm_json = AsyncMock(side_effect=fake_llm)  # type: ignore[method-assign]
+            result = await agent._evaluate(ctx, "sarvam-105b")
+
+        assert result.schemes_evaluated == 4
+        # An empty retrieval must not pin the cache (so a later turn retries).
+        assert "eligibility_rag_fingerprint" not in ctx.metadata
+
+    @pytest.mark.asyncio
+    async def test_no_store_evaluates_full_applicable_without_search(self):
+        # No knowledge store at all -> full applicable set, no pruning, no cache.
+        schemes = [_make_scheme(f"s{i}") for i in range(4)]
+        agent = EligibilityAgent(
+            client=_mock_client(),
+            model="sarvam-105b",
+            schemes=schemes,
+            batch_size=20,
+            max_parallel_batches=1,
+        )
+        ctx = _make_context(state=None)
+
+        async def fake_llm(system_prompt: str, *_a: Any, **_k: Any) -> dict[str, Any]:
+            return _ineligible_match_for_each(system_prompt)
+
+        with patch(
+            "vaidya.agents.eligibility.prompts.render",
+            side_effect=lambda _name, **kw: kw["schemes"],
+        ):
+            agent._call_llm_json = AsyncMock(side_effect=fake_llm)  # type: ignore[method-assign]
+            result = await agent._evaluate(ctx, "sarvam-105b")
+
+        assert result.schemes_evaluated == 4
+        assert "eligibility_rag_fingerprint" not in ctx.metadata
+
+    def test_profile_fingerprint_stable_and_sensitive(self):
+        ctx = _make_context(
+            state="Maharashtra",
+            income=IncomeCategory.BELOW_1L,
+            occupation=OccupationType.DAILY_WAGE,
+            health_need="heart surgery",
+        )
+        fp1 = EligibilityAgent._profile_fingerprint(ctx)
+        # Stable across calls when nothing changes.
+        assert fp1 == EligibilityAgent._profile_fingerprint(ctx)
+        # Sensitive to an eligibility-relevant change.
+        ctx.user_profile.income_bracket = IncomeCategory.ABOVE_5L
+        assert EligibilityAgent._profile_fingerprint(ctx) != fp1
+
+
+# ---------------------------------------------------------------------------
+# Speculative eligibility (kicked off during intake, consumed at PROCESSING)
+# ---------------------------------------------------------------------------
+
+
+def _evaluable_context(
+    state: str = "Maharashtra",
+    income: IncomeCategory = IncomeCategory.BELOW_1L,
+    occupation: OccupationType = OccupationType.DAILY_WAGE,
+    coverage: CoverageType = CoverageType.NONE,
+    family_size: int = 4,
+    call_id: str = "spec-call-001",
+) -> ConversationContext:
+    """A context whose profile is complete enough for eligibility to run.
+
+    ``required_fields_complete`` must be True for ``start_speculative`` to act,
+    so unlike :func:`_make_context` this fills family size + coverage too.
+    """
+    profile = UserProfile(
+        state=state,
+        family_size=family_size,
+        income_bracket=income,
+        occupation_type=occupation,
+        existing_coverage=coverage,
+        health_need="heart surgery",
+    )
+    return ConversationContext(
+        call_id=call_id,
+        phone_number_hash="abc123",
+        language="hi-IN",
+        phase=ConversationPhase.INTAKE,
+        user_profile=profile,
+    )
+
+
+def _income_sensitive_llm(system_prompt: str, profile_income: str) -> dict[str, Any]:
+    """Fake LLM verdict that depends on the profile income bracket.
+
+    ELIGIBLE for every prompted scheme when income is ``below_1l``, otherwise
+    INELIGIBLE. This lets a test prove that a post-speculation profile change
+    yields a *genuinely different* recomputed result -- not a stale reuse.
+    """
+    payload = _extract_schemes_payload(system_prompt)
+    eligible = profile_income == IncomeCategory.BELOW_1L.value
+    return {
+        "matches": [
+            {
+                "scheme_id": item["scheme_id"],
+                "scheme_name": item["canonical_name"],
+                "verdict": "eligible" if eligible else "ineligible",
+                "confidence": 0.9,
+                "coverage_summary": "n/a",
+            }
+            for item in payload
+        ]
+    }
+
+
+def _patched_render() -> Any:
+    """Patch prompt rendering to emit just the schemes payload (as other tests do)."""
+    return patch(
+        "vaidya.agents.eligibility.prompts.render",
+        side_effect=lambda _name, **kw: kw["schemes"],
+    )
+
+
+def _eligible_ids(result: Any) -> list[str]:
+    return sorted(m.scheme_id for m in result.matches if m.verdict == EligibilityVerdict.ELIGIBLE)
+
+
+class _no_runtime_warnings:
+    """Context manager that fails if any RuntimeWarning is emitted.
+
+    Used to assert a failed speculative task never surfaces as a
+    'coroutine/exception was never retrieved' RuntimeWarning.
+    """
+
+    def __enter__(self) -> _no_runtime_warnings:
+        import warnings
+
+        self._cm = warnings.catch_warnings()
+        self._cm.__enter__()
+        warnings.simplefilter("error", RuntimeWarning)
+        return self
+
+    def __exit__(self, *exc: Any) -> None:
+        self._cm.__exit__(*exc)
+
+
+class TestSpeculativeEligibility:
+    """Speculative pass is a PURE optimisation: identical-or-discarded."""
+
+    @pytest.mark.asyncio
+    async def test_does_not_start_when_profile_incomplete(self):
+        """No speculation until the profile is evaluable (all 5 fields known)."""
+        agent = EligibilityAgent(
+            client=_mock_client(), model="sarvam-105b", schemes=[_make_scheme("s0")]
+        )
+        ctx = _make_context(state="Maharashtra")  # missing family_size + coverage
+        assert ctx.user_profile.required_fields_complete is False
+        assert agent.start_speculative(ctx) is False
+        assert ctx.call_id not in agent._speculative
+
+    @pytest.mark.asyncio
+    async def test_unchanged_profile_reuses_speculative_result(self):
+        """(a) Unchanged profile: PROCESSING reuses the speculative result and
+        the eligible set is byte-identical to the synchronous path."""
+        schemes = [_make_scheme(f"s{i}") for i in range(4)]
+
+        async def fake_llm(system_prompt: str, *_a: Any, **_k: Any) -> dict[str, Any]:
+            return _income_sensitive_llm(system_prompt, IncomeCategory.BELOW_1L.value)
+
+        # Reference result via the plain synchronous path (no speculation).
+        ref_agent = EligibilityAgent(client=_mock_client(), model="sarvam-105b", schemes=schemes)
+        ref_ctx = _evaluable_context(call_id="ref")
+        with _patched_render():
+            ref_agent._call_llm_json = AsyncMock(side_effect=fake_llm)  # type: ignore[method-assign]
+            ref_resp = await ref_agent.process(ref_ctx, "")
+        assert ref_resp.metadata["eligibility_speculative_hit"] is False
+        reference_eligible = _eligible_ids(ref_resp.eligibility_result)
+
+        # Speculative path: start during intake, then process unchanged.
+        agent = EligibilityAgent(client=_mock_client(), model="sarvam-105b", schemes=schemes)
+        ctx = _evaluable_context(call_id="spec")
+        with _patched_render():
+            agent._call_llm_json = AsyncMock(side_effect=fake_llm)  # type: ignore[method-assign]
+            assert agent.start_speculative(ctx) is True
+            await asyncio.sleep(0)  # let the background task make progress
+            resp = await agent.process(ctx, "")
+
+        assert resp.metadata["eligibility_speculative_hit"] is True
+        assert _eligible_ids(resp.eligibility_result) == reference_eligible
+        # Single-use: the entry is consumed, not leaked.
+        assert ctx.call_id not in agent._speculative
+
+    @pytest.mark.asyncio
+    async def test_idempotent_for_same_fingerprint(self):
+        """Calling start_speculative twice on an unchanged profile reuses the
+        in-flight task rather than spawning a second one."""
+        agent = EligibilityAgent(
+            client=_mock_client(), model="sarvam-105b", schemes=[_make_scheme("s0")]
+        )
+        ctx = _evaluable_context()
+        with _patched_render():
+            agent._call_llm_json = AsyncMock(  # type: ignore[method-assign]
+                side_effect=lambda sp, *a, **k: _ineligible_match_for_each(sp)
+            )
+            assert agent.start_speculative(ctx) is True
+            first_task = agent._speculative[ctx.call_id].task
+            assert agent.start_speculative(ctx) is True
+            assert agent._speculative[ctx.call_id].task is first_task
+            agent.cancel_speculative(ctx.call_id)
+
+    @pytest.mark.asyncio
+    async def test_profile_change_after_speculation_recomputes_no_stale(self):
+        """(b) A profile change after speculation forces a recompute reflecting
+        the NEW profile -- the stale speculative result must never leak."""
+        schemes = [_make_scheme(f"s{i}") for i in range(3)]
+
+        # The fake LLM reads the CURRENT profile income at call time, so the
+        # speculative pass (BELOW_1L) and the post-change recompute (ABOVE_5L)
+        # return opposite verdicts.
+        agent = EligibilityAgent(client=_mock_client(), model="sarvam-105b", schemes=schemes)
+        ctx = _evaluable_context(income=IncomeCategory.BELOW_1L)
+
+        async def fake_llm(system_prompt: str, *_a: Any, **_k: Any) -> dict[str, Any]:
+            return _income_sensitive_llm(system_prompt, ctx.user_profile.income_bracket.value)
+
+        with _patched_render():
+            agent._call_llm_json = AsyncMock(side_effect=fake_llm)  # type: ignore[method-assign]
+            assert agent.start_speculative(ctx) is True
+            await asyncio.sleep(0)
+            # Caller corrects income AFTER speculation began -> fingerprint changes.
+            ctx.user_profile.income_bracket = IncomeCategory.ABOVE_5L
+            resp = await agent.process(ctx, "")
+
+        # Recomputed (not a hit) and reflects the NEW profile: ABOVE_5L => none eligible.
+        assert resp.metadata["eligibility_speculative_hit"] is False
+        assert _eligible_ids(resp.eligibility_result) == []
+        assert ctx.call_id not in agent._speculative
+
+    @pytest.mark.asyncio
+    async def test_coverage_change_invalidates_even_though_rag_fp_unchanged(self):
+        """REGRESSION: a change to a verdict-relevant field that the eligibility
+        prompt reads but the narrow RAG fingerprint OMITS (here existing_coverage)
+        must still invalidate the speculative result -- otherwise a stale verdict
+        leaks. The reuse gate uses the full-profile fingerprint, not the RAG one.
+        """
+        schemes = [_make_scheme(f"s{i}") for i in range(3)]
+        agent = EligibilityAgent(client=_mock_client(), model="sarvam-105b", schemes=schemes)
+        # Start with NO existing coverage.
+        ctx = _evaluable_context(coverage=CoverageType.NONE)
+
+        # The narrow RAG fingerprint must NOT change when only coverage changes
+        # (sanity: that is exactly why the speculative gate cannot use it).
+        narrow_before = EligibilityAgent._profile_fingerprint(ctx)
+
+        # Eligibility fake verdict depends on coverage: eligible only when NONE.
+        def coverage_sensitive_llm(system_prompt: str) -> dict[str, Any]:
+            payload = _extract_schemes_payload(system_prompt)
+            eligible = ctx.user_profile.existing_coverage == CoverageType.NONE
+            return {
+                "matches": [
+                    {
+                        "scheme_id": item["scheme_id"],
+                        "scheme_name": item["canonical_name"],
+                        "verdict": "eligible" if eligible else "ineligible",
+                        "confidence": 0.9,
+                        "coverage_summary": "n/a",
+                    }
+                    for item in payload
+                ]
+            }
+
+        async def fake_llm(system_prompt: str, *_a: Any, **_k: Any) -> dict[str, Any]:
+            return coverage_sensitive_llm(system_prompt)
+
+        with _patched_render():
+            agent._call_llm_json = AsyncMock(side_effect=fake_llm)  # type: ignore[method-assign]
+            assert agent.start_speculative(ctx) is True
+            await asyncio.sleep(0)
+            # Caller now reveals employer coverage AFTER speculation began.
+            ctx.user_profile.existing_coverage = CoverageType.EMPLOYER
+            resp = await agent.process(ctx, "")
+
+        # The narrow RAG fingerprint is unchanged...
+        assert EligibilityAgent._profile_fingerprint(ctx) == narrow_before
+        # ...yet the speculative result was correctly DISCARDED and recomputed
+        # against the new coverage (=> ineligible), not the stale NONE result.
+        assert resp.metadata["eligibility_speculative_hit"] is False
+        assert _eligible_ids(resp.eligibility_result) == []
+        assert ctx.call_id not in agent._speculative
+
+    def test_eligibility_input_fingerprint_covers_full_profile(self):
+        """The reuse fingerprint must change for ANY verdict-relevant field --
+        including ones the narrow RAG fingerprint ignores."""
+        ctx = _evaluable_context()
+        base = EligibilityAgent._eligibility_input_fingerprint(ctx)
+        # Fields the narrow RAG fingerprint omits but the prompt uses:
+        for mutate in (
+            lambda p: setattr(p, "existing_coverage", CoverageType.EMPLOYER),
+            lambda p: setattr(p, "age", 70),
+            lambda p: setattr(p, "bpl_card", True),
+            lambda p: setattr(p, "ration_card", True),
+            lambda p: setattr(p, "district", "Pune"),
+            lambda p: setattr(p, "secc_category", "D1"),
+        ):
+            fresh = _evaluable_context()
+            mutate(fresh.user_profile)
+            assert EligibilityAgent._eligibility_input_fingerprint(fresh) != base
+
+    @pytest.mark.asyncio
+    async def test_speculative_failure_falls_back_cleanly(self):
+        """(c)+(d) When the background pass fails, the consumer swallows the
+        exception, recomputes synchronously, and no unretrieved background-task
+        exception escapes."""
+        schemes = [_make_scheme("s0"), _make_scheme("s1")]
+        agent = EligibilityAgent(client=_mock_client(), model="sarvam-105b", schemes=schemes)
+        ctx = _evaluable_context()
+
+        # Force ONLY the background speculative compute to blow up; the
+        # synchronous path (_compute_with_fallback) is left intact.
+        original_compute = agent._compute_with_fallback
+        blew_up = {"flag": False}
+
+        async def speculative_only_failure(context: ConversationContext):
+            # The speculative task deep-copies the context, so its call_id is
+            # preserved but its object identity differs from `ctx`.
+            if not blew_up["flag"]:
+                blew_up["flag"] = True
+                raise RuntimeError("boom (speculative pass)")
+            return await original_compute(context)
+
+        async def fake_llm(system_prompt: str, *_a: Any, **_k: Any) -> dict[str, Any]:
+            return _income_sensitive_llm(system_prompt, IncomeCategory.BELOW_1L.value)
+
+        with _patched_render(), _no_runtime_warnings():
+            agent._call_llm_json = AsyncMock(side_effect=fake_llm)  # type: ignore[method-assign]
+            agent._compute_with_fallback = speculative_only_failure  # type: ignore[method-assign]
+            # _no_runtime_warnings turns any unretrieved-task RuntimeWarning
+            # into a hard error, asserting the failed speculation is silent.
+            assert agent.start_speculative(ctx) is True
+            await asyncio.sleep(0.01)  # let the speculative task fail
+            resp = await agent.process(ctx, "")
+
+        # The speculative pass raised; the synchronous recompute then succeeded.
+        assert blew_up["flag"] is True
+        # Fell back cleanly: no hit, no error, real result, entry consumed.
+        assert resp.metadata["eligibility_speculative_hit"] is False
+        assert resp.error is None
+        assert _eligible_ids(resp.eligibility_result) == ["s0", "s1"]
+        assert ctx.call_id not in agent._speculative
+
+    @pytest.mark.asyncio
+    async def test_cancel_speculative_stops_inflight_task(self):
+        """cancel_speculative() cancels the background task and drops the entry,
+        so an abandoned session never leaks a running task."""
+        started = asyncio.Event()
+        release = asyncio.Event()
+
+        async def blocking_llm(system_prompt: str, *_a: Any, **_k: Any) -> dict[str, Any]:
+            started.set()
+            await release.wait()  # block until the test releases it
+            return _ineligible_match_for_each(system_prompt)
+
+        agent = EligibilityAgent(
+            client=_mock_client(), model="sarvam-105b", schemes=[_make_scheme("s0")]
+        )
+        ctx = _evaluable_context()
+        with _patched_render():
+            agent._call_llm_json = AsyncMock(side_effect=blocking_llm)  # type: ignore[method-assign]
+            assert agent.start_speculative(ctx) is True
+            task = agent._speculative[ctx.call_id].task
+            await asyncio.wait_for(started.wait(), timeout=1.0)
+
+            agent.cancel_speculative(ctx.call_id)
+            assert ctx.call_id not in agent._speculative
+            # The task is cancelled; awaiting it raises CancelledError (handled).
+            with pytest.raises(asyncio.CancelledError):
+                await task
+            release.set()  # unblock in case cancellation lost the race (no-op otherwise)
+
+    @pytest.mark.asyncio
+    async def test_cancel_speculative_is_safe_when_nothing_inflight(self):
+        agent = EligibilityAgent(
+            client=_mock_client(), model="sarvam-105b", schemes=[_make_scheme("s0")]
+        )
+        # Should not raise even though no speculation was ever started.
+        agent.cancel_speculative("never-started")
+
+    @pytest.mark.asyncio
+    async def test_speculative_map_is_bounded(self):
+        """Abandoned sessions cannot leak entries forever: the map is pruned to
+        a cap, evicting (and cancelling) the oldest entries."""
+        import vaidya.agents.eligibility as elig_mod
+
+        agent = EligibilityAgent(
+            client=_mock_client(), model="sarvam-105b", schemes=[_make_scheme("s0")]
+        )
+
+        started: list[asyncio.Event] = []
+
+        async def blocking_llm(system_prompt: str, *_a: Any, **_k: Any) -> dict[str, Any]:
+            ev = asyncio.Event()
+            started.append(ev)
+            await ev.wait()  # never released -> entries stay "in flight"
+            return _ineligible_match_for_each(system_prompt)
+
+        with (
+            _patched_render(),
+            patch.object(elig_mod, "_MAX_SPECULATIVE_ENTRIES", 5),
+        ):
+            agent._call_llm_json = AsyncMock(side_effect=blocking_llm)  # type: ignore[method-assign]
+            tasks = []
+            for i in range(20):
+                ctx = _evaluable_context(call_id=f"leaky-{i}")
+                assert agent.start_speculative(ctx) is True
+                tasks.append(agent._speculative.get(ctx.call_id))
+
+            # Never exceeds the cap despite 20 distinct sessions starting.
+            assert len(agent._speculative) <= 5
+            # The oldest sessions were evicted...
+            assert "leaky-0" not in agent._speculative
+            # ...and the newest are retained.
+            assert "leaky-19" in agent._speculative
+
+        # Clean up: cancel everything still in flight so no task leaks the test.
+        for call_id in list(agent._speculative.keys()):
+            agent.cancel_speculative(call_id)
+        await asyncio.gather(
+            *(t.task for t in (tasks or []) if t is not None), return_exceptions=True
+        )

@@ -1,0 +1,121 @@
+{
+  "scheme_id": "NMHP-2024-v1",
+  "canonical_name": "National Mental Health Programme (NMHP)",
+  "aliases": [
+    "NMHP",
+    "National Mental Health Programme",
+    "District Mental Health Programme",
+    "DMHP",
+    "National Tele Mental Health Programme",
+    "Tele MANAS",
+    "Government Mental Health Services",
+    "Free Mental Health Care"
+  ],
+  "local_names": {
+    "hi": "राष्ट्रीय मानसिक स्वास्थ्य कार्यक्रम",
+    "bn": "জাতীয় মানসিক স্বাস্থ্য কর্মসূচি",
+    "ta": "தேசிய மனநல திட்டம்",
+    "te": "జాతీయ మానసిక ఆరోగ్య కార్యక్రమం",
+    "mr": "राष्ट्रीय मानसिक आरोग्य कार्यक्रम",
+    "gu": "રાષ્ટ્રીય માનસિક સ્વાસ્થ્ય કાર્યક્રમ",
+    "kn": "ರಾಷ್ಟ್ರೀಯ ಮಾನಸಿಕ ಆರೋಗ್ಯ ಕಾರ್ಯಕ್ರಮ",
+    "ml": "ദേശീയ മാനസികാരോഗ്യ പരിപാടി",
+    "pa": "ਰਾਸ਼ਟਰੀ ਮਾਨਸਿਕ ਸਿਹਤ ਪ੍ਰੋਗਰਾਮ",
+    "or": "ଜାତୀୟ ମାନସିକ ସ୍ୱାସ୍ଥ୍ୟ କାର୍ଯ୍ୟକ୍ରମ"
+  },
+  "state_variant_of": null,
+  "jurisdiction": "central",
+  "state_code": null,
+  "income_thresholds": [],
+  "secc_categories": [],
+  "occupation_included": [
+    "all_citizens",
+    "person_with_mental_illness",
+    "student",
+    "elderly",
+    "homemaker",
+    "daily_wage",
+    "farmer",
+    "unemployed",
+    "tribal",
+    "disaster_survivor"
+  ],
+  "occupation_excluded": [],
+  "exclusion_rules": [],
+  "age_criteria": null,
+  "family_criteria": {
+    "max_family_size": null,
+    "family_definition": "Universal access — mental health services are available to every person in India regardless of income, age, or family size. Care is delivered free at government facilities and via the 24x7 Tele MANAS helpline. No formal enrollment or means test is required.",
+    "head_of_family_required": false
+  },
+  "geographic_restrictions": [],
+  "coverage_amount_inr": 0,
+  "coverage_type": "per_event",
+  "covered_procedures": [
+    "Free outpatient mental health consultation and assessment at government facilities",
+    "Free counselling and psycho-social interventions",
+    "Free psychiatric medicines at PHC, CHC, and district hospital under DMHP",
+    "Continuing care and support for persons with severe mental disorders (schizophrenia, bipolar disorder, depression)",
+    "Management of common mental disorders — anxiety, depression, stress",
+    "De-addiction and substance-use support services",
+    "Suicide prevention counselling",
+    "24x7 free tele-counselling via Tele MANAS toll-free helpline 14416 / 1800-891-4416",
+    "Community outreach, awareness camps, and school/college mental health activities",
+    "Ambulance and referral services for acute psychiatric emergencies",
+    "Treatment at District Mental Health Programme (DMHP) centres in covered districts"
+  ],
+  "excluded_procedures": [
+    "Private psychiatrist consultation fees",
+    "Private rehabilitation or residential facility charges",
+    "Out-of-pocket purchase of medicines not stocked at the government facility"
+  ],
+  "required_documents": [
+    {
+      "name": "Any Government Photo ID",
+      "category": "identity",
+      "mandatory": false,
+      "alternatives": ["Aadhaar Card", "Voter ID", "Ration Card"],
+      "local_name_hi": "कोई सरकारी फोटो पहचान पत्र",
+      "notes": "Helpful for hospital registration, but mental health care and the Tele MANAS helpline are NOT denied for lack of ID. The 14416 helpline requires no documents at all."
+    }
+  ],
+  "enrollment_channels": [
+    "Tele MANAS 24x7 helpline 14416 (or 1800-891-4416)",
+    "District Mental Health Programme (DMHP) clinic at district hospital",
+    "Primary Health Centre (PHC) and Community Health Centre (CHC)",
+    "Government medical college psychiatry department",
+    "Government mental health institutes (NIMHANS, IHBAS, RINPAS, etc.)",
+    "Ayushman Bharat Health & Wellness Centre (Ayushman Arogya Mandir)",
+    "ASHA / ANM community health worker referral"
+  ],
+  "enrollment_steps": [
+    "Step 1: For immediate support, call the free Tele MANAS helpline 14416 (available 24x7 in multiple Indian languages) — no documents or registration needed",
+    "Step 2: For in-person care, visit your nearest PHC, CHC, district hospital, or DMHP clinic",
+    "Step 3: Register at the OPD counter (a government photo ID helps but is not mandatory)",
+    "Step 4: A medical officer or psychiatrist assesses your condition free of cost",
+    "Step 5: Receive free counselling, psycho-social support, and prescribed psychiatric medicines",
+    "Step 6: Attend follow-up visits for continuing care; severe cases are referred to higher facilities or DMHP support",
+    "Step 7: Community health workers may provide home follow-up and adherence support"
+  ],
+  "processing_time_days": 1,
+  "helpline_number": "14416",
+  "portal_url": "https://telemanas.mohfw.gov.in",
+  "version": "1.0",
+  "effective_date": "1982-01-01",
+  "expiry_date": null,
+  "last_verified": "2026-06-13",
+  "source_url": "https://dghs.mohfw.gov.in/national-mental-health-programme.php",
+  "confidence_level": "provisional",
+  "description_for_embedding": "The National Mental Health Programme (NMHP), launched in 1982 by the Ministry of Health & Family Welfare, ensures the availability and accessibility of minimum mental healthcare for all, especially vulnerable and underprivileged sections of society. It is implemented at the district level through the District Mental Health Programme (DMHP), now approved in over 760 districts, which integrates mental health into the general healthcare system. DMHP provides FREE outpatient services, assessment, counselling and psycho-social interventions, free psychiatric medicines, continuing care for persons with severe mental disorders, de-addiction support, suicide prevention, outreach, and ambulance services at Primary Health Centres, Community Health Centres, and district hospitals. There is no income test, age bar, or formal enrollment — services are available to every person in India. The National Tele Mental Health Programme (Tele MANAS), launched in October 2022, is the digital arm of DMHP, offering free 24x7 tele-counselling in multiple Indian languages through the toll-free number 14416 (or 1800-891-4416), with no documents required. NMHP covers common mental disorders such as anxiety and depression as well as severe conditions like schizophrenia and bipolar disorder. Care is also available at government mental health institutes such as NIMHANS, IHBAS, and at medical college psychiatry departments. Anyone experiencing stress, anxiety, depression, suicidal thoughts, or any mental health concern can access these free services by calling 14416 or visiting a government health facility.",
+  "keywords": [
+    "mental health", "NMHP", "DMHP", "Tele MANAS", "14416",
+    "free counselling", "depression", "anxiety", "stress", "suicide prevention",
+    "psychiatrist", "psychiatric medicine", "mental illness", "schizophrenia",
+    "bipolar", "de-addiction", "tele mental health", "1800-891-4416",
+    "मानसिक स्वास्थ्य", "अवसाद", "तनाव", "चिंता", "मानसिक रोग",
+    "मुफ्त परामर्श", "आत्महत्या रोकथाम", "मनोचिकित्सक", "टेली मानस",
+    "free mental health", "government mental health", "DMHP clinic",
+    "NIMHANS", "counselling helpline", "emotional support", "central scheme",
+    "public health", "mental wellness", "psychosocial support"
+  ]
+}

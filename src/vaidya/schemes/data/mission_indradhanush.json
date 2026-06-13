@@ -1,0 +1,128 @@
+{
+  "scheme_id": "MI-2026-v1",
+  "canonical_name": "Mission Indradhanush (and Intensified Mission Indradhanush)",
+  "aliases": [
+    "Mission Indradhanush",
+    "MI",
+    "Intensified Mission Indradhanush",
+    "IMI",
+    "IMI 5.0",
+    "Indradhanush",
+    "Full Immunization Drive",
+    "Rainbow Mission"
+  ],
+  "local_names": {
+    "hi": "मिशन इंद्रधनुष",
+    "bn": "মিশন ইন্দ্রধনুষ",
+    "ta": "மிஷன் இந்திரதனுஷ்",
+    "te": "మిషన్ ఇంద్రధనుష్",
+    "mr": "मिशन इंद्रधनुष्य",
+    "gu": "મિશન ઇન્દ્રધનુષ",
+    "kn": "ಮಿಷನ್ ಇಂದ್ರಧನುಷ್",
+    "ml": "മിഷൻ ഇന്ദ്രധനുഷ്",
+    "pa": "ਮਿਸ਼ਨ ਇੰਦਰਧਨੁਸ਼",
+    "or": "ମିଶନ ଇନ୍ଦ୍ରଧନୁ"
+  },
+  "state_variant_of": null,
+  "jurisdiction": "central",
+  "state_code": null,
+  "income_thresholds": [],
+  "secc_categories": [],
+  "occupation_included": [
+    "unvaccinated_children_under_2",
+    "partially_vaccinated_children_under_2",
+    "unvaccinated_pregnant_women",
+    "partially_vaccinated_pregnant_women"
+  ],
+  "occupation_excluded": [],
+  "exclusion_rules": [
+    {
+      "rule_id": "MI-EX-001",
+      "exclusion_type": "soft",
+      "field": "age",
+      "condition": "age > 6 and not is_pregnant",
+      "description": "Mission Indradhanush is a catch-up immunization drive that primarily targets children under 2 years; later intensified rounds (IMI) extended catch-up vaccination to children up to about 5-6 years. Pregnant women who missed Tetanus-Diphtheria (Td) doses are also covered regardless of age, so this exclusion never applies to a pregnant woman. Older children are covered through the routine Universal Immunization Programme rather than this drive.",
+      "override_by_state": false
+    }
+  ],
+  "age_criteria": null,
+  "family_criteria": {
+    "max_family_size": null,
+    "family_definition": "Universal catch-up drive — every child who is unvaccinated or partially vaccinated (primarily under 2 years, extended to about 5-6 years in intensified rounds) and every pregnant woman who has missed vaccine doses is eligible, regardless of income, caste, or BPL status. Focus is on those left out or dropped out of routine immunization, including hard-to-reach, migrant, and underserved areas.",
+    "head_of_family_required": false
+  },
+  "geographic_restrictions": [],
+  "coverage_amount_inr": 0,
+  "coverage_type": "per_person_per_year",
+  "covered_procedures": [
+    "Free catch-up vaccination with all vaccines under the Universal Immunization Programme for children who missed or dropped out of routine doses",
+    "BCG, OPV/IPV (polio), Hepatitis B, Pentavalent (DPT + Hep B + Hib), Rotavirus, PCV, Measles-Rubella (MR), and JE (in endemic districts) as due",
+    "DPT and Td booster doses for eligible children",
+    "Tetanus-Diphtheria (Td) vaccination for unvaccinated or partially vaccinated pregnant women",
+    "Special focus on reaching unvaccinated and partially vaccinated children in low-coverage, hard-to-reach, migrant, urban slum, and tribal areas",
+    "Intensified rounds of immunization sessions conducted over multiple consecutive days",
+    "Free of cost, delivered through additional special immunization sessions alongside routine UIP"
+  ],
+  "excluded_procedures": [
+    "Vaccines outside the National Immunization Schedule / UIP basket",
+    "Paid vaccination at private clinics",
+    "Treatment of diseases (the drive is preventive vaccination only)",
+    "Fully immunized children who have no due or missed doses"
+  ],
+  "required_documents": [
+    {
+      "name": "Mother and Child Protection (MCP) Card",
+      "category": "medical",
+      "mandatory": false,
+      "alternatives": ["Self-declaration of missed doses", "U-WIN record"],
+      "local_name_hi": "मातृ एवं शिशु सुरक्षा कार्ड",
+      "notes": "Helps identify which doses are missed; not mandatory. ASHA workers also identify left-out and dropped-out children through head-counts and due-lists."
+    },
+    {
+      "name": "Aadhaar / Birth proof",
+      "category": "identity",
+      "mandatory": false,
+      "alternatives": ["Any ID", "No ID needed for the vaccine"],
+      "local_name_hi": "आधार / जन्म प्रमाण",
+      "notes": "For digital registration on U-WIN; absence of ID cannot be a reason to deny catch-up vaccination."
+    }
+  ],
+  "enrollment_channels": [
+    "Special Mission Indradhanush immunization sessions in villages and urban wards",
+    "Government Sub-Centre / Health & Wellness Centre",
+    "Primary Health Centre (PHC)",
+    "Anganwadi Centre",
+    "Mobile and outreach vaccination teams in hard-to-reach areas",
+    "ASHA / ANM identification of left-out and dropped-out children",
+    "U-WIN portal / app"
+  ],
+  "enrollment_steps": [
+    "Step 1: ASHA/ANM workers conduct head-counts and prepare due-lists of unvaccinated and partially vaccinated children and pregnant women",
+    "Step 2: Special intensified immunization sessions are scheduled (multiple rounds, each over several consecutive days)",
+    "Step 3: Families are mobilised and informed of the special session dates",
+    "Step 4: Bring the child or pregnant woman to the Mission Indradhanush session at the nearest site",
+    "Step 5: All due/missed vaccines are administered free of cost per the National Immunization Schedule",
+    "Step 6: Doses recorded in the MCP card and on the U-WIN registry",
+    "Step 7: Families are reminded of subsequent rounds to complete full immunization"
+  ],
+  "processing_time_days": 0,
+  "helpline_number": "104",
+  "portal_url": "https://nhm.gov.in/index1.php?lang=1&level=2&sublinkid=824&lid=220",
+  "version": "1.0",
+  "effective_date": "2014-12-25",
+  "expiry_date": null,
+  "last_verified": "2026-06-13",
+  "source_url": "https://nhm.gov.in/index1.php?lang=1&level=2&sublinkid=824&lid=220",
+  "confidence_level": "provisional",
+  "description_for_embedding": "Mission Indradhanush (MI), launched by the Ministry of Health and Family Welfare in December 2014, is a flagship catch-up immunization drive under the Universal Immunization Programme that aims to fully immunize all children and pregnant women who were left out or dropped out of routine vaccination. It primarily targets children under 2 years and pregnant women, with Intensified Mission Indradhanush (IMI, launched October 2017) and its later rounds (IMI 5.0) extending catch-up vaccination to children up to about five years and focusing on districts and urban areas with low immunization coverage. The drive provides, completely free of cost, all vaccines in the National Immunization Schedule — BCG, polio (OPV/IPV), Hepatitis B, Pentavalent, Rotavirus, Pneumococcal Conjugate Vaccine, Measles-Rubella, Japanese Encephalitis (in endemic districts), and DPT/Td boosters — plus Tetanus-Diphtheria vaccination for unvaccinated or partially vaccinated pregnant women. Special intensified immunization sessions are run over multiple consecutive days, with extra focus on hard-to-reach, migrant, urban-slum, and tribal populations. ASHA and ANM workers identify left-out and dropped-out children through head-counts and due-lists. There is no income, caste, or BPL restriction and no fee. The mission has vaccinated crores of children and pregnant women and was showcased internationally as a best practice for rapidly raising full-immunization coverage.",
+  "keywords": [
+    "Mission Indradhanush", "Intensified Mission Indradhanush", "IMI", "IMI 5.0",
+    "catch-up vaccination", "full immunization", "missed vaccine", "dropped out",
+    "left out children", "free vaccine drive", "BCG", "polio", "pentavalent",
+    "measles rubella", "Td pregnant women", "under 2 children", "unvaccinated",
+    "partially vaccinated", "ASHA", "ANM", "U-WIN", "MCP card",
+    "मिशन इंद्रधनुष", "टीकाकरण अभियान", "छूटे हुए बच्चे", "मुफ्त टीका",
+    "पूर्ण टीकाकरण", "गर्भवती महिला टीका", "बच्चों का टीका",
+    "immunization campaign", "NHM", "central scheme", "vaccine catch up", "104 helpline"
+  ]
+}

@@ -15,6 +15,7 @@ from vaidya.models.scheme import (
     EligibilityVerdict,
     GuidanceOutput,
     SchemeMatch,
+    SpokenPart,
 )
 from vaidya.models.user_profile import UserProfile
 
@@ -148,8 +149,9 @@ class TestParseGuidanceOutput:
         eligible = [_match()]
         convergence = _convergence(eligible=eligible)
         result = self._agent()._parse_guidance_output(raw, eligible, convergence)
+        # Combined fallback for one scheme: intro + scheme line + offer.
         assert len(result.spoken_parts) == 3
-        assert result.spoken_parts[0].type == "headline"
+        assert result.spoken_parts[0].type == "intro"
 
     def test_empty_spoken_parts_uses_fallback(self):
         raw = {"spoken_parts": []}
@@ -259,24 +261,49 @@ class TestFallbacks:
     def _agent(self) -> GuidanceAgent:
         return GuidanceAgent(client=_mock_client())
 
-    def test_fallback_parts_structure(self):
+    def test_fallback_parts_single_scheme(self):
+        """One scheme: intro + one scheme line + offer, naming the scheme."""
         parts = self._agent()._build_fallback_parts([_match()])
+        # intro + 1 scheme line + offer
         assert len(parts) == 3
         types = [p.type for p in parts]
-        assert types == ["headline", "benefit", "action"]
-        assert "PM-JAY" in parts[0].text
+        assert types == ["intro", "scheme", "offer"]
+        assert "PM-JAY" in parts[1].text
+
+    def test_fallback_parts_lists_all_schemes_in_one_message(self):
+        """Multiple schemes: ONE combined message naming EVERY scheme, no gate."""
+        m1 = _match("pmjay", "PM-JAY")
+        m2 = _match("aaby", "AABY")
+        m3 = _match("chiranjeevi", "Chiranjeevi Yojana")
+        parts = self._agent()._build_fallback_parts([m1, m2, m3])
+
+        # intro + 3 scheme lines + offer
+        types = [p.type for p in parts]
+        assert types == ["intro", "scheme", "scheme", "scheme", "offer"]
+
+        combined = " ".join(p.text for p in parts)
+        # All three scheme names appear in the single combined turn.
+        assert "PM-JAY" in combined
+        assert "AABY" in combined
+        assert "Chiranjeevi Yojana" in combined
+        # No "want to hear the next one" gate.
+        assert "Ek aur yojana" not in combined
+        assert "Sunna chahenge" not in combined
 
     def test_fallback_sms_within_limit(self):
         sms = self._agent()._build_fallback_sms([_match()])
         assert len(sms) <= 160
         assert "Vaidya" in sms
 
-    def test_fallback_sms_with_multiple_schemes(self):
+    def test_fallback_sms_covers_every_scheme(self):
         m1 = _match("pmjay", "PM-JAY")
         m2 = _match("aaby", "AABY")
-        sms = self._agent()._build_fallback_sms([m1, m2])
+        m3 = _match("rsby", "RSBY")
+        sms = self._agent()._build_fallback_sms([m1, m2, m3])
         assert "PM-JAY" in sms
         assert "AABY" in sms
+        assert "RSBY" in sms
+        assert len(sms) <= 160
 
 
 # ---------------------------------------------------------------------------
@@ -316,19 +343,24 @@ class TestNoMatchResponse:
 
 
 # ---------------------------------------------------------------------------
-# process() — __deliver_scheme_index parsing
+# process() — delivers ALL eligible schemes in one turn
 # ---------------------------------------------------------------------------
 
 
-class TestProcessSchemeIndex:
+class TestProcessDeliversAllSchemes:
     @pytest.mark.asyncio
-    async def test_deliver_single_scheme_by_index(self):
-        """Verify the index-parsing logic slices the eligible list correctly."""
+    async def test_process_passes_all_schemes_to_generation(self):
+        """process() must hand the FULL eligible list to guidance generation.
+
+        The old ``__deliver_scheme_index:N`` slice is gone -- every eligible
+        scheme is delivered in a single turn.
+        """
         agent = GuidanceAgent(client=_mock_client())
 
         m1 = _match("pmjay", "PM-JAY")
         m2 = _match("aaby", "AABY")
-        conv = _convergence(eligible=[m1, m2])
+        m3 = _match("chiranjeevi", "Chiranjeevi Yojana")
+        conv = _convergence(eligible=[m1, m2, m3])
         ctx = _context(convergence=conv)
 
         captured_eligible: list[list[SchemeMatch]] = []
@@ -336,7 +368,40 @@ class TestProcessSchemeIndex:
         async def fake_generate(eligible, convergence, context):
             captured_eligible.append(list(eligible))
             return GuidanceOutput(
-                spoken_parts=[],
+                spoken_parts=[SpokenPart(type="intro", text="x")],
+                sms_summary="test",
+                has_more_schemes=False,
+                caveat_needed=False,
+                processing_time_ms=0.0,
+            )
+
+        agent._generate_guidance = fake_generate
+        resp = await agent.process(ctx, "")
+
+        assert len(captured_eligible) == 1
+        # ALL three schemes reach generation in one call.
+        assert [s.scheme_id for s in captured_eligible[0]] == ["pmjay", "aaby", "chiranjeevi"]
+        assert resp.metadata["schemes_delivered"] == 3
+
+    @pytest.mark.asyncio
+    async def test_deliver_index_sentinel_is_not_special_cased(self):
+        """A stray ``__deliver_scheme_index`` input is treated as normal input.
+
+        It must NOT slice the eligible list -- all schemes still go through.
+        """
+        agent = GuidanceAgent(client=_mock_client())
+
+        m1 = _match("pmjay", "PM-JAY")
+        m2 = _match("aaby", "AABY")
+        conv = _convergence(eligible=[m1, m2])
+        ctx = _context(convergence=conv)
+
+        captured: list[list[SchemeMatch]] = []
+
+        async def fake_generate(eligible, convergence, context):
+            captured.append(list(eligible))
+            return GuidanceOutput(
+                spoken_parts=[SpokenPart(type="intro", text="x")],
                 sms_summary="test",
                 has_more_schemes=False,
                 caveat_needed=False,
@@ -346,36 +411,8 @@ class TestProcessSchemeIndex:
         agent._generate_guidance = fake_generate
         await agent.process(ctx, "__deliver_scheme_index:1")
 
-        assert len(captured_eligible) == 1
-        assert len(captured_eligible[0]) == 1
-        assert captured_eligible[0][0].scheme_id == "aaby"
-
-    @pytest.mark.asyncio
-    async def test_invalid_index_delivers_all(self):
-        """Bad index string should fall through and deliver all schemes."""
-        agent = GuidanceAgent(client=_mock_client())
-
-        m1 = _match("pmjay", "PM-JAY")
-        conv = _convergence(eligible=[m1])
-        ctx = _context(convergence=conv)
-
-        captured: list[list[SchemeMatch]] = []
-
-        async def fake_generate(eligible, convergence, context):
-            captured.append(list(eligible))
-            return GuidanceOutput(
-                spoken_parts=[],
-                sms_summary="test",
-                has_more_schemes=False,
-                caveat_needed=False,
-                processing_time_ms=0.0,
-            )
-
-        agent._generate_guidance = fake_generate
-        await agent.process(ctx, "__deliver_scheme_index:not_a_number")
-
         assert len(captured) == 1
-        assert len(captured[0]) == 1
+        assert [s.scheme_id for s in captured[0]] == ["pmjay", "aaby"]
 
     @pytest.mark.asyncio
     async def test_no_convergence_returns_no_match(self):

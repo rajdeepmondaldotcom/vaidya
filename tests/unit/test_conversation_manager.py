@@ -381,7 +381,7 @@ class TestHandleSilence:
             audit_trail=audit,
         )
         spoken, terminal = await mgr.handle_silence("test-call-001", 10.0)
-        assert "sun raha hoon" in spoken
+        assert "yahin hoon" in spoken
         assert terminal is False
 
     @pytest.mark.asyncio
@@ -412,7 +412,7 @@ class TestHandleSilence:
         )
         spoken, terminal = await mgr.handle_silence("test-call-001", 20.0)
         # Prefix + last question glued together
-        assert "Ek baar phir" in spoken
+        assert "phir se poochta hoon" in spoken
         assert "Aap kahaan rehte hain?" in spoken
         assert terminal is False
 
@@ -431,7 +431,7 @@ class TestHandleSilence:
         )
         spoken, terminal = await mgr.handle_silence("test-call-001", 20.0)
         # Prefix alone still returned
-        assert "Ek baar phir" in spoken
+        assert "phir se poochta hoon" in spoken
         assert terminal is False
 
     @pytest.mark.asyncio
@@ -537,7 +537,7 @@ class TestHandleSilence:
         assert terminal is False
 
         spoken, terminal = await mgr.handle_silence("test-call-001", 12.0)
-        assert "sun raha hoon" in spoken
+        assert "yahin hoon" in spoken
         assert terminal is False
 
 
@@ -691,7 +691,7 @@ class TestDroppedCallRecovery:
         assert call_id == "old-call"
         session.create.assert_not_awaited()
         # Resume notice followed by the pending question — no dead air.
-        assert "kat gaya" in welcome
+        assert "cut ho gayi" in welcome
         assert welcome.endswith("Aapke ghar mein kitne log hain?")
 
     @pytest.mark.asyncio
@@ -710,4 +710,4 @@ class TestDroppedCallRecovery:
         call_id, welcome = await mgr.start_conversation("hash123", "hi-IN", channel="voice")
 
         assert call_id == "old-call"
-        assert "kat gaya" in welcome
+        assert "cut ho gayi" in welcome

@@ -1,0 +1,131 @@
+{
+  "scheme_id": "NPCDCS-2024-v1",
+  "canonical_name": "National Programme for Prevention and Control of Non-Communicable Diseases (NP-NCD / NPCDCS)",
+  "aliases": [
+    "NPCDCS",
+    "NP-NCD",
+    "National Programme for Prevention and Control of Cancer Diabetes Cardiovascular Diseases and Stroke",
+    "NCD Programme",
+    "NCD Clinic",
+    "Free NCD Screening",
+    "Population Based Screening for NCDs"
+  ],
+  "local_names": {
+    "hi": "गैर-संचारी रोग रोकथाम एवं नियंत्रण राष्ट्रीय कार्यक्रम",
+    "bn": "অসংক্রামক রোগ প্রতিরোধ ও নিয়ন্ত্রণ জাতীয় কর্মসূচি",
+    "ta": "தொற்றா நோய்கள் தடுப்பு மற்றும் கட்டுப்பாட்டு தேசிய திட்டம்",
+    "te": "అంటువ్యాధి కాని వ్యాధుల నివారణ నియంత్రణ జాతీయ కార్యక్రమం",
+    "mr": "असंसर्गजन्य रोग प्रतिबंध व नियंत्रण राष्ट्रीय कार्यक्रम",
+    "gu": "બિન-ચેપી રોગ નિવારણ અને નિયંત્રણ રાષ્ટ્રીય કાર્યક્રમ",
+    "kn": "ಸಾಂಕ್ರಾಮಿಕವಲ್ಲದ ರೋಗಗಳ ತಡೆ ಮತ್ತು ನಿಯಂತ್ರಣ ರಾಷ್ಟ್ರೀಯ ಕಾರ್ಯಕ್ರಮ",
+    "ml": "സാംക്രമികേതര രോഗ പ്രതിരോധ നിയന്ത്രണ ദേശീയ പരിപാടി",
+    "pa": "ਗੈਰ-ਛੂਤ ਰੋਗ ਰੋਕਥਾਮ ਅਤੇ ਨਿਯੰਤਰਣ ਰਾਸ਼ਟਰੀ ਪ੍ਰੋਗਰਾਮ",
+    "or": "ଅସଂକ୍ରାମକ ରୋଗ ପ୍ରତିରୋଧ ଓ ନିୟନ୍ତ୍ରଣ ଜାତୀୟ କାର୍ଯ୍ୟକ୍ରମ"
+  },
+  "state_variant_of": null,
+  "jurisdiction": "central",
+  "state_code": null,
+  "income_thresholds": [],
+  "secc_categories": [],
+  "occupation_included": [
+    "all_citizens",
+    "adult_30_plus",
+    "diabetic",
+    "hypertensive",
+    "farmer",
+    "daily_wage",
+    "homemaker",
+    "elderly",
+    "tribal",
+    "factory_worker"
+  ],
+  "occupation_excluded": [],
+  "exclusion_rules": [
+    {
+      "rule_id": "NPCDCS-EX-001",
+      "exclusion_type": "soft",
+      "field": "age",
+      "condition": "age < 30",
+      "description": "Routine population-based NCD screening (hypertension, diabetes, oral/breast/cervical cancer) targets adults aged 30 and above. Persons under 30 with symptoms or risk factors are still seen and treated at NCD clinics — this is a programmatic screening focus, not a hard bar to care.",
+      "override_by_state": false
+    }
+  ],
+  "age_criteria": null,
+  "family_criteria": {
+    "max_family_size": null,
+    "family_definition": "Universal access — free NCD screening, diagnosis, treatment, and follow-up are available to all individuals attending government health facilities regardless of income or family size. Population-based screening actively targets all adults aged 30 and above.",
+    "head_of_family_required": false
+  },
+  "geographic_restrictions": [],
+  "coverage_amount_inr": 0,
+  "coverage_type": "per_event",
+  "covered_procedures": [
+    "Free population-based screening for hypertension (high blood pressure)",
+    "Free screening for diabetes mellitus (blood sugar testing)",
+    "Free screening for three common cancers — oral, breast, and cervical cancer",
+    "Free diagnosis and treatment of hypertension at NCD clinics",
+    "Free diagnosis and treatment of diabetes, including medicines",
+    "Free management of cardiovascular diseases at District Cardiac Care Units",
+    "Stroke care and referral services",
+    "Cancer diagnosis and referral to tertiary cancer centres for treatment",
+    "Free essential NCD drugs at District NCD Clinics and CHC NCD Clinics",
+    "Health promotion, lifestyle counselling, and risk-factor reduction advice",
+    "Follow-up and continuum of care through Ayushman Arogya Mandir (Health & Wellness Centres)"
+  ],
+  "excluded_procedures": [
+    "Private hospital diagnostic or treatment charges",
+    "Advanced tertiary cancer therapy costs not covered by referral linkage (often covered under PM-JAY)",
+    "Out-of-pocket medicines not stocked at the government facility"
+  ],
+  "required_documents": [
+    {
+      "name": "Any Government Photo ID",
+      "category": "identity",
+      "mandatory": false,
+      "alternatives": ["Aadhaar Card", "Voter ID", "Ration Card"],
+      "local_name_hi": "कोई सरकारी फोटो पहचान पत्र",
+      "notes": "Helpful for registration and the Community Based Assessment Checklist (CBAC) under population-based screening, but screening and treatment are not denied for lack of ID."
+    }
+  ],
+  "enrollment_channels": [
+    "Ayushman Bharat Health & Wellness Centre (Ayushman Arogya Mandir)",
+    "Sub-Centre and Primary Health Centre (PHC)",
+    "Community Health Centre NCD Clinic",
+    "District NCD Clinic at district hospital",
+    "District Cardiac Care Unit",
+    "ASHA / ANM community health worker (population-based screening at home)",
+    "Government medical college hospital"
+  ],
+  "enrollment_steps": [
+    "Step 1: Attend any government health facility, or get screened by an ASHA/ANM worker during a population-based screening visit",
+    "Step 2: A Community Based Assessment Checklist (CBAC) is filled to assess your NCD risk",
+    "Step 3: Get free blood pressure and blood sugar measurement; women are offered oral, breast, and cervical cancer screening",
+    "Step 4: If a risk factor or disease is detected, you are referred to the nearest NCD clinic (CHC or district hospital)",
+    "Step 5: A medical officer confirms the diagnosis with free tests and starts free treatment",
+    "Step 6: Collect free NCD medicines (anti-hypertensives, anti-diabetics) at the facility",
+    "Step 7: Attend regular follow-up visits; complex cases (cardiac, stroke, cancer) are referred to specialized units or tertiary centres",
+    "Step 8: Continuum of care and refills are provided through the Health & Wellness Centre nearest you"
+  ],
+  "processing_time_days": 1,
+  "helpline_number": "104",
+  "portal_url": "https://nhm.gov.in/index1.php?lang=1&level=2&sublinkid=1048&lid=604",
+  "version": "1.0",
+  "effective_date": "2010-01-01",
+  "expiry_date": null,
+  "last_verified": "2026-06-13",
+  "source_url": "https://nhm.gov.in/index1.php?lang=1&level=2&sublinkid=1048&lid=604",
+  "confidence_level": "provisional",
+  "description_for_embedding": "The National Programme for Prevention and Control of Non-Communicable Diseases (NP-NCD), formerly the National Programme for Prevention and Control of Cancer, Diabetes, Cardiovascular Diseases and Stroke (NPCDCS), is a central government programme under the National Health Mission. It provides FREE screening, diagnosis, treatment, and follow-up for the major non-communicable diseases at government health facilities, with no income test or means assessment. Screening, treatment, and follow-up services are provided for hypertension, diabetes mellitus, and three common cancers — oral, breast, and cervical cancer — to all individuals aged 30 and above attending government facilities; persons under 30 with symptoms are also treated. The programme has set up District NCD Clinics, District Cardiac Care Units, and thousands of Community Health Centre NCD Clinics, and delivers population-based screening at the community level through ASHA and ANM workers using a Community Based Assessment Checklist (CBAC). Free essential NCD medicines such as anti-hypertensives and anti-diabetics are dispensed at these clinics. Cardiovascular disease, stroke, and cancer cases are managed and referred to higher facilities or tertiary cancer centres as needed. The continuum of care is delivered through Ayushman Bharat Health & Wellness Centres (Ayushman Arogya Mandir). Anyone concerned about high blood pressure, high blood sugar, diabetes, heart disease, stroke, or cancer can access free screening and treatment at the nearest government health facility or during a community screening visit.",
+  "keywords": [
+    "NCD", "NPCDCS", "NP-NCD", "diabetes", "blood sugar", "hypertension",
+    "blood pressure", "cancer screening", "breast cancer", "cervical cancer",
+    "oral cancer", "heart disease", "cardiovascular", "stroke", "free screening",
+    "NCD clinic", "free diabetes treatment", "free BP treatment", "CBAC",
+    "non communicable disease", "lifestyle disease", "sugar test",
+    "मधुमेह", "शुगर", "रक्तचाप", "उच्च रक्तचाप", "कैंसर जांच",
+    "हृदय रोग", "स्ट्रोक", "लकवा", "मुफ्त जांच", "गैर संचारी रोग",
+    "free cancer screening", "diabetes medicine free", "Ayushman Arogya Mandir",
+    "health wellness centre", "central scheme", "public health", "screening camp",
+    "104 helpline", "cardiac care", "early detection"
+  ]
+}

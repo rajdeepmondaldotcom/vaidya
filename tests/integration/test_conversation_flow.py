@@ -7,6 +7,7 @@ canned responses based on the system prompt content.
 
 from __future__ import annotations
 
+import asyncio
 import json
 from typing import Any
 
@@ -630,12 +631,15 @@ class TestFullIntakeFlow:
             user_input="Haan, sahi hai",
         )
 
-        # The mock returns confirmed=True, so intake should complete
-        # and the orchestrator should move to processing
+        # The mock returns confirmed=True, so intake should complete and the
+        # orchestrator should move into processing/results. Because results are
+        # now delivered in a single turn, the same turn can flow straight
+        # through RESULTS into GUIDANCE.
         # Note: _handle_intake checks intake_complete and required_fields_complete
         assert context.phase in (
             ConversationPhase.PROCESSING,
             ConversationPhase.RESULTS,
+            ConversationPhase.GUIDANCE,
             ConversationPhase.INTAKE,
         )
 
@@ -649,7 +653,7 @@ class TestEligibilityReviewerParallel:
         Verify:
         - Both eligibility and reviewer agents are called
         - Convergence result is produced
-        - Phase transitions to RESULTS
+        - Phase advances to the results-delivery stage
         """
         orchestrator = _build_orchestrator()
         profile = _complete_profile()
@@ -679,8 +683,9 @@ class TestEligibilityReviewerParallel:
         # Convergence result should be produced
         assert context.convergence_result is not None
 
-        # Phase should transition to RESULTS
-        assert context.phase == ConversationPhase.RESULTS
+        # All eligible schemes are delivered in a single results turn, which
+        # then advances straight into GUIDANCE within the same turn.
+        assert context.phase == ConversationPhase.GUIDANCE
 
     async def test_processing_produces_guidance_text(self):
         """Processing phase should produce spoken guidance text."""
@@ -983,86 +988,89 @@ class TestRepeatEscalation:
         assert response.text.strip() != ""
 
 
-class TestEkAurSunoPattern:
-    """Test the multi-scheme 'ek aur suno' delivery pattern (PRD 3.4)."""
+class _FallbackGuidanceMockClient(MockSarvamClient):
+    """Mock whose guidance call returns a parse error.
 
-    async def test_first_scheme_delivered_with_more_prompt(self):
-        """After eligibility with 2+ schemes, verify:
-        - First scheme is delivered
-        - 'Sunna chahenge?' is asked
-        """
-        orchestrator = _build_orchestrator()
+    This forces the GuidanceAgent's deterministic combined fallback, which
+    enumerates EVERY eligible scheme from the convergence result -- exactly
+    what we want to assert at the orchestrator boundary without depending on
+    a hand-written multi-scheme LLM payload.
+    """
+
+    async def chat_json(
+        self,
+        model: str,
+        messages: list[dict[str, str]],
+        temperature: float = 0.1,
+        **kwargs: Any,
+    ) -> dict[str, Any]:
+        system = messages[0]["content"] if messages else ""
+        if "guidance" in system.lower():
+            return {"_parse_error": "forced"}
+        return await super().chat_json(model, messages, temperature, **kwargs)
+
+
+class TestOneTurnSchemeListing:
+    """All eligible schemes are named in ONE results turn (no per-scheme gate)."""
+
+    async def test_all_scheme_names_in_single_results_turn(self):
+        """With 3 eligible schemes, the single RESULTS turn names ALL of them
+        and contains NO 'want to hear the next one' continuation gate."""
+        orchestrator = _build_orchestrator(mock_client=_FallbackGuidanceMockClient())
         profile = _complete_profile()
         context = _make_context(phase=ConversationPhase.RESULTS, profile=profile)
-        context.convergence_result = _make_convergence_result(2)
+        context.convergence_result = _make_convergence_result(3)
 
-        response = await orchestrator.handle_turn(
-            context=context,
-            user_input="",  # First entry into RESULTS
-        )
+        expected_names = [m.scheme_name for m in context.convergence_result.all_eligible]
+        assert len(expected_names) == 3  # sanity: the fixture gave us 3 schemes
 
-        # Should deliver first scheme
-        assert response.text.strip() != ""
+        response = await orchestrator.handle_turn(context=context, user_input="")
 
-        # Should ask about more schemes (the "ek aur suno" pattern)
+        # Every eligible scheme name appears in this ONE turn.
+        for name in expected_names:
+            assert name in response.text, f"{name!r} missing from single results turn"
+
+        # No "want to hear the next?" / "ek aur" continuation gate anywhere.
         text_lower = response.text.lower()
-        assert (
-            "sunna chahenge" in text_lower
-            or "aur" in text_lower
-            or "ek aur" in text_lower
-            or "yojana" in text_lower
-        )
+        assert "ek aur yojana" not in text_lower
+        assert "sunna chahenge" not in text_lower
+        assert "another scheme" not in text_lower
+        assert "hear about it" not in text_lower
 
-        # scheme_delivery_index should advance
-        assert context.metadata.get("scheme_delivery_index", 0) >= 1
+        # The full SMS summary also covers every scheme.
+        sms = response.metadata.get("sms_summary", "")
+        for name in expected_names:
+            assert name in sms, f"{name!r} missing from SMS summary"
 
-    async def test_second_scheme_delivered_on_affirmative(self):
-        """On 'haan', the second scheme should be delivered."""
-        orchestrator = _build_orchestrator()
+        # No per-scheme drip-feed bookkeeping remains.
+        assert "scheme_delivery_index" not in context.metadata
+
+    async def test_results_turn_advances_to_guidance(self):
+        """After the single results turn, we move straight to GUIDANCE so the
+        caller's next utterance (detail request / question / goodbye) lands
+        there -- not back into a results loop."""
+        orchestrator = _build_orchestrator(mock_client=_FallbackGuidanceMockClient())
         profile = _complete_profile()
         context = _make_context(phase=ConversationPhase.RESULTS, profile=profile)
         context.convergence_result = _make_convergence_result(2)
-        context.metadata["scheme_delivery_index"] = 1
 
-        response = await orchestrator.handle_turn(
-            context=context,
-            user_input="haan sunao",
-        )
+        response = await orchestrator.handle_turn(context=context, user_input="")
 
-        # Second scheme should be delivered
-        assert response.text.strip() != ""
-        # Index should advance to 2
-        assert context.metadata.get("scheme_delivery_index") == 2
-
-    async def test_all_schemes_delivered_transitions_to_guidance(self):
-        """After all schemes delivered, auto-transition to GUIDANCE."""
-        orchestrator = _build_orchestrator()
-        profile = _complete_profile()
-        context = _make_context(phase=ConversationPhase.RESULTS, profile=profile)
-        context.convergence_result = _make_convergence_result(1)  # Only 1 scheme
-
-        response = await orchestrator.handle_turn(
-            context=context,
-            user_input="",
-        )
-
-        # With 1 scheme, delivery completes immediately -> GUIDANCE
         assert context.phase == ConversationPhase.GUIDANCE
+        assert response.phase_transition == ConversationPhase.GUIDANCE
 
-    async def test_negative_response_skips_to_guidance(self):
-        """On 'nahi/bas', skip remaining schemes and move to GUIDANCE."""
-        orchestrator = _build_orchestrator()
+    async def test_single_scheme_also_one_turn(self):
+        """A single eligible scheme is delivered in one turn and advances to
+        GUIDANCE just like the multi-scheme case."""
+        orchestrator = _build_orchestrator(mock_client=_FallbackGuidanceMockClient())
         profile = _complete_profile()
         context = _make_context(phase=ConversationPhase.RESULTS, profile=profile)
-        context.convergence_result = _make_convergence_result(2)
-        context.metadata["scheme_delivery_index"] = 1
+        context.convergence_result = _make_convergence_result(1)
 
-        response = await orchestrator.handle_turn(
-            context=context,
-            user_input="nahi, bas itna hi",
-        )
+        response = await orchestrator.handle_turn(context=context, user_input="")
 
-        # Should transition to GUIDANCE (user declined more schemes)
+        only_name = context.convergence_result.all_eligible[0].scheme_name
+        assert only_name in response.text
         assert context.phase == ConversationPhase.GUIDANCE
 
 
@@ -1097,6 +1105,136 @@ class TestClosurePhase:
         # Should transition back to OPEN_ELICITATION
         assert context.phase == ConversationPhase.OPEN_ELICITATION
         assert response.phase_transition == ConversationPhase.OPEN_ELICITATION
+
+
+class TestSpeculativeEligibility:
+    """Speculative eligibility started during intake, reused at PROCESSING.
+
+    These exercise the orchestrator hooks end-to-end (the EligibilityAgent
+    owns the cache; the orchestrator only triggers and cancels). Speculation
+    is a PURE optimisation: the final eligible set must equal the
+    non-speculative path, a profile change must force a recompute, and an
+    abandoned session must not leak a background task.
+    """
+
+    @staticmethod
+    def _eligible_ids(context: ConversationContext) -> list[str]:
+        result = context.eligibility_result
+        assert result is not None
+        return sorted(
+            m.scheme_id for m in result.matches if m.verdict == EligibilityVerdict.ELIGIBLE
+        )
+
+    async def _run_processing(self, profile: UserProfile) -> ConversationContext:
+        """Drive a complete profile straight through PROCESSING (no speculation)."""
+        orchestrator = _build_orchestrator()
+        context = _make_context(phase=ConversationPhase.PROCESSING, profile=profile)
+        context.add_turn(
+            role="user",
+            text="Main Jaipur se hoon, daily mazdoori karta hoon.",
+            raw_text="Main Jaipur se hoon, daily mazdoori karta hoon.",
+            language="hi-IN",
+        )
+        await orchestrator.handle_turn(context=context, user_input="")
+        return context
+
+    async def test_intake_completion_reuses_speculation_same_result(self):
+        """Driving intake to completion kicks off speculation; the final
+        eligible set equals a cold (non-speculative) PROCESSING run."""
+        # Cold reference run.
+        cold = await self._run_processing(_complete_profile())
+        reference = self._eligible_ids(cold)
+        assert reference  # sanity: the mock yields >=1 eligible scheme
+
+        # Speculative run: start INTAKE with confirmation pending, then confirm.
+        orchestrator = _build_orchestrator()
+        eligibility = orchestrator._eligibility
+        starts: list[str] = []
+        original_start = eligibility.start_speculative
+
+        def spy_start(context: ConversationContext) -> bool:
+            result = original_start(context)
+            if result:
+                starts.append(context.call_id)
+            return result
+
+        eligibility.start_speculative = spy_start  # type: ignore[method-assign]
+
+        context = _make_context(
+            phase=ConversationPhase.INTAKE, profile=_complete_profile(), call_id="spec-flow"
+        )
+        context.intake_question_index = 6
+        context.metadata["confirmation_pending"] = True
+        context.add_turn(
+            role="user",
+            text="Main Jaipur se hoon.",
+            raw_text="Main Jaipur se hoon.",
+            language="hi-IN",
+        )
+
+        await orchestrator.handle_turn(context=context, user_input="Haan, sahi hai")
+
+        # Speculation was kicked off during the intake turn...
+        assert "spec-flow" in starts
+        # ...and consumed by PROCESSING (entry popped, no leak).
+        assert "spec-flow" not in eligibility._speculative
+        # The result was genuinely REUSED, not recomputed.
+        assert context.metadata.get("eligibility_speculative_hit") is True
+        # Final eligible set matches the cold path exactly.
+        assert context.eligibility_result is not None
+        assert self._eligible_ids(context) == reference
+
+    async def test_profile_change_before_processing_recomputes(self):
+        """If the profile changes between speculation and PROCESSING, the stale
+        speculative result is discarded and eligibility recomputes."""
+        orchestrator = _build_orchestrator()
+        eligibility = orchestrator._eligibility
+
+        profile = _complete_profile()
+        context = _make_context(
+            phase=ConversationPhase.INTAKE, profile=profile, call_id="spec-change"
+        )
+
+        # Start speculation directly on the agent for the original fingerprint.
+        assert eligibility.start_speculative(context) is True
+        await asyncio.sleep(0)
+        assert "spec-change" in eligibility._speculative
+
+        # The caller corrects their income -> fingerprint changes.
+        context.user_profile.income_bracket = IncomeCategory.ABOVE_5L
+
+        # Now run PROCESSING. The orchestrator must NOT reuse the stale entry.
+        context.phase = ConversationPhase.PROCESSING
+        await orchestrator.handle_turn(context=context, user_input="")
+
+        # Stale entry discarded, fresh result produced (NOT a speculative hit).
+        assert "spec-change" not in eligibility._speculative
+        assert context.metadata.get("eligibility_speculative_hit") is False
+        assert context.eligibility_result is not None
+        assert context.convergence_result is not None
+
+    async def test_abandoned_session_cancels_speculation(self):
+        """A caller who hangs up (silence end-call) after speculation must not
+        leak the background task -- the orchestrator cancels it."""
+        orchestrator = _build_orchestrator()
+        eligibility = orchestrator._eligibility
+
+        context = _make_context(
+            phase=ConversationPhase.INTAKE, profile=_complete_profile(), call_id="spec-abandon"
+        )
+        assert eligibility.start_speculative(context) is True
+        task = eligibility._speculative["spec-abandon"].task
+
+        # 20s+ silence ends the call -> CLOSURE, and cancellation fires.
+        await orchestrator.handle_turn(
+            context=context, user_input="", silence_duration_seconds=20.0
+        )
+
+        assert context.phase == ConversationPhase.CLOSURE
+        assert "spec-abandon" not in eligibility._speculative
+        # Let the cancellation settle; the task must end cancelled, not leaked.
+        await asyncio.gather(task, return_exceptions=True)
+        assert task.cancelled() or task.done()
 
 
 class TestEndToEndHappyPath:

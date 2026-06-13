@@ -1,0 +1,133 @@
+{
+  "scheme_id": "RMNCHA-2026-v1",
+  "canonical_name": "Reproductive, Maternal, Newborn, Child and Adolescent Health (RMNCH+A)",
+  "aliases": [
+    "RMNCH+A",
+    "RMNCHA",
+    "RMNCAH+N",
+    "Reproductive Maternal Newborn Child and Adolescent Health",
+    "Continuum of Care",
+    "Maternal and Child Health Programme"
+  ],
+  "local_names": {
+    "hi": "प्रजनन, मातृ, नवजात, बाल एवं किशोर स्वास्थ्य",
+    "bn": "প্রজনন, মাতৃ, নবজাতক, শিশু ও কিশোর স্বাস্থ্য",
+    "ta": "இனப்பெருக்க, தாய், புதிதாகப் பிறந்த, குழந்தை மற்றும் இளம்பருவ ஆரோக்கியம்",
+    "te": "పునరుత్పత్తి, మాతృ, నవజాత, శిశు మరియు కౌమార ఆరోగ్యం",
+    "mr": "प्रजनन, माता, नवजात, बाल व किशोर आरोग्य",
+    "gu": "પ્રજનન, માતૃ, નવજાત, બાળ અને કિશોર આરોગ્ય",
+    "kn": "ಸಂತಾನೋತ್ಪತ್ತಿ, ಮಾತೃ, ನವಜಾತ, ಶಿಶು ಮತ್ತು ಹದಿಹರೆಯದ ಆರೋಗ್ಯ",
+    "ml": "പ്രത്യുൽപാദന, മാതൃ, നവജാത, ശിശു, കൗമാര ആരോഗ്യം",
+    "pa": "ਪ੍ਰਜਨਨ, ਮਾਵਾਂ, ਨਵਜੰਮੇ, ਬਾਲ ਅਤੇ ਕਿਸ਼ੋਰ ਸਿਹਤ",
+    "or": "ପ୍ରଜନନ, ମାତୃ, ନବଜାତ, ଶିଶୁ ଓ କିଶୋର ସ୍ୱାସ୍ଥ୍ୟ"
+  },
+  "state_variant_of": null,
+  "jurisdiction": "central",
+  "state_code": null,
+  "income_thresholds": [],
+  "secc_categories": [],
+  "occupation_included": [
+    "all_pregnant_women",
+    "all_mothers",
+    "all_newborns",
+    "all_children",
+    "all_adolescents_10_to_19",
+    "women_of_reproductive_age"
+  ],
+  "occupation_excluded": [],
+  "exclusion_rules": [
+    {
+      "rule_id": "RMNCHA-EX-001",
+      "exclusion_type": "soft",
+      "field": "facility_type",
+      "condition": "facility_type == 'private_paid'",
+      "description": "RMNCH+A services are delivered free through the public health system (sub-centres, PHCs, CHCs, district hospitals, anganwadis and schools). Care sought privately on a paid basis is not reimbursed under this umbrella strategy.",
+      "override_by_state": false
+    }
+  ],
+  "age_criteria": null,
+  "family_criteria": {
+    "max_family_size": null,
+    "family_definition": "Universal continuum-of-care strategy covering every life stage with no income, caste, or BPL restriction: women of reproductive age (family planning, reproductive health), pregnant women (antenatal care, safe delivery, postnatal care), newborns (essential and sick newborn care), infants and children (immunization, nutrition, management of childhood illness), and adolescents aged 10-19 (adolescent health). Services are free at government facilities and outreach.",
+    "head_of_family_required": false
+  },
+  "geographic_restrictions": [],
+  "coverage_amount_inr": 0,
+  "coverage_type": "per_person_per_year",
+  "covered_procedures": [
+    "Reproductive health: family planning counselling and free contraceptives, management of reproductive tract infections, safe abortion services",
+    "Maternal health: at least 4 antenatal check-ups (ANC), free iron-folic-acid and calcium supplements, TT/Td vaccination, management of high-risk pregnancy",
+    "Skilled birth attendance and free institutional delivery (linked with JSY and JSSK)",
+    "Postnatal care for mother and newborn including home-based visits by ASHA (HBNC)",
+    "Newborn care: essential newborn care, Newborn Care Corners, Special Newborn Care Units (SNCU), Home Based Newborn Care",
+    "Child health: full immunization (linked with UIP), Vitamin A supplementation, deworming, management of diarrhoea and pneumonia, treatment of severe acute malnutrition at Nutrition Rehabilitation Centres",
+    "Child health screening for the 4Ds (linked with Rashtriya Bal Swasthya Karyakram)",
+    "Adolescent health: counselling, nutrition (Weekly Iron-Folic-Acid Supplementation), menstrual hygiene, Adolescent Friendly Health Clinics (linked with RKSK)",
+    "Free transport (108/102 ambulance) for pregnant women and sick newborns",
+    "Promotive and preventive counselling across all life stages",
+    "All services provided free of cost at government health facilities"
+  ],
+  "excluded_procedures": [
+    "Paid treatment at private hospitals not empanelled under the public system",
+    "Cash benefits (these are delivered through separate schemes such as JSY and PMMVY, not RMNCH+A itself)",
+    "Tertiary surgical care beyond the maternal-child continuum (covered under PM-JAY or state schemes)",
+    "Services for men outside the reproductive-health and family-planning components"
+  ],
+  "required_documents": [
+    {
+      "name": "Mother and Child Protection (MCP) Card",
+      "category": "medical",
+      "mandatory": false,
+      "alternatives": ["ANC registration", "Self-declaration"],
+      "local_name_hi": "मातृ एवं शिशु सुरक्षा कार्ड",
+      "notes": "Used to track antenatal, immunization and child-health services across the continuum. Helpful but not mandatory; no woman or child can be denied free services for lack of a card."
+    },
+    {
+      "name": "Aadhaar Card",
+      "category": "identity",
+      "mandatory": false,
+      "alternatives": ["Any government ID", "No ID needed for emergency care"],
+      "local_name_hi": "आधार कार्ड",
+      "notes": "For record-keeping and linkage to cash-benefit schemes; absence of ID cannot be a reason to deny services."
+    }
+  ],
+  "enrollment_channels": [
+    "Government Sub-Centre / Health & Wellness Centre",
+    "Primary Health Centre (PHC)",
+    "Community Health Centre (CHC)",
+    "District Hospital and First Referral Unit (FRU)",
+    "Anganwadi Centre (ICDS)",
+    "Government and government-aided schools (adolescent component)",
+    "ASHA / ANM / Anganwadi worker outreach",
+    "Adolescent Friendly Health Clinic (AFHC)"
+  ],
+  "enrollment_steps": [
+    "Step 1: No separate enrollment needed — RMNCH+A is an umbrella strategy delivering free services at every life stage through the public health system",
+    "Step 2: Register pregnancy at the nearest sub-centre/PHC or with the ASHA to start antenatal care",
+    "Step 3: Receive free ANC check-ups, supplements, TT/Td vaccination, and counselling during pregnancy",
+    "Step 4: Deliver free at a government facility with a skilled birth attendant (linked with JSSK/JSY)",
+    "Step 5: Mother and newborn receive free postnatal and newborn care including ASHA home visits",
+    "Step 6: Child receives free immunization, nutrition support, and 4D health screening as they grow",
+    "Step 7: Adolescents (10-19) access free counselling, supplements, and care at Adolescent Friendly Health Clinics"
+  ],
+  "processing_time_days": 0,
+  "helpline_number": "104",
+  "portal_url": "https://nhm.gov.in/index1.php?lang=1&level=1&sublinkid=794&lid=168",
+  "version": "1.0",
+  "effective_date": "2013-01-01",
+  "expiry_date": null,
+  "last_verified": "2026-06-13",
+  "source_url": "https://nhm.gov.in/index1.php?lang=1&level=1&sublinkid=794&lid=168",
+  "confidence_level": "provisional",
+  "description_for_embedding": "Reproductive, Maternal, Newborn, Child and Adolescent Health (RMNCH+A), launched by the Ministry of Health and Family Welfare in 2013 under the National Health Mission, is India's umbrella continuum-of-care strategy that links free health services across every life stage — with no income, caste, or BPL restriction. The 'Plus' adds adolescence as a distinct life stage and links reproductive health, family planning, HIV, gender and nutrition, while connecting community-based and facility-based care through referrals. Components: Reproductive health (free family planning, contraceptives, safe abortion); Maternal health (at least four antenatal check-ups, free iron-folic-acid and calcium, TT/Td vaccination, skilled birth attendance, free institutional delivery linked with JSY and JSSK, postnatal care); Newborn health (essential and sick newborn care, Special Newborn Care Units, home-based newborn care by ASHA); Child health (full immunization linked with UIP, Vitamin A, deworming, treatment of diarrhoea/pneumonia, management of severe acute malnutrition, 4D screening linked with RBSK); and Adolescent health (counselling, Weekly Iron-Folic-Acid Supplementation, menstrual hygiene, Adolescent Friendly Health Clinics linked with RKSK). All services are free at government sub-centres, PHCs, CHCs, district hospitals, anganwadis and schools. Free 108/102 ambulance transport is provided for pregnant women and sick newborns. No enrollment fee and no mandatory documents are required, and no woman, newborn, child or adolescent can be denied free services for lack of a card or ID. RMNCH+A is best understood as the organising framework that ties together schemes like UIP, JSY, JSSK, PMMVY, RBSK and RKSK into a single, free continuum of care from before pregnancy through adolescence.",
+  "keywords": [
+    "RMNCH+A", "RMNCHA", "RMNCAH+N", "maternal and child health", "continuum of care",
+    "reproductive health", "antenatal care", "ANC", "newborn care", "child health",
+    "adolescent health", "family planning", "skilled birth attendance", "postnatal care",
+    "iron folic acid", "Vitamin A", "deworming", "SNCU", "home based newborn care",
+    "free maternal services", "pregnant women", "mother and child", "MCP card",
+    "मातृ एवं शिशु स्वास्थ्य", "प्रजनन स्वास्थ्य", "गर्भवती महिला", "नवजात शिशु",
+    "बाल स्वास्थ्य", "किशोर स्वास्थ्य", "परिवार नियोजन", "मुफ्त प्रसव पूर्व जांच",
+    "NHM", "central scheme", "life cycle approach", "RMNCH", "anganwadi", "ASHA", "104 helpline"
+  ]
+}
