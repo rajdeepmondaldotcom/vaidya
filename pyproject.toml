@@ -81,6 +81,17 @@ python_version = "3.11"
 strict = true
 packages = ["vaidya"]
 mypy_path = "src"
+# The optional [telephony] surface (pipecat + twilio) needs heavy optional deps,
+# so it is not part of the core type-checking gate. Install .[telephony] and drop
+# this exclude to type-check it locally.
+exclude = ["src/vaidya/telephony/"]
+
+[[tool.mypy.overrides]]
+# twilio is an optional dependency and ships no type stubs. The only core import
+# is the guarded `from twilio...` in the voice webhook validator; this keeps the
+# gate green whether or not the [telephony] extra is installed.
+module = ["twilio.*"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -140,7 +140,7 @@ class TTSCache:
                 pace = float(item.get("pace", 1.0))  # type: ignore[arg-type]
                 speaker = str(item.get("speaker", "priya"))
                 model = str(item.get("model", "bulbul:v3"))
-                sample_rate = int(item.get("sample_rate", 8000))  # type: ignore[arg-type]
+                sample_rate = int(item.get("sample_rate", 8000))  # type: ignore[call-overload]
             except (KeyError, TypeError, ValueError):
                 logger.warning("Skipping malformed TTS warm item: %r", item)
                 continue
