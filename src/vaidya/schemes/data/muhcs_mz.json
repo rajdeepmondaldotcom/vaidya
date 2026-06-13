@@ -1,0 +1,155 @@
+{
+  "scheme_id": "MUHCS-MZ-2024-v1",
+  "canonical_name": "Mizoram Universal Healthcare Scheme",
+  "aliases": [
+    "MUHCS",
+    "Mizoram Universal Health Care Scheme",
+    "Mizoram State Health Care Scheme",
+    "MSHCS",
+    "Mizoram Health Insurance Scheme"
+  ],
+  "local_names": {
+    "hi": "मिज़ोरम सार्वभौमिक स्वास्थ्य देखभाल योजना",
+    "en": "Mizoram Universal Healthcare Scheme",
+    "bn": "মিজোরাম সর্বজনীন স্বাস্থ্যসেবা প্রকল্প"
+  },
+  "state_variant_of": null,
+  "jurisdiction": "state",
+  "state_code": "MZ",
+  "income_thresholds": [],
+  "secc_categories": [],
+  "occupation_included": [
+    "all_mizoram_residents",
+    "government_employee",
+    "pensioner",
+    "general_public",
+    "pmjay_beneficiary"
+  ],
+  "occupation_excluded": [],
+  "exclusion_rules": [
+    {
+      "rule_id": "MUHCS-MZ-EX-001",
+      "exclusion_type": "hard",
+      "field": "state",
+      "condition": "state != 'MZ'",
+      "description": "Only bona fide residents of Mizoram are eligible. The scheme is universal across all residents regardless of income — general public, government employees, pensioners, and AB PM-JAY beneficiaries.",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "MUHCS-MZ-EX-002",
+      "exclusion_type": "soft",
+      "field": "enrollment",
+      "condition": "premium_paid == false and pmjay_beneficiary == false",
+      "description": "General-public and government-employee/pensioner beneficiaries must be enrolled under a contribution plan to be active. AB PM-JAY beneficiaries pay no premium and are auto-covered. An unenrolled, non-PMJAY resident is not yet active until they enrol.",
+      "override_by_state": true
+    }
+  ],
+  "age_criteria": null,
+  "family_criteria": {
+    "max_family_size": null,
+    "family_definition": "All members of a bona fide Mizoram resident family. Coverage is a family floater of Rs 5 lakh per family per year for the general population. Eligible Category A civil pensioners (pension of Rs 20,000 or more, contributing Rs 1,000/month) get an enhanced Rs 12 lakh per family per year.",
+    "head_of_family_required": true
+  },
+  "geographic_restrictions": [],
+  "coverage_amount_inr": 500000,
+  "coverage_type": "per_family_per_year",
+  "covered_procedures": [
+    "Cashless hospitalization at state-run hospitals, primary health centres, and empanelled private or church-run hospitals",
+    "Pre-existing conditions covered from enrollment",
+    "General surgery requiring admission",
+    "Cardiology and cardiothoracic procedures",
+    "Oncology (chemotherapy, radiation, surgical oncology)",
+    "Orthopedics (joint replacement, fracture and spine surgery)",
+    "Nephrology and dialysis",
+    "Neurology and neurosurgery",
+    "Maternity and neonatal care",
+    "Emergency and trauma care",
+    "Selected OPD services not requiring pre-authorization",
+    "Medically referred treatment outside Mizoram under notified conditions",
+    "Enhanced Rs 12 lakh annual cover for eligible Category A civil pensioners"
+  ],
+  "excluded_procedures": [
+    "OPD services requiring pre-authorization (outside the notified covered set)",
+    "Cosmetic and aesthetic surgery",
+    "Fertility treatment and IVF",
+    "Drug and alcohol rehabilitation",
+    "Treatment costs above the applicable annual family ceiling"
+  ],
+  "required_documents": [
+    {
+      "name": "Aadhaar Card",
+      "category": "identity",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "आधार कार्ड",
+      "notes": "Identity and e-KYC proof for all family members."
+    },
+    {
+      "name": "Ration Card",
+      "category": "eligibility_proof",
+      "mandatory": true,
+      "alternatives": ["State-issued residence proof"],
+      "local_name_hi": "राशन कार्ड",
+      "notes": "Proof of Mizoram residence and family composition."
+    },
+    {
+      "name": "Government Service / Pension ID",
+      "category": "eligibility_proof",
+      "mandatory": false,
+      "alternatives": [],
+      "local_name_hi": "सरकारी सेवा / पेंशन पहचान",
+      "notes": "Required for government employees and pensioners to determine the applicable contribution plan and (for Category A pensioners) the enhanced Rs 12 lakh cover."
+    },
+    {
+      "name": "Passport-size Photograph",
+      "category": "identity",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "पासपोर्ट साइज फोटो",
+      "notes": "For the beneficiary record and card."
+    },
+    {
+      "name": "Bank Account Details",
+      "category": "financial",
+      "mandatory": false,
+      "alternatives": [],
+      "local_name_hi": "बैंक खाता विवरण",
+      "notes": "For premium contribution and reimbursement processing."
+    }
+  ],
+  "enrollment_channels": [
+    "MUHCS online portal (muhcs.mizoram.gov.in)",
+    "Mizoram State Health Care Society offices",
+    "District and state hospitals with MUHCS desk",
+    "Designated enrollment centres"
+  ],
+  "enrollment_steps": [
+    "Step 1: Identify your category — general public, government employee, civil pensioner, or AB PM-JAY beneficiary (PM-JAY beneficiaries pay no premium)",
+    "Step 2: Choose a contribution plan if applicable — General Plan Rs 2,500/year (general ward), Standard Plan Rs 5,000/year (semi-private ward), or Private Plan Rs 10,000/year (private ward); all give Rs 5 lakh cover",
+    "Step 3: Apply on the MUHCS portal (muhcs.mizoram.gov.in) or at a designated centre with Aadhaar, ration card, photo, and (if applicable) service/pension ID",
+    "Step 4: Pay the applicable premium (government employees contribute Rs 200-Rs 1,500/month by pay level; Category A pensioners Rs 1,000/month for Rs 12 lakh cover, Category B Rs 500/month for Rs 5 lakh)",
+    "Step 5: Receive the MUHCS beneficiary card/ID",
+    "Step 6: Present the card at a state-run, PHC, or empanelled private/church-run hospital for cashless treatment up to the applicable annual cover"
+  ],
+  "processing_time_days": 15,
+  "helpline_number": "0389-2328223",
+  "portal_url": "https://muhcs.mizoram.gov.in",
+  "version": "1.0",
+  "effective_date": "2025-04-01",
+  "expiry_date": null,
+  "last_verified": "2026-06-13",
+  "source_url": "https://health.mizoram.gov.in/page/healtcare-scheme-chi-hnih-ab-pmjay-leh-mshcs",
+  "confidence_level": "provisional",
+  "description_for_embedding": "The Mizoram Universal Healthcare Scheme (MUHCS), launched on 19 March 2025 and effective from April 2025, is Mizoram's flagship universal state health insurance scheme. It replaced and upgraded the earlier Mizoram State Health Care Scheme (MSHCS, which gave Rs 2 lakh cover) and provides Rs 5 lakh per family per year of cashless hospitalization to ALL bona fide residents of Mizoram regardless of income — covering the general public, government employees, civil pensioners, and Ayushman Bharat PM-JAY beneficiaries under one umbrella. Eligible Category A civil pensioners (pension of Rs 20,000 or more, contributing Rs 1,000/month) get an enhanced Rs 12 lakh per family per year. The scheme covers pre-existing conditions from enrollment and treatment at state-run hospitals, primary health centres, and empanelled private or church-run hospitals, including medically referred care outside the state. It is contribution-based for the general population: a General Plan of Rs 2,500/year (general ward), a Standard Plan of Rs 5,000/year (semi-private ward), and a Private Plan of Rs 10,000/year (private ward), all giving Rs 5 lakh cover; AB PM-JAY beneficiaries pay no premium and are auto-covered. Government employees contribute Rs 200 to Rs 1,500 per month by pay level. Enrollment is via the MUHCS portal (muhcs.mizoram.gov.in) or designated centres with Aadhaar, ration card, photograph, and service/pension ID where applicable. The scheme is administered by the Mizoram State Health Care Society. Helpline 0389-2328223.",
+  "keywords": [
+    "muhcs", "mizoram", "universal healthcare scheme", "mshcs",
+    "5 lakh", "12 lakh pensioner", "all residents", "no income limit",
+    "church run hospital", "contribution plan", "government employee",
+    "मिज़ोरम सार्वभौमिक स्वास्थ्य योजना", "मिज़ोरम", "मुफ्त इलाज", "5 लाख",
+    "सार्वभौमिक स्वास्थ्य", "पेंशनभोगी", "12 लाख",
+    "north east health scheme", "universal coverage", "pre-existing conditions",
+    "cashless treatment", "empanelled hospital", "general plan", "standard plan",
+    "private plan", "muhcs.mizoram.gov.in", "mizoram state health care society",
+    "state health insurance", "mizoram residents", "0389-2328223"
+  ]
+}

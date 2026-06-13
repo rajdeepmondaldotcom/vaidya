@@ -90,6 +90,7 @@ class TestSchemeRequiredFields:
             "IDSP-2026-v1",
             "RKSK-2026-v1",
             "RMNCHA-2026-v1",
+            "ABHA-ABDM-2024-v1",  # ABDM: digital health ID, not insurance (no payout)
         }
         for s in get_schemes():
             if s.scheme_id not in zero_coverage_ok:
