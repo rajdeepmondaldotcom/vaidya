@@ -1150,6 +1150,16 @@ class IntakeAgent(BaseAgent):
         return f"{prefix} {joined}. {suffix}"
 
     @staticmethod
-    def _build_acknowledgement(extracted: dict[str, Any], _language: str) -> str:
-        """Return the LLM's spoken_text if present, else empty string."""
-        return str(extracted.get("spoken_text", ""))
+    def _build_acknowledgement(extracted: dict[str, Any], language: str) -> str:
+        """A short, deterministic acknowledgement before the next question.
+
+        Using the fixed i18n ack ("Theek hai") instead of the LLM's free-form
+        ``spoken_text`` keeps each intake turn (ack + i18n question) byte-identical
+        and therefore CACHEABLE — so the voice edge renders it in the caller's
+        language/voice via the shared TTS cache, instead of the unique LLM text
+        missing the cache and falling back to the streaming TTS, which speaks it
+        in the wrong (un-switched) voice and comes out garbled. It is also
+        snappier (no per-turn ack-generation latency) and reliably short.
+        """
+        ack = get_msg("intake", "ack", language)
+        return "" if ack == "ack" else ack
