@@ -104,6 +104,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # so the voice pipeline can reach it; the client itself stays cache-agnostic.
     client.tts_cache = tts_cache  # type: ignore[attr-defined]
 
+    # Warm the Sarvam TLS connection up front so the first real STT/LLM/TTS
+    # call on a fresh deploy isn't cold (DNS + TLS handshake moved off the
+    # caller's first request). Best-effort and bounded — prewarm() swallows
+    # its own failures and never raises; skipped under the test environment so
+    # the lifespan smoke test stays hermetic (no outbound network).
+    if settings.environment != "test":
+        await client.prewarm()
+
     # Initialize knowledge store and load schemes
     store = KnowledgeStore(
         chromadb_path=settings.chromadb_path,

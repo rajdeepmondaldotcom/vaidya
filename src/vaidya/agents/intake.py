@@ -899,10 +899,9 @@ class IntakeAgent(BaseAgent):
         if self._question_complete(context, profile, question_number):
             return False
 
-        if question_number == 5 and not extracted.get("needs_followup"):
-            return False
-
-        return True
+        # Otherwise repair — except on Q5 (the last question), where we only
+        # clarify when the LLM explicitly flagged needs_followup.
+        return question_number != 5 or bool(extracted.get("needs_followup"))
 
     def _repair_or_skip_question(
         self,
