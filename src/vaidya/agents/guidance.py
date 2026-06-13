@@ -25,6 +25,10 @@ from vaidya.sarvam.models import SARVAM_30B
 logger = logging.getLogger(__name__)
 
 _SMS_MAX_LENGTH = 160
+# Schemes spoken aloud on a call. Reading every eligible scheme (often 14-18,
+# many of them universal national programmes) is a multi-minute monologue; speak
+# the most relevant few and SMS the complete list.
+_MAX_SPOKEN_SCHEMES = 5
 
 
 def _extract_spoken_parts(raw: dict[str, Any]) -> list[SpokenPart]:
@@ -87,10 +91,20 @@ class GuidanceAgent(BaseAgent):
         if not eligible:
             return self._no_match_response(context.language)
 
-        guidance_output = await self._generate_guidance(
-            eligible=eligible,
-            convergence=convergence,
-            context=context,
+        # Speak only the most relevant handful; the SMS carries the full list.
+        # The free-form LLM path read every eligible scheme (sometimes twice) and
+        # risked the wrong TTS voice. Deterministic template parts are capped,
+        # never duplicated, and render in the caller's voice via the TTS cache.
+        ranked = sorted(eligible, key=lambda m: m.confidence, reverse=True)
+        spoken_schemes = ranked[:_MAX_SPOKEN_SCHEMES]
+        guidance_output = GuidanceOutput(
+            spoken_parts=self._build_fallback_parts(
+                spoken_schemes, context.language, total_count=len(eligible)
+            ),
+            sms_summary=self._build_fallback_sms(eligible, context.language),
+            has_more_schemes=len(eligible) > len(spoken_schemes),
+            caveat_needed=len(convergence.disagreements) > 0,
+            processing_time_ms=0.0,
         )
         elapsed = (time.perf_counter() - start) * 1000
         guidance_output.processing_time_ms = round(elapsed, 1)
@@ -241,6 +255,7 @@ class GuidanceAgent(BaseAgent):
         self,
         eligible: list[SchemeMatch],
         language: str = "hi-IN",
+        total_count: int | None = None,
     ) -> list[SpokenPart]:
         """Deterministic combined spoken parts naming EVERY eligible scheme.
 
@@ -252,7 +267,10 @@ class GuidanceAgent(BaseAgent):
         Used both as the LLM fallback and whenever the LLM returns no usable
         spoken parts, so the caller always hears all their schemes at once.
         """
-        count = len(eligible)
+        # ``total_count`` is the full eligible count even when only the top few
+        # SchemeMatch objects are passed in to be spoken; the intro announces the
+        # real total and the closing offer points to the SMS for the rest.
+        count = total_count if total_count is not None else len(eligible)
         if count == 1:
             intro = get_msg_template(
                 "guidance",
