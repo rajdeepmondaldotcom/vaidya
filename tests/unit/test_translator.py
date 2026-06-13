@@ -300,22 +300,32 @@ class TestTranslationCache:
         assert client.translate.await_count == 2
 
     @pytest.mark.asyncio
-    async def test_empty_translation_result_is_not_cached(self) -> None:
-        """An empty client result is not cached so it can be retried."""
+    async def test_empty_result_retries_within_call(self) -> None:
+        """A blank result triggers one immediate retry — never a blank turn."""
         client = MagicMock()
         client.translate = AsyncMock(side_effect=["", "Namaste duniya"])
         translator = Translator(client)
 
-        await translator.translate_if_needed(
+        result = await translator.translate_if_needed(
             "Hello world", source_lang="en-IN", target_lang="hi-IN"
         )
-        assert len(translator._cache) == 0
+        assert result == "Namaste duniya"  # retry value, never blank
+        assert client.translate.await_count == 2  # original + one retry
+        assert len(translator._cache) == 1  # the successful retry IS cached
 
-        second = await translator.translate_if_needed(
+    @pytest.mark.asyncio
+    async def test_blank_after_retry_falls_back_to_original(self) -> None:
+        """If both attempts are blank, return the original text (never silence)."""
+        client = MagicMock()
+        client.translate = AsyncMock(return_value="")
+        translator = Translator(client)
+
+        result = await translator.translate_if_needed(
             "Hello world", source_lang="en-IN", target_lang="hi-IN"
         )
-        assert second == "Namaste duniya"
-        assert client.translate.await_count == 2
+        assert result == "Hello world"  # original text, not a blank turn
+        assert client.translate.await_count == 2  # tried twice
+        assert len(translator._cache) == 0  # blank never cached
 
     @pytest.mark.asyncio
     async def test_lru_eviction_respects_maxsize(self) -> None:

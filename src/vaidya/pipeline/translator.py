@@ -110,6 +110,22 @@ class Translator:
                 output_script=output_script,
             )
 
+            # Sarvam occasionally returns a blank string under load. Retry once —
+            # a blank reply is the worst outcome (the caller hears silence on that
+            # turn); an untranslated line is at least something.
+            if not (translated and translated.strip()):
+                logger.warning(
+                    "Empty translation result, retrying once",
+                    extra={"source_lang": source_lang, "target_lang": target_lang},
+                )
+                translated = await self._client.translate(
+                    protected,
+                    source_lang,
+                    target_lang,
+                    speaker_gender=speaker_gender,
+                    output_script=output_script,
+                )
+
             # Restore preserved terms
             for token, original in preserved.items():
                 translated = translated.replace(token, original)
@@ -125,12 +141,18 @@ class Translator:
                 },
             )
 
-            # Only memoize non-empty successful results; failed/empty
-            # translations are never cached so they can be retried.
+            # Never hand back a blank turn: fall back to the original text when the
+            # translation is still empty after the retry. Only non-empty results
+            # are memoised (blank/failed are retried on the next turn).
             if translated and translated.strip():
                 self._cache_set(cache_key, translated)
+                return translated
 
-            return translated
+            logger.error(
+                "Translation blank after retry, using original text",
+                extra={"source_lang": source_lang, "target_lang": target_lang},
+            )
+            return text
         except Exception as exc:
             logger.error(
                 "Translation failed, returning original text",
