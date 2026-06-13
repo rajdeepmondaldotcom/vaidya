@@ -443,7 +443,14 @@ class Orchestrator:
         context: ConversationContext,
         user_input: str,
     ) -> AgentResponse:
-        """Phase 2: Listen to free-form statement, then transition to intake."""
+        """Phase 2: Listen to free-form statement, then transition to intake.
+
+        ``user_input`` arrives in the caller's own language (``context.language``):
+        the ConversationManager deliberately skips the en-IN translate-in hop for
+        intake-bound phases. The intake agent reads that language directly
+        (sarvam-30b is natively multilingual) and still extracts canonical
+        English field values, so no translation round-trip is needed here.
+        """
         context.phase = ConversationPhase.INTAKE
         context.intake_question_index = 0
         response = await self._intake.safe_process(context, user_input)
@@ -456,7 +463,14 @@ class Orchestrator:
         context: ConversationContext,
         user_input: str,
     ) -> AgentResponse:
-        """Phase 3: Structured intake (5 questions)."""
+        """Phase 3: Structured intake (5 questions).
+
+        ``user_input`` is in the caller's language (``context.language``); the
+        ConversationManager skips translate-in for intake. The intake agent
+        reads it directly and returns an ``already_localized=True`` response, so
+        the manager also skips translate-out -- both redundant Sarvam hops on the
+        intake critical path are eliminated.
+        """
         response = await self._intake.safe_process(context, user_input)
 
         if response.updated_profile:
