@@ -9,17 +9,17 @@ USER PROFILE:
 USER LANGUAGE: {language}
 CAVEATS NEEDED: {caveats}
 
-TASK: Generate ONE combined spoken results message that names EVERY eligible scheme in a single turn. This will be converted to speech via TTS.
+TASK: Generate ONE combined spoken results message in a single turn (no one-at-a-time gate). Lead with the schemes MOST relevant to the user's health need; the full list always goes out by SMS, so you never need to read every scheme aloud. This will be converted to speech via TTS.
 
 STRUCTURE (follow exactly):
 1. INTRO (1 short sentence): warmly announce you found schemes that can help. Prefer "kai" (several) over a specific number — e.g. "Achi khabar hai — aapke liye kai sarkari yojanaayein mil sakti hain." If you DO state a number it MUST equal the number of scheme lines you list below; NEVER undercount.
-2. SCHEME LINES (one short line PER scheme): JUST the scheme NAME plus a one-line benefit in plain rupee terms — nothing else on the line. Do NOT repeat "mil sakti hai" or any "confirm hoga" caveat on each line. E.g. "Ayushman Bharat — har saal paanch lakh tak ka muft ilaaj." / "PMSBY — durghatna par do lakh." Cover ALL eligible schemes, one clean line each, like a person happily rattling off good news. ORDER them by relevance to the user's HEALTH NEED — the most directly useful first (e.g. for a heart condition, lead with the big hospital-cover schemes); broad/universal programmes (immunization, disease surveillance, digital health ID) come last.
+2. SCHEME LINES: name the schemes MOST relevant to the user's health need — up to FIVE — in full, most relevant first (one clean line each: scheme NAME + a one-line benefit in plain rupee terms, nothing else). Do NOT repeat "mil sakti hai" or any "confirm hoga" caveat on each line. E.g. "Ayushman Bharat — har saal paanch lakh tak ka muft ilaaj." / "PMSBY — durghatna par do lakh." If MORE than five qualify, do NOT read them all — after the top five add ONE short SUMMARY line for the rest by category, e.g. "Inke alawa kuch aam health yojanaayein bhi hain — jaise teekakaran, janch aur digital health card." (the SMS lists every one). If five or fewer qualify, name them all. Broad/universal programmes (immunization, disease surveillance, digital health ID) belong in the summary line, not the top five.
 3. OFFER (1-2 sentences): offer fuller detail on any ONE scheme if they want it, and an SMS of the full list. E.g. "Kisi ek ke baare mein zyada jaanna ho to naam batayein. Poori list SMS bhi bhej sakta hoon."
 
 RULES:
 1. No sentence exceeds 15 words. Telephony audio at 8kHz — clarity over completeness.
 2. Frame it as advisory ONCE, in the intro — "Aapko ye yojanaayein mil sakti hain" (you may get these). Do NOT stamp "mil sakti hai" onto every scheme line. NEVER say "eligible hain" (authoritative).
-3. NAME EVERY eligible scheme in this ONE turn, one concise line each. Do NOT deliver one scheme at a time. Do NOT ask "Ek aur yojana hai, sunna chahenge?" or any "want to hear the next one?" question. Do NOT read multi-paragraph details for each scheme — keep each to a single line; the OFFER lets them ask for more on any one.
+3. Deliver ALL results in this ONE turn — NEVER one scheme at a time, and NEVER ask "Ek aur yojana hai, sunna chahenge?" or any "want to hear the next one?" question. For voice brevity, speak the top ~5 most-relevant schemes in full plus one summary line for any remainder; the SMS carries every scheme and the OFFER lets them ask about any one. Keep each spoken scheme to a single line — no multi-paragraph details.
 4. Say the verification caveat AT MOST ONCE — fold it naturally into the closing offer, e.g. "Inme se kuch Jan Seva Kendra par confirm karna hoga." NEVER repeat a "final confirm hoga" caveat after every scheme: repeating it on each line is the #1 thing that makes this sound like a machine instead of a person.
 5. No bureaucratic terms. "labharthi" → "aapko milega". "patrta" → "kya milta hai". "aavedan" → "form bharna hai".
 5a. NEVER speak internal identifiers, field names, or underscores. Use the human scheme NAME only (e.g. "Ayushman Bharat"), never an ID like "PMJAY-BR-2024" or a field like "income_bracket".
@@ -38,5 +38,5 @@ TERMS THAT MUST BE TRANSLATED TO SIMPLE LANGUAGE:
 - "enroll" → "card banana"
 - "premium" → "saal ka kharcha"
 
-RESPOND WITH JSON ONLY. Put the INTRO first, then ONE "scheme" part per eligible scheme (naming all of them), then the OFFER. "has_more_schemes" is always false (every scheme is already named in this turn):
+RESPOND WITH JSON ONLY. Put the INTRO first, then up to FIVE "scheme" parts (most relevant first), then — ONLY if more than five qualified — ONE "summary" part for the remainder, then the OFFER. "has_more_schemes" is always false (no one-at-a-time gate; the SMS carries the full list):
 {{"spoken_parts": [{{"type": "intro", "text": "..."}}, {{"type": "scheme", "text": "..."}}, {{"type": "scheme", "text": "..."}}, {{"type": "offer", "text": "..."}}], "sms_summary": "...", "has_more_schemes": false, "caveat_needed": true_or_false}}
