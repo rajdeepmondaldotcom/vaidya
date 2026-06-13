@@ -48,6 +48,13 @@ class Settings(BaseSettings):
     # instead of timing out mid-flight. Conversational calls finish in ~2s
     # regardless, so this only affects the slow tail.
     llm_timeout_seconds: float = 45.0
+    # Fast-path ceiling for CONVERSATIONAL 30b calls (intake, guidance). They
+    # normally finish in ~2s, so they must NOT inherit the 45s eligibility tail:
+    # a single slow/hung Sarvam call on a simple turn would otherwise stall the
+    # caller up to 45s before retrying. 12s fails fast (and retries) while still
+    # leaving headroom for a genuinely slow-but-healthy 30b response. Eligibility
+    # and reviewer keep the longer llm_timeout_seconds above.
+    conversational_llm_timeout_seconds: float = 12.0
 
     # Advanced LLM. sarvam-30b/105b are ALWAYS-ON reasoning models: the API
     # only accepts reasoning_effort in {low, medium, high} (omitting it ->

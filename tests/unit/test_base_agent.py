@@ -95,3 +95,41 @@ class TestFallbackResponse:
         assert isinstance(result, AgentResponse)
         assert result.error == "agent_processing_failed"
         assert result.text  # non-empty fallback text
+
+
+class TestLlmTimeoutForwarding:
+    """The per-instance _llm_timeout is threaded into every client LLM call."""
+
+    def test_defaults_to_none(self) -> None:
+        # Untouched agents ride the client's default ceiling (the slow tail).
+        agent = BaseAgent(client=_mock_client(), model="test", agent_name="base")
+        assert agent._llm_timeout is None
+
+    @pytest.mark.asyncio
+    async def test_call_llm_forwards_default_none_timeout(self) -> None:
+        client = _mock_client()
+        agent = BaseAgent(client=client, model="test", agent_name="base")
+
+        await agent._call_llm("system", "user")
+
+        assert client.chat.await_args.kwargs["timeout"] is None
+
+    @pytest.mark.asyncio
+    async def test_call_llm_forwards_short_timeout(self) -> None:
+        client = _mock_client()
+        agent = BaseAgent(client=client, model="test", agent_name="base")
+        agent._llm_timeout = 12.0  # what app.py sets on conversational agents
+
+        await agent._call_llm("system", "user")
+
+        assert client.chat.await_args.kwargs["timeout"] == 12.0
+
+    @pytest.mark.asyncio
+    async def test_call_llm_json_forwards_short_timeout(self) -> None:
+        client = _mock_client()
+        agent = BaseAgent(client=client, model="test", agent_name="base")
+        agent._llm_timeout = 12.0
+
+        await agent._call_llm_json("system", "user")
+
+        assert client.chat_json.await_args.kwargs["timeout"] == 12.0

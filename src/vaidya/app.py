@@ -164,6 +164,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     )
     convergence = ConvergenceChecker()
 
+    # Fail-fast timeout for the CONVERSATIONAL agents only (intake, guidance):
+    # their fast 30b calls normally finish in ~2s, so a hung Sarvam call must
+    # not stall the caller for the full eligibility tail before retrying. Set
+    # post-construction via the BaseAgent attribute (mirrors the client.tts_cache
+    # pattern above) so subclass __init__ signatures stay untouched. Eligibility
+    # and reviewer keep the client default (llm_timeout_seconds) for their heavy
+    # 105b batches.
+    intake._llm_timeout = settings.conversational_llm_timeout_seconds
+    guidance._llm_timeout = settings.conversational_llm_timeout_seconds
+
     # Initialize orchestrator
     audit = AuditTrail()
     consent_tracker = ConsentTracker()
