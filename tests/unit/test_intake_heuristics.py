@@ -162,3 +162,62 @@ class TestRobustConfirmation:
             ctx.metadata["confirmation_pending"] = True
             resp = await agent._handle_confirmation_response(ctx, UserProfile(), ans, "en-IN")
             assert resp.metadata.get("intake_complete"), ans
+
+
+class TestFieldStickiness:
+    """A numbered Q&A turn authoritatively sets only its own question's fields;
+    a field owned by another question is filled only if empty, never overridden.
+    This stops the common Hindi STT slip "dihaadi mazdoori" (daily-wage) ->
+    "Bihari mazdoori" from flipping an already-captured state Rajasthan -> Bihar
+    on the occupation turn. The free-form opening turn applies everything."""
+
+    def test_later_turn_does_not_override_set_state(self):
+        from vaidya.models.user_profile import OccupationType, UserProfile
+
+        agent = IntakeAgent(client=object(), model="mock")
+        profile = UserProfile(state="Rajasthan")  # captured on Q1
+        # Q3 (occupation) turn: STT slipped "dihaadi" -> "Bihari" so the model
+        # also "extracted" state=Bihar. It must NOT override the set state.
+        extracted = {
+            "extracted_fields": {"state": "Bihar", "occupation_type": "daily_wage"},
+            "field_confidence": {},
+        }
+        out = agent._apply_extracted(profile, extracted, current_question=3)
+        assert out.state == "Rajasthan"  # stuck, not overridden
+        assert out.occupation_type == OccupationType.DAILY_WAGE  # own field applied
+
+    def test_volunteered_field_fills_when_empty(self):
+        from vaidya.models.user_profile import OccupationType, UserProfile
+
+        agent = IntakeAgent(client=object(), model="mock")
+        profile = UserProfile(state="West Bengal")  # occupation still unset
+        # Q2 (family) turn volunteers the occupation too -> fill it.
+        extracted = {
+            "extracted_fields": {"family_size": 4, "occupation_type": "daily_wage"},
+            "field_confidence": {},
+        }
+        out = agent._apply_extracted(profile, extracted, current_question=2)
+        assert out.family_size == 4
+        assert out.occupation_type == OccupationType.DAILY_WAGE  # filled (was empty)
+
+    def test_owning_question_can_update_its_own_field(self):
+        from vaidya.models.user_profile import UserProfile
+
+        agent = IntakeAgent(client=object(), model="mock")
+        profile = UserProfile(state="Rajashtan")  # a typo'd first pass
+        extracted = {"extracted_fields": {"state": "Rajasthan"}, "field_confidence": {}}
+        out = agent._apply_extracted(profile, extracted, current_question=1)
+        assert out.state == "Rajasthan"  # Q1 owns state, may correct it
+
+    def test_freeform_turn_applies_everything(self):
+        from vaidya.models.user_profile import UserProfile
+
+        agent = IntakeAgent(client=object(), model="mock")
+        profile = UserProfile()
+        extracted = {
+            "extracted_fields": {"state": "Kerala", "family_size": 3},
+            "field_confidence": {},
+        }
+        out = agent._apply_extracted(profile, extracted, current_question=None)
+        assert out.state == "Kerala"
+        assert out.family_size == 3
