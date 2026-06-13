@@ -173,6 +173,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # 105b batches.
     intake._llm_timeout = settings.conversational_llm_timeout_seconds
     guidance._llm_timeout = settings.conversational_llm_timeout_seconds
+    # Opt-in heuristic intake fast path (off by default — LLM-first showcases
+    # sarvam-30b's multilingual extraction; enable for cost-sensitive scale).
+    intake._fast_path_enabled = settings.intake_fast_path_enabled
 
     # Initialize orchestrator
     audit = AuditTrail()
