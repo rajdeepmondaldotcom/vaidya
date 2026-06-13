@@ -197,11 +197,18 @@ PROCESSING_PROGRESS_MAX_NOTES = 4
 #   and the big latency win: a single complete sentence starts ~1.5s sooner
 #   than the old 2.0s floor, with no risk of splitting because a fragment
 #   that already *ended* a sentence has no mid-sentence remainder to merge.
-UTTERANCE_DEBOUNCE_SECONDS = 1.3
-# Short window used when the last fragment looks like a finished sentence
-# (sentence-final punctuation + high STT confidence). Still non-zero so a
-# trailing fragment that arrives right behind a sentence end can still merge.
-UTTERANCE_FLUSH_SECONDS = 0.4
+# Measured against live Sarvam streaming STT: a single spoken answer arrives as
+# 2-4 transcript fragments spread over 2-3s, with inter-fragment gaps up to ~2.1s
+# (e.g. "Ami West Bengal-e thaki." [+2.1s] "Hooghly jelar ekta grame"). The window
+# re-arms on every fragment, so it only has to exceed the largest *inter-fragment*
+# gap to merge the whole utterance. 2.5s clears the observed gaps; below it the
+# turn launches on a partial answer and the bot re-asks / desyncs.
+UTTERANCE_DEBOUNCE_SECONDS = 2.5
+# No fast-flush shortcut: Saaras tags *fragments* with sentence-final punctuation
+# (not just the final one), so "ends on a period" is NOT a reliable end-of-turn
+# signal — it was splitting multi-fragment answers after 0.4s. Keep the flush
+# window equal to the full debounce so every utterance gets the same quiet window.
+UTTERANCE_FLUSH_SECONDS = 2.5
 # Below this STT confidence we don't trust the end-of-utterance shortcut and
 # fall back to the full quiet window (sarvam reports per-transcript confidence
 # in 0..1; mid/low-confidence fragments are often mid-thought partials). When
@@ -576,7 +583,9 @@ class VaidyaAgentProcessor(FrameProcessor):
             )
             self._stop_processing_keepalive()
             fallback = get_msg("conversation", "error", self._language)
-            await self._emit_bot_text(fallback, profile="repair")
+            # Speak the short error message as one uninterrupted utterance (no
+            # leading-fragment split) so it stays intact and clear.
+            await self._emit_bot_text(fallback, profile="repair", stream=False)
         finally:
             self._inflight_text = None
             self._stop_processing_keepalive()

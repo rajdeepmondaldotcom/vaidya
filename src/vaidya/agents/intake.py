@@ -210,7 +210,11 @@ def _collect_confirmation_parts(profile: UserProfile, language: str) -> list[str
                 need=profile.health_need,
             )
         )
-    return parts
+    # Speak back only the first few identity-defining facts (state, household,
+    # livelihood) so the confirmation is one short line on a voice call rather
+    # than a ~15s read-back of every field. All fields are still captured and
+    # used for eligibility; the caller can correct anything at any point.
+    return parts[:3]
 
 
 def _format_occupation_label(occupation: OccupationType, language: str) -> str:

@@ -254,7 +254,10 @@ def _build_stt_service(
             model=model,
             language=None,
             vad_signals=True,
-            high_vad_sensitivity=True,
+            # Lower sensitivity so the STT doesn't end the utterance on every
+            # short mid-sentence pause — that was splitting one spoken answer into
+            # 2-4 fragments. The agent-side debounce still merges what remains.
+            high_vad_sensitivity=False,
             interrupt_min_speech_frames=interrupt_min_speech_frames,
         ),
     )

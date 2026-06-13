@@ -56,7 +56,9 @@ class TestVoicePipelineHelpers:
         assert stt._settings.model == "saaras:v3"
         assert stt._settings.language is None
         assert stt._settings.vad_signals is True
-        assert stt._settings.high_vad_sensitivity is True
+        # Lower sensitivity: high sensitivity ended the utterance on short
+        # mid-sentence pauses, splitting one spoken answer into 2-4 fragments.
+        assert stt._settings.high_vad_sensitivity is False
         assert stt._settings.interrupt_min_speech_frames == 3
 
     def test_tts_service_uses_human_pacing_for_telephony(self):
@@ -129,11 +131,13 @@ class TestAdaptiveDebounceWindow:
     """``_debounce_window`` picks a short window only on a strong end signal."""
 
     def test_constants_invariants(self):
-        # The early-flush window must be strictly shorter than the base quiet
-        # window (that's the whole point), and the base window must be well
-        # under the old 2.0s flat floor so single-fragment turns start sooner.
-        assert 0 < UTTERANCE_FLUSH_SECONDS < UTTERANCE_DEBOUNCE_SECONDS
-        assert UTTERANCE_DEBOUNCE_SECONDS < 2.0
+        # The fast-flush shortcut was removed: live Sarvam STT tags individual
+        # fragments with sentence-final punctuation, so "ends on a period" split
+        # multi-fragment answers. Both windows are now the same full quiet window,
+        # sized above Sarvam's observed ~2s inter-fragment gaps so a whole spoken
+        # answer merges into one turn instead of launching on a partial.
+        assert UTTERANCE_FLUSH_SECONDS == UTTERANCE_DEBOUNCE_SECONDS
+        assert UTTERANCE_DEBOUNCE_SECONDS >= 2.0
         assert 0.0 < UTTERANCE_FLUSH_MIN_CONFIDENCE <= 1.0
 
     def test_complete_high_confidence_uses_short_window(self):
