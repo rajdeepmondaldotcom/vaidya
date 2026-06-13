@@ -267,8 +267,33 @@ class IntakeAgent(BaseAgent):
 
         Returns an AgentResponse containing the next spoken question
         and any profile updates extracted from the user's answer.
+
+        Intake runs entirely in the user's language: every spoken string is
+        either pulled from the localized i18n catalogue (questions,
+        confirmation, corrections) via ``get_msg(..., context.language)`` or is
+        the LLM's ``spoken_text`` ack, which the prompt requires in the user's
+        language. So every response is marked ``already_localized=True`` and the
+        ConversationManager skips the (redundant) en-IN translate-out hop -- the
+        hop where the placeholder-leak / blank-turn bugs lived.
         """
-        return await self._process_turn(context, user_input)
+        response = await self._process_turn(context, user_input)
+        response.already_localized = True
+        return response
+
+    async def safe_process(
+        self,
+        context: ConversationContext,
+        user_input: str,
+    ) -> AgentResponse:
+        """Override to flag the error fallback as already-localized too.
+
+        ``BaseAgent.safe_process`` returns ``_fallback_response`` on failure,
+        which is a ``get_msg(..., context.language)`` string -- already in the
+        user's language. Flag it so the manager never translates it back out.
+        """
+        response = await super().safe_process(context, user_input)
+        response.already_localized = True
+        return response
 
     async def _process_turn(
         self,

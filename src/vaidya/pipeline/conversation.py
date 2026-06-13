@@ -230,6 +230,27 @@ class ConversationManager:
             logger.warning("Session not found", extra={"call_id": call_id})
         return context
 
+    # Phases whose user turn is consumed by the natively-multilingual intake
+    # agent. Their inbound text is NOT translated to en-IN: the intake agent
+    # reads the caller's language directly and still extracts canonical English
+    # field values, so the translate-in hop would be pure redundant latency.
+    _INTAKE_INBOUND_PHASES = frozenset(
+        {ConversationPhase.INTAKE, ConversationPhase.OPEN_ELICITATION}
+    )
+
+    @classmethod
+    def _should_skip_inbound_translation(cls, context: ConversationContext) -> bool:
+        """Return True when the caller's raw utterance should bypass translate-in.
+
+        True for the language-selection turn (``awaiting_language``) and for
+        intake-bound phases (the intake agent reads the caller's language
+        directly). False otherwise, so en-IN-processing agents still get
+        English.
+        """
+        if context.metadata.get("awaiting_language"):
+            return True
+        return context.phase in cls._INTAKE_INBOUND_PHASES
+
     async def _translate_to_agent_language(
         self,
         user_text: str,
@@ -328,11 +349,22 @@ class ConversationManager:
         if self._sarvam_client:
             self._sarvam_client.set_active_call_id(call_id)
 
-        # On the language-selection turn the caller's input is in *their*
-        # language (which we haven't yet confirmed), so translating it
-        # against the session default would corrupt the detection input.
-        # Pass the raw utterance through in that case.
-        if context.metadata.get("awaiting_language"):
+        # Decide whether to translate the caller's utterance into the internal
+        # agent language (en-IN) before the orchestrator sees it.
+        #
+        # We pass the RAW utterance through (no translate-in) when:
+        #  - awaiting_language: the language-selection turn is in the caller's
+        #    not-yet-confirmed language, so translating against the session
+        #    default would corrupt the detection input; OR
+        #  - the turn is intake-bound (INTAKE / OPEN_ELICITATION): the intake
+        #    agent reads the caller's language directly (sarvam-30b is natively
+        #    multilingual) and extracts canonical English field values, so the
+        #    en-IN translate-in hop is redundant. Eliminating it removes one of
+        #    two sequential Sarvam round-trips on every intake turn.
+        #
+        # All other phases keep translate-in so the en-IN-processing agents
+        # (eligibility / reviewer / guidance follow-ups) still receive English.
+        if self._should_skip_inbound_translation(context):
             agent_input = user_text
         else:
             agent_input = await self._translate_to_agent_language(user_text, turn_language)
