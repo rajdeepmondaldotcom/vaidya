@@ -1,0 +1,137 @@
+{
+  "scheme_id": "RKSK-2026-v1",
+  "canonical_name": "Rashtriya Kishor Swasthya Karyakram",
+  "aliases": [
+    "RKSK",
+    "National Adolescent Health Programme",
+    "Adolescent Health Programme",
+    "Kishor Swasthya",
+    "Adolescent Friendly Health Clinic Programme",
+    "Peer Educator Programme"
+  ],
+  "local_names": {
+    "hi": "राष्ट्रीय किशोर स्वास्थ्य कार्यक्रम",
+    "bn": "রাষ্ট্রীয় কিশোর স্বাস্থ্য কার্যক্রম",
+    "ta": "ராஷ்ட்ரிய கிஷோர் சுவாஸ்த்ய கார்யக்ரம்",
+    "te": "రాష్ట్రీయ కిషోర్ స్వాస్థ్య కార్యక్రమం",
+    "mr": "राष्ट्रीय किशोर स्वास्थ्य कार्यक्रम",
+    "gu": "રાષ્ટ્રીય કિશોર સ્વાસ્થ્ય કાર્યક્રમ",
+    "kn": "ರಾಷ್ಟ್ರೀಯ ಕಿಶೋರ ಸ್ವಾಸ್ಥ್ಯ ಕಾರ್ಯಕ್ರಮ",
+    "ml": "രാഷ്ട്രീയ കിശോർ സ്വാസ്ഥ്യ കാര്യക്രമം",
+    "pa": "ਰਾਸ਼ਟਰੀ ਕਿਸ਼ੋਰ ਸਵਾਸਥ ਕਾਰਿਆਕ੍ਰਮ",
+    "or": "ରାଷ୍ଟ୍ରୀୟ କିଶୋର ସ୍ୱାସ୍ଥ୍ୟ କାର୍ଯ୍ୟକ୍ରମ"
+  },
+  "state_variant_of": null,
+  "jurisdiction": "central",
+  "state_code": null,
+  "income_thresholds": [],
+  "secc_categories": [],
+  "occupation_included": [
+    "all_adolescents_10_to_19",
+    "adolescent_boys",
+    "adolescent_girls",
+    "married_adolescents",
+    "unmarried_adolescents",
+    "in_school_adolescents",
+    "out_of_school_adolescents"
+  ],
+  "occupation_excluded": [],
+  "exclusion_rules": [
+    {
+      "rule_id": "RKSK-EX-001",
+      "exclusion_type": "hard",
+      "field": "age",
+      "condition": "age < 10 or age > 19",
+      "description": "RKSK services target adolescents aged 10 to 19 years. Children below 10 are covered under child-health programmes (e.g. RBSK) and those above 19 under general adult health services.",
+      "override_by_state": false
+    }
+  ],
+  "age_criteria": {
+    "min_age": 10,
+    "max_age": 19,
+    "applies_to": "beneficiary"
+  },
+  "family_criteria": {
+    "max_family_size": null,
+    "family_definition": "Universal adolescent health programme — every adolescent aged 10-19 years is eligible regardless of family income, caste, religion, or BPL status: boys and girls, rural and urban, married and unmarried, in-school and out-of-school, with special focus on marginalised and underserved groups. Services are free at Adolescent Friendly Health Clinics and through community outreach.",
+    "head_of_family_required": false
+  },
+  "geographic_restrictions": [],
+  "coverage_amount_inr": 0,
+  "coverage_type": "per_person_per_year",
+  "covered_procedures": [
+    "Free preventive, promotive, curative and counselling services for adolescents across six priority areas",
+    "Nutrition: Weekly Iron and Folic Acid Supplementation (WIFS), screening and management of anaemia, nutrition counselling",
+    "Sexual and reproductive health: counselling, contraceptive information and services, menstrual hygiene support",
+    "Mental health: counselling and support for stress, anxiety, and emotional well-being",
+    "Injuries and violence: counselling and support including for gender-based violence",
+    "Prevention of substance misuse: counselling and awareness on tobacco, alcohol and drugs",
+    "Non-communicable diseases: screening and lifestyle counselling",
+    "Adolescent Friendly Health Clinics (AFHC) at PHC, CHC and district hospital level providing confidential, free services",
+    "Peer Educator (Saathiya) programme — trained adolescent peers provide information at the community level",
+    "Adolescent Health Days and school/community outreach activities",
+    "Free routine check-ups and referral to higher facilities as needed"
+  ],
+  "excluded_procedures": [
+    "Services for individuals below 10 or above 19 years",
+    "Paid treatment at private clinics",
+    "Tertiary surgical/hospitalization care (referred to and covered under other schemes such as PM-JAY)",
+    "Diagnostics unrelated to the adolescent-health service package on a paid basis"
+  ],
+  "required_documents": [
+    {
+      "name": "No document mandatory",
+      "category": "eligibility_proof",
+      "mandatory": false,
+      "alternatives": ["Self-presentation at AFHC", "Referral by peer educator/ASHA"],
+      "local_name_hi": "कोई दस्तावेज अनिवार्य नहीं",
+      "notes": "Adolescents can access Adolescent Friendly Health Clinic services confidentially and free; no income or eligibility document is required. Services are confidential and youth-friendly."
+    },
+    {
+      "name": "School ID / Aadhaar (optional)",
+      "category": "identity",
+      "mandatory": false,
+      "alternatives": ["Any ID", "None"],
+      "local_name_hi": "स्कूल पहचान पत्र / आधार (वैकल्पिक)",
+      "notes": "Used only for record-keeping; absence of ID cannot be a reason to deny adolescent health services or counselling."
+    }
+  ],
+  "enrollment_channels": [
+    "Adolescent Friendly Health Clinic (AFHC) at PHC, CHC, and district hospital",
+    "Government Sub-Centre / Health & Wellness Centre",
+    "Government and government-aided schools (Adolescent Health programme / WIFS)",
+    "Anganwadi Centre (for out-of-school adolescents)",
+    "Peer Educators (Saathiya) at the community level",
+    "ASHA / ANM outreach and Adolescent Health Days"
+  ],
+  "enrollment_steps": [
+    "Step 1: No enrollment or fee needed — RKSK provides free, confidential services to all adolescents aged 10-19",
+    "Step 2: Adolescents can visit the nearest Adolescent Friendly Health Clinic (AFHC) for counselling and care",
+    "Step 3: In schools, adolescents receive Weekly Iron and Folic Acid Supplementation (WIFS) and health education",
+    "Step 4: Trained Peer Educators (Saathiya) provide information and refer adolescents to AFHCs at the community level",
+    "Step 5: Receive free counselling and services across nutrition, sexual/reproductive health, mental health, substance misuse, injuries/violence, and NCDs",
+    "Step 6: Complex cases are referred free of cost to higher government facilities",
+    "Step 7: Adolescent Health Days and outreach activities provide periodic services and awareness"
+  ],
+  "processing_time_days": 0,
+  "helpline_number": "104",
+  "portal_url": "https://nhm.gov.in/index4.php?lang=1&level=0&linkid=152&lid=173",
+  "version": "1.0",
+  "effective_date": "2014-01-07",
+  "expiry_date": null,
+  "last_verified": "2026-06-13",
+  "source_url": "https://nhm.gov.in/index4.php?lang=1&level=0&linkid=152&lid=173",
+  "confidence_level": "provisional",
+  "description_for_embedding": "Rashtriya Kishor Swasthya Karyakram (RKSK), the National Adolescent Health Programme launched by the Ministry of Health and Family Welfare on 7 January 2014 under the National Health Mission, provides free, confidential, youth-friendly health services to ALL adolescents aged 10 to 19 years — boys and girls, rural and urban, married and unmarried, in-school and out-of-school — regardless of family income, caste, religion, or BPL status, with special focus on marginalised and underserved groups. It expanded adolescent health beyond sexual and reproductive health to six priority areas: nutrition (Weekly Iron and Folic Acid Supplementation and anaemia management), sexual and reproductive health, mental health, injuries and violence (including gender-based violence), prevention of substance misuse, and non-communicable diseases. Services are delivered free through Adolescent Friendly Health Clinics (AFHCs) at PHC, CHC and district-hospital level, through the Peer Educator (Saathiya) programme where trained adolescents reach peers at the community level, and through schools, anganwadis and Adolescent Health Days. The package includes preventive, promotive, curative and counselling services with confidential routine check-ups and free referral to higher facilities. No enrollment fee and no mandatory documents are required, and services are confidential. Any adolescent between 10 and 19 — whether a school student, a working youth, or a young married girl — can walk in to an Adolescent Friendly Health Clinic or approach a Saathiya peer educator for free counselling, iron-folic-acid tablets for anaemia, and referral, without needing parental income proof or a BPL card.",
+  "keywords": [
+    "RKSK", "kishor swasthya", "adolescent health", "10 to 19 years", "teenagers",
+    "Adolescent Friendly Health Clinic", "AFHC", "peer educator", "Saathiya",
+    "WIFS", "iron folic acid", "anaemia", "menstrual hygiene", "mental health",
+    "substance misuse", "reproductive health counselling", "adolescent counselling",
+    "free adolescent services", "youth health", "school health",
+    "किशोर स्वास्थ्य", "किशोरावस्था", "10 से 19 वर्ष", "आयरन फोलिक एसिड",
+    "खून की कमी", "मानसिक स्वास्थ्य", "किशोर अनुकूल स्वास्थ्य क्लिनिक",
+    "नशा मुक्ति", "मुफ्त परामर्श", "साथिया", "NHM", "central scheme",
+    "adolescent girls", "adolescent boys", "teenage health", "104 helpline"
+  ]
+}

@@ -1,0 +1,126 @@
+{
+  "scheme_id": "IDSP-2026-v1",
+  "canonical_name": "Integrated Disease Surveillance Programme",
+  "aliases": [
+    "IDSP",
+    "Integrated Disease Surveillance Project",
+    "Disease Surveillance Programme",
+    "IDSP-NCDC",
+    "Outbreak Response Programme",
+    "Notifiable Disease Surveillance"
+  ],
+  "local_names": {
+    "hi": "एकीकृत रोग निगरानी कार्यक्रम",
+    "bn": "সংহত রোগ নজরদারি কর্মসূচি",
+    "ta": "ஒருங்கிணைந்த நோய் கண்காணிப்பு திட்டம்",
+    "te": "సమగ్ర వ్యాధి నిఘా కార్యక్రమం",
+    "mr": "एकात्मिक रोग सर्वेक्षण कार्यक्रम",
+    "gu": "સંકલિત રોગ સર્વેલન્સ કાર્યક્રમ",
+    "kn": "ಸಮಗ್ರ ರೋಗ ಕಣ್ಗಾವಲು ಕಾರ್ಯಕ್ರಮ",
+    "ml": "സംയോജിത രോഗ നിരീക്ഷണ പദ്ധതി",
+    "pa": "ਏਕੀਕ੍ਰਿਤ ਰੋਗ ਨਿਗਰਾਨੀ ਪ੍ਰੋਗਰਾਮ",
+    "or": "ସମନ୍ୱିତ ରୋଗ ନିରୀକ୍ଷଣ କାର୍ଯ୍ୟକ୍ରମ"
+  },
+  "state_variant_of": null,
+  "jurisdiction": "central",
+  "state_code": null,
+  "income_thresholds": [],
+  "secc_categories": [],
+  "occupation_included": [
+    "general_public",
+    "all_residents"
+  ],
+  "occupation_excluded": [],
+  "exclusion_rules": [
+    {
+      "rule_id": "IDSP-EX-001",
+      "exclusion_type": "soft",
+      "field": "facility_type",
+      "condition": "facility_type == 'private_paid'",
+      "description": "Free diagnosis and treatment of notifiable/epidemic-prone diseases is provided through the government public health network (PHCs, CHCs, District Public Health Labs, government hospitals). Surveillance covers private facilities too, but the free testing and treatment entitlement is at government facilities.",
+      "override_by_state": false
+    }
+  ],
+  "age_criteria": null,
+  "family_criteria": {
+    "max_family_size": null,
+    "family_definition": "Public-health surveillance and outbreak-response programme available to the entire population with no income, caste, age, or BPL restriction. Anyone with symptoms of an epidemic-prone or notifiable disease (such as dengue, malaria, chikungunya, typhoid, hepatitis A/E, cholera, acute diarrhoeal disease, measles, leptospirosis, scrub typhus) can access free diagnosis and treatment at government health facilities.",
+    "head_of_family_required": false
+  },
+  "geographic_restrictions": [],
+  "coverage_amount_inr": 0,
+  "coverage_type": "per_event",
+  "covered_procedures": [
+    "Free laboratory diagnosis of epidemic-prone and notifiable diseases at District Public Health Labs (DPHLs) and government facilities",
+    "Free testing for dengue, malaria, chikungunya, typhoid, hepatitis A and E, cholera, acute diarrhoeal disease, measles, leptospirosis, scrub typhus and other epidemic-prone diseases",
+    "Free treatment of confirmed notifiable diseases at government hospitals and PHCs/CHCs",
+    "24x7 disease-alert call centre on toll-free number 1075 for outbreak reporting and guidance",
+    "Rapid Response Teams (RRTs) at district and state level for outbreak investigation and containment",
+    "Weekly surveillance and early warning to detect and respond to outbreaks quickly",
+    "Vector-control and public-health measures during outbreaks (in coordination with state programmes)",
+    "Strengthened referral laboratory network for confirmatory testing",
+    "Health education and community alerts during disease outbreaks"
+  ],
+  "excluded_procedures": [
+    "Paid diagnostic tests at private laboratories",
+    "Treatment of non-notifiable, non-epidemic chronic conditions (covered under other schemes)",
+    "Hospitalization costs at private hospitals (covered under PM-JAY or state insurance schemes instead)",
+    "Routine non-surveillance diagnostics unrelated to notifiable diseases"
+  ],
+  "required_documents": [
+    {
+      "name": "No document mandatory",
+      "category": "eligibility_proof",
+      "mandatory": false,
+      "alternatives": ["Self-presentation with symptoms"],
+      "local_name_hi": "कोई दस्तावेज अनिवार्य नहीं",
+      "notes": "Anyone with symptoms of a notifiable/epidemic-prone disease can walk in to a government facility for free testing and treatment; no income or eligibility document is required."
+    },
+    {
+      "name": "Aadhaar / ID (optional)",
+      "category": "identity",
+      "mandatory": false,
+      "alternatives": ["Any ID", "None"],
+      "local_name_hi": "आधार / पहचान पत्र (वैकल्पिक)",
+      "notes": "Used only for record-keeping and case reporting; absence of ID cannot be a reason to deny testing or treatment during an outbreak."
+    }
+  ],
+  "enrollment_channels": [
+    "Government Sub-Centre / Health & Wellness Centre",
+    "Primary Health Centre (PHC)",
+    "Community Health Centre (CHC)",
+    "District Public Health Laboratory (DPHL)",
+    "District / Government hospital",
+    "IDSP 24x7 disease-alert call centre (toll-free 1075)",
+    "ASHA / ANM and District Surveillance Unit reporting"
+  ],
+  "enrollment_steps": [
+    "Step 1: No enrollment needed — IDSP is a public-health surveillance and outbreak-response programme available to everyone",
+    "Step 2: If you have symptoms of a notifiable/epidemic-prone disease (fever, suspected dengue/malaria, diarrhoea, jaundice, etc.), visit the nearest government facility",
+    "Step 3: Free diagnostic testing is done at the facility or District Public Health Lab",
+    "Step 4: If confirmed, free treatment is provided at the government hospital/PHC/CHC",
+    "Step 5: To report a suspected outbreak or unusual cluster of illness, call the toll-free IDSP helpline 1075",
+    "Step 6: District Rapid Response Teams investigate and contain reported outbreaks",
+    "Step 7: Community is alerted and public-health/vector-control measures are taken during outbreaks"
+  ],
+  "processing_time_days": 0,
+  "helpline_number": "1075",
+  "portal_url": "https://idsp.mohfw.gov.in",
+  "version": "1.0",
+  "effective_date": "2004-11-01",
+  "expiry_date": null,
+  "last_verified": "2026-06-13",
+  "source_url": "https://idsp.mohfw.gov.in/index4.php?lang=1&level=0&linkid=313&lid=1592",
+  "confidence_level": "provisional",
+  "description_for_embedding": "The Integrated Disease Surveillance Programme (IDSP), launched in November 2004 with World Bank assistance and run by the National Centre for Disease Control under the Ministry of Health and Family Welfare, is India's nationwide disease-surveillance and outbreak-response programme. It strengthens early detection of and rapid response to epidemic-prone and notifiable diseases such as dengue, malaria, chikungunya, typhoid, hepatitis A and E, cholera, acute diarrhoeal disease, measles, leptospirosis and scrub typhus. Weekly surveillance data are collected from sub-centres, PHCs, CHCs, and government and private hospitals so that outbreaks can be detected and contained quickly. For the public, IDSP means free laboratory diagnosis of these diseases at strengthened District Public Health Laboratories (DPHLs) and free treatment of confirmed notifiable diseases at government health facilities — with no income, caste, age, or BPL restriction and no eligibility document required. A 24x7 disease-alert call centre on toll-free number 1075 lets anyone report suspected outbreaks and get guidance, and District and State Rapid Response Teams investigate and contain outbreaks. IDSP also supports vector-control and community-awareness measures during outbreaks. It is a universal public-health safety net rather than a cash or insurance scheme, so families worried about seasonal fevers such as dengue, malaria or chikungunya can get tested and treated free at a government facility, and can call 1075 to report unusual clusters of illness in their area. Anyone, of any age or income, presenting with symptoms of these diseases is entitled to free diagnosis and treatment without any eligibility document.",
+  "keywords": [
+    "IDSP", "disease surveillance", "outbreak", "notifiable disease", "epidemic",
+    "dengue test", "malaria test", "chikungunya", "typhoid", "hepatitis",
+    "cholera", "diarrhoea outbreak", "free diagnosis", "free testing", "NCDC",
+    "1075 helpline", "rapid response team", "district public health lab", "fever outbreak",
+    "रोग निगरानी", "डेंगू जांच", "मलेरिया जांच", "महामारी", "मुफ्त जांच",
+    "अधिसूचित रोग", "प्रकोप", "बुखार", "टाइफाइड", "हैजा",
+    "public health", "epidemic prone disease", "NHM", "central scheme",
+    "surveillance", "vector borne disease", "free disease testing", "outbreak response"
+  ]
+}

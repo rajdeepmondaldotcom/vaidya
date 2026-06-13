@@ -82,6 +82,14 @@ class TestSchemeRequiredFields:
             "NPCDCS-2024-v1",  # free NCD (cancer/diabetes/CVD/stroke) screening + treatment
             "NPPC-2024-v1",  # free palliative care
             "NPCBVI-2024-v1",  # free cataract surgery / eye care
+            # National free-service / universal-access programmes (services, not
+            # a fixed rupee cover): immunization, surveillance, adolescent and
+            # continuum-of-care health.
+            "UIP-2026-v1",
+            "MI-2026-v1",
+            "IDSP-2026-v1",
+            "RKSK-2026-v1",
+            "RMNCHA-2026-v1",
         }
         for s in get_schemes():
             if s.scheme_id not in zero_coverage_ok:
