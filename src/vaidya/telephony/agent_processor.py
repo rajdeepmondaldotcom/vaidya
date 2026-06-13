@@ -168,8 +168,8 @@ if TYPE_CHECKING:
 # Held just above a normal intake turn (~3-5s with the faster intake path) so
 # quick turns still answer silently, while a slow eligibility crunch reassures
 # the caller ~2s sooner than the old 7.0s floor.
-PROCESSING_ACK_DELAY_SECONDS = 5.0
-PROCESSING_PROGRESS_INTERVAL_SECONDS = 14.0
+PROCESSING_ACK_DELAY_SECONDS = 4.0
+PROCESSING_PROGRESS_INTERVAL_SECONDS = 9.0
 # Must cover the longest agent phase (eligibility+reviewer).
 PROCESSING_PROGRESS_MAX_NOTES = 12
 
