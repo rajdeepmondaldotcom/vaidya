@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import logging
+import re
 import time
+from functools import lru_cache
 from typing import Any
 
 from vaidya.agents.base import BaseAgent
@@ -31,8 +33,28 @@ logger = logging.getLogger(__name__)
 _SMS_MAX_LENGTH = 160
 # Schemes spoken aloud on a call. Reading every eligible scheme (often 14-18,
 # many of them universal national programmes) is a multi-minute monologue; speak
-# the most relevant few and SMS the complete list.
-_MAX_SPOKEN_SCHEMES = 5
+# the most relevant FEW and SMS the complete list. Three keeps the results turn
+# to ~20s even with the longest scheme names -- five ran past 50s on air.
+_MAX_SPOKEN_SCHEMES = 3
+
+
+@lru_cache(maxsize=1)
+def _short_name_map() -> dict[str, str]:
+    """scheme_id -> a short, speakable name (first curated alias).
+
+    The canonical names are long ("National Programme for Control of Blindness
+    and Visual Impairment (NPCBVI)") and turn the spoken results into a minutes-
+    long monologue. The first alias is the curated common short name
+    ("Ayushman Bharat", "Chiranjeevi Yojana", "BSKY"), which is what a caller
+    would actually recognise and repeat. Falls back to the canonical name.
+    """
+    return {s.scheme_id: (s.aliases[0] if s.aliases else s.canonical_name) for s in get_schemes()}
+
+
+def _speakable_name(match: SchemeMatch) -> str:
+    """The short spoken name for a scheme match (alias if known, else its name)."""
+    return _short_name_map().get(match.scheme_id, match.scheme_name)
+
 
 # Maps a caller's stated condition to the words that identify the scheme(s) which
 # directly address it (in scheme names / covered procedures), so a TB patient
@@ -180,6 +202,14 @@ class GuidanceAgent(BaseAgent):
         if not eligible:
             return self._no_match_response(context.language)
 
+        # Phase 6 (GUIDANCE): the full list was ALREADY spoken in the RESULTS
+        # turn. A follow-up turn here must NOT re-read every scheme again -- that
+        # produced a duplicate multi-minute monologue (and replayed everything on
+        # a bare "okay"/"thanks"). Answer the follow-up instead: repeat one named
+        # scheme if the caller asked, else give the next step (documents + CSC).
+        if context.phase == ConversationPhase.GUIDANCE and context.guidance_output is not None:
+            return self._followup_response(context, user_input, eligible)
+
         # Speak only the most relevant handful; the SMS carries the full list.
         # The free-form LLM path read every eligible scheme (sometimes twice) and
         # risked the wrong TTS voice. Deterministic template parts are capped,
@@ -218,6 +248,48 @@ class GuidanceAgent(BaseAgent):
                 "schemes_delivered": len(eligible),
                 "sms_summary": guidance_output.sms_summary,
             },
+        )
+
+    def _followup_response(
+        self,
+        context: ConversationContext,
+        user_input: str,
+        eligible: list[SchemeMatch],
+    ) -> AgentResponse:
+        """Handle a post-results follow-up turn WITHOUT re-reading the whole list.
+
+        The RESULTS turn already named every relevant scheme and offered "say a
+        scheme's name to hear more". So here we either (a) repeat the single line
+        for a scheme the caller named, or (b) give the concrete next step
+        (documents + nearest Jan Seva Kendra). Both are short, deterministic, and
+        cacheable -- never the duplicate firehose the old code produced.
+        """
+        language = context.language
+        lowered = user_input.lower()
+        action = get_msg("guidance", "fallback_action", language)
+
+        # Did the caller name one of the schemes they just heard? Repeat ONLY it.
+        for match in eligible[:_MAX_SPOKEN_SCHEMES]:
+            name = _speakable_name(match)
+            tokens = [t for t in re.split(r"[\s\-/]+", name.lower()) if len(t) > 4]
+            if any(token in lowered for token in tokens):
+                line = get_msg_template(
+                    "guidance",
+                    "results_scheme_line",
+                    language,
+                    scheme_name=name,
+                    benefit=match.coverage_summary,
+                )
+                return AgentResponse(
+                    text=f"{line} {action}".strip(),
+                    metadata={"guidance_followup": "scheme_detail"},
+                )
+
+        # Otherwise: the concrete next step. The full list is already on its way
+        # by SMS, so we just point the caller to where they enrol.
+        return AgentResponse(
+            text=action,
+            metadata={"guidance_followup": "next_steps"},
         )
 
     async def _generate_guidance(
@@ -385,7 +457,7 @@ class GuidanceAgent(BaseAgent):
                 "guidance",
                 "results_scheme_line",
                 language,
-                scheme_name=scheme.scheme_name,
+                scheme_name=_speakable_name(scheme),
                 benefit=scheme.coverage_summary,
             )
             parts.append(SpokenPart(type="scheme", text=line))
@@ -397,7 +469,7 @@ class GuidanceAgent(BaseAgent):
 
     def _build_fallback_sms(self, eligible: list[SchemeMatch], language: str = "hi-IN") -> str:
         """Deterministic SMS listing every eligible scheme (truncated to 160 chars)."""
-        names = ", ".join(s.scheme_name for s in eligible)
+        names = ", ".join(_speakable_name(s) for s in eligible)
         sms = get_msg_template("guidance", "fallback_sms", language, names=names)
         if len(sms) > _SMS_MAX_LENGTH:
             sms = sms[: _SMS_MAX_LENGTH - 3] + "..."

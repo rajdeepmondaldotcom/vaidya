@@ -455,19 +455,21 @@ class IntakeAgent(BaseAgent):
         extracted: dict[str, Any],
         language: str,
     ) -> AgentResponse:
-        """Fast-track to confirmation when emotional distress is detected."""
+        """Fast-track to confirmation when emotional distress is detected.
+
+        Note the distress flag (downstream warmth / analytics) and enter the
+        confirmation pass the SAME deterministic way as a normal intake
+        completion. We used to prepend the LLM's free-form ``spoken_text``
+        empathy here, but that text is unique on every call, so it missed the
+        TTS cache and rendered in the wrong voice -- a garbled ~15s confirmation.
+        The fixed-string ack keeps the turn cacheable and snappy; the empathy a
+        distressed caller needs is carried by tone, not a bespoke paragraph.
+        """
         context.emotional_distress_detected = True
         profile = self._apply_extracted(profile, extracted)
-        context.intake_question_index = MAX_INTAKE_QUESTIONS + 1
-        empathy = extracted.get("spoken_text", "")
-        confirmation = self._build_confirmation(profile, language)
-        context.metadata["confirmation_pending"] = True
-        spoken = f"{empathy} {confirmation}".strip() if empathy else confirmation
-        return AgentResponse(
-            text=spoken,
-            updated_profile=profile,
-            metadata={"intake_distress_detected": True, "confirmation_pending": True},
-        )
+        response = self._enter_confirmation(context, profile, extracted, language)
+        response.metadata["intake_distress_detected"] = True
+        return response
 
     def _advance_to_next_question(
         self,
@@ -673,13 +675,25 @@ class IntakeAgent(BaseAgent):
 
         profile_summary = self._summarize_profile(profile)
 
+        # Lean extraction prompt (intake_extract): fields + flags only, NO
+        # spoken_text. The verbose intake_system prompt made the model compose a
+        # warm reply in the caller's language on every turn -- 14-17s of latency
+        # for prose we then DISCARD (the ack is deterministic i18n, follow-ups are
+        # the canonical i18n question, distress empathy is i18n). Dropping it cuts
+        # the per-question wait to ~5-6s with no loss of extraction accuracy.
         system = prompts.render(
-            "intake_system",
+            "intake_extract",
             question_number=str(question_number),
             current_question=current_question,
             profile_summary=profile_summary,
             language=language,
-            expected_fields_json=_FIELD_EXAMPLES.get(question_number, _FIELD_EXAMPLES[1]),
+            # All-field output schema (not just this question's) so a caller who
+            # volunteers their job while naming their family is captured -- a
+            # per-question schema silently DROPS that, then the occupation
+            # question can never be satisfied and the bot re-asks in a loop. The
+            # prompt's anti-hallucination rules stop the reverse failure (a place
+            # like "a village" leaking in as family_size).
+            expected_fields_json=_FIELD_EXAMPLES[0],
         )
         try:
             return await self._call_llm_json(
