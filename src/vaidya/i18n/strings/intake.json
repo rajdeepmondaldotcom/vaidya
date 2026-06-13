@@ -116,6 +116,19 @@
     "od-IN": "Nischaye, thik kariba. Kana badalibaku — jaaga, paribaara, kaama, insurance, ba swasthya?",
     "en-IN": "Of course, let's fix it. What should we change — location, family, work, insurance, or health?"
   },
+  "ack": {
+    "hi-IN": "Theek hai.",
+    "ta-IN": "Sari.",
+    "bn-IN": "Thik aache.",
+    "te-IN": "Sare.",
+    "gu-IN": "Saru.",
+    "kn-IN": "Sari.",
+    "ml-IN": "Sheri.",
+    "mr-IN": "Theek aahe.",
+    "pa-IN": "Theek hai.",
+    "od-IN": "Thik achhi.",
+    "en-IN": "Got it."
+  },
   "occ_daily_wage": {
     "hi-IN": "dihaadi par kaam karte hain",
     "ta-IN": "dhina kooli velai seygiReerkal",
