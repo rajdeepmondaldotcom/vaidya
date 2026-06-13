@@ -21,7 +21,15 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 logger = logging.getLogger(__name__)
 
 try:
-    from pipecat.frames.frames import Frame, InputAudioRawFrame, TextFrame
+    from pipecat.frames.frames import (
+        BotStartedSpeakingFrame,
+        BotStoppedSpeakingFrame,
+        Frame,
+        InputAudioRawFrame,
+        LLMFullResponseEndFrame,
+        LLMFullResponseStartFrame,
+        TextFrame,
+    )
     from pipecat.pipeline.pipeline import Pipeline
     from pipecat.pipeline.runner import PipelineRunner
     from pipecat.pipeline.task import PipelineParams, PipelineTask
@@ -70,6 +78,33 @@ def _coerce_stt_mode(mode: str) -> SarvamSTTMode:
 
 
 if PIPECAT_AVAILABLE:
+
+    class GatedInterruptionSTTService(SarvamSTTService):
+        """Sarvam STT that only interrupts when the bot is actually speaking.
+
+        The stock service broadcasts a pipeline interruption on every VAD
+        START_SPEECH — even on a quiet line. That interruption races the
+        reply being generated for the very utterance that triggered it and
+        clears its audio, so fast (canned) replies are never heard. True
+        barge-in — the caller talking over the bot — still interrupts.
+        """
+
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            super().__init__(*args, **kwargs)
+            self._vaidya_bot_speaking = False
+
+        async def process_frame(self, frame: Frame, direction: FrameDirection) -> None:
+            if isinstance(frame, BotStartedSpeakingFrame):
+                self._vaidya_bot_speaking = True
+            elif isinstance(frame, BotStoppedSpeakingFrame):
+                self._vaidya_bot_speaking = False
+            await super().process_frame(frame, direction)
+
+        async def broadcast_interruption(self) -> None:
+            if not self._vaidya_bot_speaking:
+                logger.debug("Suppressing VAD interruption: bot is not speaking")
+                return
+            await super().broadcast_interruption()
 
     class SarvamStreamingSTTCostProcessor(FrameProcessor):
         """Counts streamed input audio seconds before Sarvam STT."""
@@ -207,11 +242,14 @@ def _build_stt_service(
     interrupt_min_speech_frames: int = 3,
 ) -> Any:
     """Build Sarvam STT with service-side VAD signals for telephony turn-taking."""
-    return SarvamSTTService(
+    # Must stay "wav": sarvamai's streaming AudioData only accepts
+    # encoding="audio/wav" (raw PCM, rate from the connection params), and
+    # Sarvam supports PCM codec labels at 16 kHz only — telephony is 8 kHz.
+    return GatedInterruptionSTTService(
         api_key=sarvam_api_key,
         mode=_coerce_stt_mode(mode),
         sample_rate=_TELEPHONY_SAMPLE_RATE,
-        input_audio_codec="pcm_s16le",
+        input_audio_codec="wav",
         settings=SarvamSTTSettings(
             model=model,
             language=None,
@@ -398,7 +436,17 @@ async def run_voice_pipeline(
     async def on_connected(transport: Any, client: Any) -> None:
         logger.info("Voice client connected", extra={"call_id": call_id})
         if welcome_text:
-            await task.queue_frames([TextFrame(text=welcome_text)])
+            # Envelope required: the TTS service only flushes its sentence
+            # aggregation and Sarvam's server-side buffer on the end frame,
+            # otherwise the welcome's last sentence is held until the next
+            # turn's text arrives.
+            await task.queue_frames(
+                [
+                    LLMFullResponseStartFrame(),
+                    TextFrame(text=welcome_text),
+                    LLMFullResponseEndFrame(),
+                ]
+            )
 
     @transport.event_handler("on_client_disconnected")  # type: ignore[untyped-decorator]
     async def on_disconnected(transport: Any, client: Any) -> None:

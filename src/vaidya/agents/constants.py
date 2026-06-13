@@ -11,14 +11,16 @@ SILENCE_CONNECTION_LOSS = 15
 SILENCE_END_CALL: float = 20.0
 
 # Voice-edge silence escalation (in real calls via Pipecat).
-# Tuned shorter than the simulation thresholds above: on a phone call,
-# dead air over ~6s already feels broken, and 20s is the terminal cut.
 # Each entry is (threshold_seconds, i18n_key). The last entry's
 # `is_terminal` flag is True -- after speaking it the call hangs up.
+# Tuned for the target demographic (rural/elderly callers need time to
+# recall income, family size, card details) AND to outlast Sarvam's VAD
+# detection latency (~7s) so a nudge never talks over a caller who is
+# still mid-answer.
 SILENCE_STEPS: list[tuple[float, str, bool]] = [
-    (6.0, "silence_nudge", False),
-    (12.0, "silence_reprompt_prefix", False),
-    (20.0, "silence_closure", True),
+    (10.0, "silence_nudge", False),
+    (20.0, "silence_reprompt_prefix", False),
+    (32.0, "silence_closure", True),
 ]
 
 # Patient silence escalation used after the caller explicitly asks for time.

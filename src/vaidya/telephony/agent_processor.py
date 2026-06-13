@@ -35,6 +35,7 @@ from vaidya.telephony.twilio_serializer import (
 from vaidya.voice.language import (
     TTS_SPEAKERS,
     detect_language_from_text,
+    is_filler_utterance,
     is_voice_language,
     normalize_language,
 )
@@ -47,6 +48,8 @@ try:
         BotStoppedSpeakingFrame,
         EndTaskFrame,
         Frame,
+        LLMFullResponseEndFrame,
+        LLMFullResponseStartFrame,
         TextFrame,
         TranscriptionFrame,
         TTSUpdateSettingsFrame,
@@ -101,6 +104,12 @@ except ImportError:
     class EndTaskFrame(Frame):  # type: ignore[no-redef]
         pass
 
+    class LLMFullResponseStartFrame(Frame):  # type: ignore[no-redef]
+        pass
+
+    class LLMFullResponseEndFrame(Frame):  # type: ignore[no-redef]
+        pass
+
     class TTSUpdateSettingsFrame(Frame):  # type: ignore[no-redef]
         def __init__(self, settings: dict[str, Any] | None = None, delta: object = None) -> None:
             self.settings = settings or {}
@@ -118,6 +127,33 @@ except ImportError:
 if TYPE_CHECKING:
     from vaidya.models.conversation import ConversationContext
     from vaidya.pipeline.conversation import ConversationManager
+
+
+# Turn-processing keepalive: speak a short ack only if a turn is taking
+# longer than a normal intake turn (now ~3-5s: one fast LLM call + two
+# translations), then a progress note on an interval. The ack delay is set
+# ABOVE the intake-turn time so quick turns just answer (no "one second"
+# filler); only the multi-call eligibility crunch (~15-25s) trips it.
+PROCESSING_ACK_DELAY_SECONDS = 7.0
+PROCESSING_PROGRESS_INTERVAL_SECONDS = 14.0
+# Must cover the longest agent phase (eligibility+reviewer).
+PROCESSING_PROGRESS_MAX_NOTES = 12
+
+# Sarvam's VAD splits natural pauses mid-sentence ("আমার পরিবারে" +
+# "5 জন আছে।" arrive as two transcripts). Launching a turn per fragment
+# makes the agent answer half-sentences and re-ask questions. Buffer
+# fragments and start the turn after this much transcript quiet.
+# Fragment transcripts arrive up to ~2s apart on slow speech, so the
+# window must comfortably exceed that.
+UTTERANCE_DEBOUNCE_SECONDS = 2.0
+
+_DEDUPE_STRIP_CHARS = ".,!?।|॥'\"-—:; \t\n"
+
+
+def _normalize_for_dedupe(text: str) -> str:
+    """Normalize an utterance for duplicate detection across STT retries."""
+    cleaned = "".join(ch for ch in text.lower() if ch not in _DEDUPE_STRIP_CHARS)
+    return cleaned
 
 
 class VaidyaAgentProcessor(FrameProcessor):
@@ -145,6 +181,16 @@ class VaidyaAgentProcessor(FrameProcessor):
         self._playback_marks_enabled = playback_marks_enabled
         self._pending_playback_mark: str | None = None
         self._mark_counter = 0
+        # In-flight turn bookkeeping (turns run as spawned tasks so the
+        # frame pipeline stays responsive during 10-60s agent work).
+        self._inflight_text: str | None = None
+        self._turn_tasks: set[asyncio.Task[None]] = set()
+        self._keepalive_task: asyncio.Task[None] | None = None
+        # Fragment buffer for utterance debouncing.
+        self._pending_fragments: list[str] = []
+        self._pending_language: object | None = None
+        self._pending_confidence: float = 1.0
+        self._debounce_task: asyncio.Task[None] | None = None
 
     async def process_frame(self, frame: Frame, direction: FrameDirection) -> None:
         """Route frames: handle silence signals, auto-switch language, route transcriptions."""
@@ -168,7 +214,14 @@ class VaidyaAgentProcessor(FrameProcessor):
         await self.push_frame(frame, direction)
 
     async def _on_transcription(self, frame: TranscriptionFrame) -> None:
-        """Detect language on the first utterance, then handle the turn."""
+        """Buffer the transcript fragment and (re)start the debounce timer.
+
+        Sarvam's VAD splits slow natural speech into fragments; the turn
+        starts only after ``UTTERANCE_DEBOUNCE_SECONDS`` of transcript
+        quiet, with the fragments merged into one utterance. Turns then run
+        as spawned tasks: agent work takes 10-60s and blocking
+        ``process_frame`` for that long would stall every queued frame.
+        """
         user_text = (frame.text or "").strip()
         if not user_text:
             return
@@ -178,22 +231,74 @@ class VaidyaAgentProcessor(FrameProcessor):
             extra={"call_id": self._call_id, "text_length": len(user_text)},
         )
 
+        # Callers repeat themselves into dead air while a slow turn is
+        # processing. Re-running the same utterance stacks 30s turns and
+        # produces duplicate replies — drop exact repeats of the turn
+        # that is already in flight.
+        normalized = _normalize_for_dedupe(user_text)
+        if self._inflight_text is not None and normalized == self._inflight_text:
+            logger.info(
+                "Dropping duplicate utterance while turn in flight",
+                extra={"call_id": self._call_id},
+            )
+            return
+
+        self._pending_fragments.append(user_text)
+        language = getattr(frame, "language", None)
+        if language is not None:
+            self._pending_language = language
+        self._pending_confidence = float(getattr(frame, "confidence", 1.0) or 1.0)
+
+        if self._debounce_task is not None:
+            self._debounce_task.cancel()
+        self._debounce_task = self.create_task(self._flush_utterance_after_debounce())
+
+    async def _flush_utterance_after_debounce(self) -> None:
+        """After transcript quiet, merge fragments and launch the turn."""
+        try:
+            await asyncio.sleep(UTTERANCE_DEBOUNCE_SECONDS)
+        except asyncio.CancelledError:
+            return  # superseded by a newer fragment
+
+        self._debounce_task = None
+        fragments, self._pending_fragments = self._pending_fragments, []
+        stt_language, self._pending_language = self._pending_language, None
+        user_text = " ".join(fragments).strip()
+        if not user_text:
+            return
+
         if not self._language_locked:
             # Only lock once we have a credible language signal. Short
-            # mumbled utterances with no ``frame.language`` leave us
+            # mumbled utterances with no STT language tag leave us
             # unlocked so the next (cleaner) transcription can pick.
-            self._language_locked = await self._maybe_switch_language(
-                await self._language_signal_for_turn(user_text, getattr(frame, "language", None))
-            )
+            if is_filler_utterance(user_text):
+                # "Okay"/"Haan"/"Hello" carry no language signal. Release
+                # the welcome gate in the current language so the call
+                # advances, but stay unlocked so the caller's first real
+                # sentence picks the language.
+                await self._mgr.switch_language(self._call_id, self._language)
+            else:
+                self._language_locked = await self._maybe_switch_language(
+                    await self._language_signal_for_turn(user_text, stt_language)
+                )
 
+        self._inflight_text = _normalize_for_dedupe(user_text)
+        self._start_processing_keepalive()
+        task = self.create_task(self._run_turn(user_text, stt_confidence=self._pending_confidence))
+        self._turn_tasks.add(task)
+        task.add_done_callback(self._turn_tasks.discard)
+
+    async def _run_turn(self, user_text: str, stt_confidence: float) -> None:
+        """Run one user turn through the multi-agent pipeline and speak it."""
         try:
             response = await self._mgr.handle_turn(
                 self._call_id,
                 user_text,
                 self._language,
-                stt_confidence=float(getattr(frame, "confidence", 1.0) or 1.0),
+                stt_confidence=stt_confidence,
                 channel="voice",
             )
+            self._stop_processing_keepalive()
             await self._sync_language_from_context()
             await self._emit_bot_text(response)
         except Exception as exc:
@@ -204,8 +309,43 @@ class VaidyaAgentProcessor(FrameProcessor):
                 extra={"call_id": self._call_id, "error": str(exc)[:200]},
                 exc_info=True,
             )
+            self._stop_processing_keepalive()
             fallback = get_msg("conversation", "error", self._language)
             await self._emit_bot_text(fallback, profile="repair")
+        finally:
+            self._inflight_text = None
+            self._stop_processing_keepalive()
+
+    # ------------------------------------------------------------------
+    # Processing keepalive ("heard you, working on it")
+    # ------------------------------------------------------------------
+
+    def _start_processing_keepalive(self) -> None:
+        self._stop_processing_keepalive()
+        self._keepalive_task = self.create_task(self._processing_keepalive())
+
+    def _stop_processing_keepalive(self) -> None:
+        task = self._keepalive_task
+        self._keepalive_task = None
+        if task is not None:
+            task.cancel()
+
+    async def _processing_keepalive(self) -> None:
+        """Acknowledge quickly, then keep the line alive while agents work."""
+        try:
+            await asyncio.sleep(PROCESSING_ACK_DELAY_SECONDS)
+            await self._emit_bot_text(
+                get_msg("conversation", "processing_ack", self._language),
+                send_mark=False,
+            )
+            for _ in range(PROCESSING_PROGRESS_MAX_NOTES):
+                await asyncio.sleep(PROCESSING_PROGRESS_INTERVAL_SECONDS)
+                await self._emit_bot_text(
+                    get_msg("conversation", "still_working", self._language),
+                    send_mark=False,
+                )
+        except asyncio.CancelledError:
+            pass
 
     async def _get_context(self) -> ConversationContext | None:
         getter = getattr(self._mgr, "get_context", None)
@@ -291,6 +431,10 @@ class VaidyaAgentProcessor(FrameProcessor):
             return True
 
         if normalized == self._language:
+            # Same as the session default still counts as the caller's
+            # choice — let the manager confirm it so the welcome language
+            # gate releases instead of re-prompting for a language name.
+            await self._mgr.switch_language(self._call_id, normalized)
             return True
 
         switched = await self._mgr.switch_language(self._call_id, normalized)
@@ -311,11 +455,30 @@ class VaidyaAgentProcessor(FrameProcessor):
         )
         return True
 
-    async def _emit_bot_text(self, text: str, profile: str = "default") -> None:
-        """Push text to TTS and, for Twilio, request a playback-complete mark."""
+    async def _emit_bot_text(
+        self,
+        text: str,
+        profile: str = "default",
+        send_mark: bool = True,
+    ) -> None:
+        """Push text to TTS and, for Twilio, request a playback-complete mark.
+
+        The text is wrapped in an ``LLMFullResponseStartFrame`` /
+        ``LLMFullResponseEndFrame`` envelope: the TTS service only flushes
+        its sentence aggregation AND tells Sarvam to flush its server-side
+        text buffer on the end frame. A bare ``TextFrame`` leaves the last
+        sentence (and anything under ``min_buffer_size`` chars) stuck until
+        a later turn's text pushes it out — replies glue together and
+        arrive minutes late.
+
+        ``send_mark=False`` is for keepalive interjections ("one moment")
+        that must not restart the idle watcher when their playback acks.
+        """
         spoken = format_for_tts(text, profile=profile)
+        await self.push_frame(LLMFullResponseStartFrame())
         await self.push_frame(TextFrame(text=spoken))
-        if self._playback_marks_enabled:
+        await self.push_frame(LLMFullResponseEndFrame())
+        if send_mark and self._playback_marks_enabled:
             await self._send_playback_mark()
 
     async def _send_playback_mark(self) -> None:
@@ -350,13 +513,20 @@ class VaidyaAgentProcessor(FrameProcessor):
             self._idle_task = None
 
     async def cleanup(self) -> None:
-        """Stop the idle watcher when Pipecat tears down the processor."""
+        """Stop watchers and in-flight turn tasks when Pipecat tears down."""
         task = self._idle_task
         self._pending_playback_mark = None
         if task is not None:
             self._wake.set()
             self._idle_task = None
             await self.cancel_task(task)
+        self._stop_processing_keepalive()
+        if self._debounce_task is not None:
+            self._debounce_task.cancel()
+            self._debounce_task = None
+        for turn_task in list(self._turn_tasks):
+            await self.cancel_task(turn_task)
+        self._turn_tasks.clear()
         await super().cleanup()  # type: ignore[no-untyped-call]
 
     async def _idle_loop(self) -> None:
@@ -370,6 +540,13 @@ class VaidyaAgentProcessor(FrameProcessor):
             except TimeoutError:
                 pass
             elapsed = threshold
+
+            if self._inflight_text is not None:
+                # The "silence" is ours, not the caller's: a turn is being
+                # processed and the keepalive owns the line. Nudging with
+                # "I'm listening, speak" mid-processing makes callers
+                # repeat themselves and stack slow turns.
+                return
 
             try:
                 spoken, is_terminal = await self._mgr.handle_silence(self._call_id, elapsed)

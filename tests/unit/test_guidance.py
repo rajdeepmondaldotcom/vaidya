@@ -104,12 +104,16 @@ class TestFormatSchemesForPrompt:
         assert "1. PM-JAY" in result
         assert "2. Aarogyasri" in result
 
-    def test_includes_coverage_and_matched_criteria(self):
+    def test_includes_name_and_coverage_not_internal_tokens(self):
         agent = GuidanceAgent(client=_mock_client())
         m = _match()
         result = agent._format_schemes_for_prompt([m])
+        assert m.scheme_name in result
         assert "Coverage:" in result
-        assert "Matched:" in result
+        # Internal id + raw field names are excluded so the model can't echo
+        # them into speech ("underscore underscore" after translation).
+        assert "ID:" not in result
+        assert "Matched:" not in result
 
 
 # ---------------------------------------------------------------------------

@@ -51,5 +51,5 @@ User says in Turn 4: "Haan company ka insurance to hai but coverage kam hai"
 The Eligibility Agent may mark PM-JAY as "eligible" because income_bracket=BELOW_1L and occupation=DAILY_WAGE.
 YOU must catch the Turn 4 mention of employer insurance → PM-JAY INELIGIBLE (hard exclusion).
 
-RESPOND WITH JSON ONLY:
-{{"matches": [{{"scheme_id": "...", "verdict": "eligible|ineligible|uncertain", "confidence": 0.0_to_1.0, "reasoning_trace": "From the transcript I observe: ...", "transcript_evidence": ["exact quote from conversation"], "missed_by_profile": ["field: observed value"]}}]}}
+RESPOND WITH MINIMAL JSON ONLY. No long trace. Keep reasoning_trace under 12 words — note ONLY a hidden exclusion or contradiction you caught (else leave empty). One object per scheme:
+{{"matches": [{{"scheme_id": "...", "verdict": "eligible|ineligible|uncertain", "confidence": 0.0_to_1.0, "reasoning_trace": "short or empty"}}]}}

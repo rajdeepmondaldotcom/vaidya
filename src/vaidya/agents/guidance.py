@@ -134,7 +134,7 @@ class GuidanceAgent(BaseAgent):
             system_prompt,
             user_message,
             reasoning_effort=self._reasoning_effort,
-            max_tokens=2048,
+            max_tokens=4096,
         )
 
         return self._parse_guidance_output(result, eligible, convergence, language)
@@ -164,17 +164,23 @@ class GuidanceAgent(BaseAgent):
         )
 
     def _format_schemes_for_prompt(self, schemes: list[SchemeMatch]) -> str:
-        """Build a numbered text summary of eligible schemes for the prompt."""
+        """Build a numbered text summary of eligible schemes for the prompt.
+
+        Deliberately omits the internal scheme_id and the raw
+        matched_criteria field names ("income_bracket", "existing_coverage")
+        — the model echoed those into the spoken result, and after
+        translation the underscores were read aloud as "underscore". The
+        guidance only needs the human name + benefit to speak.
+        """
         lines: list[str] = []
         for idx, s in enumerate(schemes, 1):
             confidence_tag = ""
             if s.confidence < LOW_CONFIDENCE_THRESHOLD:
                 confidence_tag = " [NEEDS VERIFICATION]"
             lines.append(
-                f"{idx}. {s.scheme_name} (ID: {s.scheme_id})\n"
+                f"{idx}. {s.scheme_name}\n"
                 f"   Coverage: {s.coverage_summary}\n"
-                f"   Confidence: {s.confidence:.0%}{confidence_tag}\n"
-                f"   Matched: {', '.join(s.matched_criteria)}"
+                f"   Confidence: {s.confidence:.0%}{confidence_tag}"
             )
         return "\n".join(lines)
 

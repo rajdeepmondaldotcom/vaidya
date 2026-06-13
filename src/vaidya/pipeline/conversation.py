@@ -99,7 +99,12 @@ class ConversationManager:
             return None
 
         existing_ctx = await self._session.get(existing_call_id)
-        if existing_ctx is None or existing_ctx.phase == ConversationPhase.CLOSURE:
+        # WELCOME sessions hold no progress worth resuming — a fresh start
+        # is clearer for the caller than "your call got cut".
+        if existing_ctx is None or existing_ctx.phase in (
+            ConversationPhase.CLOSURE,
+            ConversationPhase.WELCOME,
+        ):
             return None
 
         logger.info(
@@ -111,7 +116,16 @@ class ConversationManager:
             "session_resumed",
             {"phone_hash": phone_hash, "language": existing_ctx.language},
         )
-        return existing_call_id, get_msg("conversation", "resume", existing_ctx.language)
+        resume_msg = get_msg("conversation", "resume", existing_ctx.language)
+        # Re-ask whatever the bot last said so the caller isn't left in
+        # dead air wondering what to do.
+        last_bot_text = next(
+            (t.text for t in reversed(existing_ctx.transcript) if t.role == "assistant"),
+            "",
+        )
+        if last_bot_text:
+            resume_msg = f"{resume_msg} {last_bot_text}"
+        return existing_call_id, resume_msg
 
     async def _create_new_session(
         self,
@@ -472,7 +486,16 @@ class ConversationManager:
             return False
         normalized = normalize_language(new_language).value
         context = await self._session.get(call_id)
-        if context is None or context.language == normalized:
+        if context is None:
+            return False
+        if context.language == normalized:
+            # Speaking the session's default language is still a language
+            # choice: confirm it so the welcome gate stops re-prompting
+            # callers who never say a language name.
+            if not context.metadata.get("language_confirmed"):
+                context.metadata["language_confirmed"] = True
+                context.metadata["language_source"] = "stt"
+                await self._session.update(context)
             return False
         previous = context.language
         context.language = normalized

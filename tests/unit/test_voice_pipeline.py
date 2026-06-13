@@ -36,7 +36,9 @@ class TestVoicePipelineHelpers:
         stt = _build_stt_service("test-key")
 
         assert stt._init_sample_rate == _TELEPHONY_SAMPLE_RATE
-        assert stt._input_audio_codec == "pcm_s16le"
+        # "wav" is required: sarvamai streaming AudioData only accepts
+        # encoding="audio/wav"; PCM codec labels are 16 kHz-only upstream.
+        assert stt._input_audio_codec == "wav"
         assert stt._mode == "codemix"
         assert stt._settings.model == "saaras:v3"
         assert stt._settings.language is None

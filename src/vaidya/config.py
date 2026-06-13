@@ -39,20 +39,37 @@ class Settings(BaseSettings):
     # Session
     session_ttl_seconds: int = 1800  # 30 minutes
 
-    # Timeouts
-    agent_timeout_seconds: float = 60.0
-    llm_timeout_seconds: float = 30.0
+    # Timeouts. Eligibility + reviewer on the free tier need headroom —
+    # they timed out at both 60s and 90s in real calls; the voice edge
+    # keeps the caller informed with keepalive notes while this runs.
+    agent_timeout_seconds: float = 180.0
+    # Per-call ceiling. Eligibility batches on 105b run 10-25s at "low"
+    # reasoning; 45s leaves tail headroom so a slow batch retries cleanly
+    # instead of timing out mid-flight. Conversational calls finish in ~2s
+    # regardless, so this only affects the slow tail.
+    llm_timeout_seconds: float = 45.0
 
-    # Advanced LLM
-    eligibility_reasoning_effort: str = "high"
-    reviewer_reasoning_effort: str = "high"
+    # Advanced LLM. sarvam-30b/105b are ALWAYS-ON reasoning models: the API
+    # only accepts reasoning_effort in {low, medium, high} (omitting it ->
+    # verbose default), and the free tier caps max_tokens at 4096. Reasoning
+    # consumes that budget first, so a call only emits clean JSON content if
+    # reasoning fits well under 4096. "low" is the floor and is what keeps
+    # both conversational AND scheme-eval turns from truncating to empty
+    # content (the cause of the multi-minute no-result failures).
+    eligibility_reasoning_effort: str = "low"
+    reviewer_reasoning_effort: str = "low"
     intake_reasoning_effort: str = "low"
     guidance_reasoning_effort: str = "low"
     wiki_grounding: bool = True
 
-    # Scheme evaluation
-    scheme_eval_batch_size: int = 20
-    scheme_eval_max_parallel_batches: int = 3
+    # Scheme evaluation. Batch size MUST stay small: with the full scheme
+    # records + always-on reasoning, ~3 schemes is what reliably fits the
+    # 4096-token output cap (5+ risks finish=length/empty content on the
+    # real prompt). Batches run in parallel, so small batches + high
+    # parallelism is both correct and fast. The terse prompt output (no
+    # per-scheme reasoning trace) is what keeps each batch under the cap.
+    scheme_eval_batch_size: int = 3
+    scheme_eval_max_parallel_batches: int = 8
     scheme_retrieval_rank_top_k: int = 10
 
     # Language & translation
