@@ -1,0 +1,143 @@
+{
+  "scheme_id": "UIP-2026-v1",
+  "canonical_name": "Universal Immunization Programme",
+  "aliases": [
+    "UIP",
+    "Routine Immunization",
+    "Free Vaccination Programme",
+    "National Immunization Schedule",
+    "Sampoorna Tika",
+    "Tikakaran",
+    "EPI (Expanded Programme on Immunization)"
+  ],
+  "local_names": {
+    "hi": "सार्वभौमिक टीकाकरण कार्यक्रम",
+    "bn": "সর্বজনীন টিকাকরণ কর্মসূচি",
+    "ta": "உலகளாவிய நோய்த்தடுப்பு திட்டம்",
+    "te": "సార్వత్రిక టీకా కార్యక్రమం",
+    "mr": "सार्वत्रिक लसीकरण कार्यक्रम",
+    "gu": "સાર્વત્રિક રસીકરણ કાર્યક્રમ",
+    "kn": "ಸಾರ್ವತ್ರಿಕ ಲಸಿಕಾ ಕಾರ್ಯಕ್ರಮ",
+    "ml": "സാർവത്രിക പ്രതിരോധ കുത്തിവയ്പ്പ് പദ്ധതി",
+    "pa": "ਸਰਬ-ਵਿਆਪਕ ਟੀਕਾਕਰਨ ਪ੍ਰੋਗਰਾਮ",
+    "or": "ସର୍ବଜନୀନ ଟୀକାକରଣ କାର୍ଯ୍ୟକ୍ରମ"
+  },
+  "state_variant_of": null,
+  "jurisdiction": "central",
+  "state_code": null,
+  "income_thresholds": [],
+  "secc_categories": [],
+  "occupation_included": [
+    "all_children_0_to_16",
+    "all_pregnant_women"
+  ],
+  "occupation_excluded": [],
+  "exclusion_rules": [
+    {
+      "rule_id": "UIP-EX-001",
+      "exclusion_type": "soft",
+      "field": "age",
+      "condition": "age > 16 and not is_pregnant",
+      "description": "Routine childhood vaccination under the National Immunization Schedule targets children up to 16 years (with focus on under-5 and adolescents for Td booster). Adults are generally not covered EXCEPT pregnant women of any age, who receive Tetanus-Diphtheria (Td) vaccination — so this exclusion never applies to a pregnant woman.",
+      "override_by_state": false
+    },
+    {
+      "rule_id": "UIP-EX-002",
+      "exclusion_type": "soft",
+      "field": "facility_type",
+      "condition": "facility_type == 'private_paid'",
+      "description": "Free vaccines are provided at government facilities and government immunization sessions (sub-centres, PHCs, anganwadis, outreach camps). Vaccines purchased privately are not reimbursed; the free programme is delivered through the public health network.",
+      "override_by_state": false
+    }
+  ],
+  "age_criteria": null,
+  "family_criteria": {
+    "max_family_size": null,
+    "family_definition": "Universal entitlement — every child from birth to 16 years and every pregnant woman is eligible for free vaccination regardless of family income, caste, religion, or BPL status. Pregnant women also receive Tetanus-Diphtheria (Td) vaccination to protect mother and newborn. No registration fee or document is required to be vaccinated.",
+    "head_of_family_required": false
+  },
+  "geographic_restrictions": [],
+  "coverage_amount_inr": 0,
+  "coverage_type": "per_person_per_year",
+  "covered_procedures": [
+    "Free vaccines protecting against 12 diseases: Tuberculosis (childhood), Diphtheria, Pertussis (whooping cough), Tetanus, Polio, Measles, Rubella, Hepatitis B, Rotavirus diarrhoea, Japanese Encephalitis (in endemic districts), Haemophilus influenzae type b (Hib), and Pneumococcal pneumonia",
+    "BCG vaccine at birth (protects against severe childhood TB)",
+    "Oral Polio Vaccine (OPV) at birth and in subsequent doses",
+    "Injectable Polio Vaccine (IPV / fIPV)",
+    "Hepatitis B birth dose",
+    "Pentavalent vaccine (DPT + Hepatitis B + Hib) at 6, 10 and 14 weeks",
+    "Rotavirus Vaccine (RVV) at 6, 10 and 14 weeks",
+    "Pneumococcal Conjugate Vaccine (PCV)",
+    "Measles-Rubella (MR) vaccine — 1st dose at 9-12 months, 2nd dose at 16-24 months",
+    "Japanese Encephalitis (JE) vaccine in endemic districts",
+    "DPT booster doses at 16-24 months and 5-6 years",
+    "Tetanus-Diphtheria (Td) booster at 10 years and 16 years",
+    "Tetanus-Diphtheria (Td) vaccination for pregnant women (early in pregnancy and a second dose 4 weeks later, or a booster)",
+    "All vaccines, syringes, and administration completely free of cost",
+    "Vaccination recorded in Mother and Child Protection (MCP) Card and on the U-WIN digital registry"
+  ],
+  "excluded_procedures": [
+    "Optional/private-market vaccines not part of the National Immunization Schedule unless introduced by government (e.g. some combination or travel vaccines)",
+    "Vaccines purchased and administered at private clinics on a paid basis",
+    "Treatment of the diseases themselves (vaccination is preventive only)",
+    "Adult vaccination outside pregnancy and the childhood/adolescent schedule"
+  ],
+  "required_documents": [
+    {
+      "name": "Mother and Child Protection (MCP) Card",
+      "category": "medical",
+      "mandatory": false,
+      "alternatives": ["Self-declaration at session", "U-WIN registration"],
+      "local_name_hi": "मातृ एवं शिशु सुरक्षा कार्ड",
+      "notes": "Preferred for tracking the vaccination schedule but not mandatory — no child or pregnant woman can be denied free vaccination for lack of a card."
+    },
+    {
+      "name": "Aadhaar / Birth Certificate",
+      "category": "identity",
+      "mandatory": false,
+      "alternatives": ["Any ID", "No ID needed for the vaccine itself"],
+      "local_name_hi": "आधार / जन्म प्रमाण पत्र",
+      "notes": "Used for U-WIN digital registration and certificate; absence of ID cannot be a reason to deny vaccination."
+    }
+  ],
+  "enrollment_channels": [
+    "Government Sub-Centre / Health & Wellness Centre",
+    "Primary Health Centre (PHC)",
+    "Community Health Centre (CHC)",
+    "Anganwadi Centre (immunization session days)",
+    "District / Government hospital immunization clinic",
+    "Fixed-day and outreach immunization sessions in villages and urban wards",
+    "ASHA / ANM health worker (informs of session dates)",
+    "U-WIN portal / app for booking and digital certificate"
+  ],
+  "enrollment_steps": [
+    "Step 1: No prior enrollment or fee needed — vaccination is a free universal entitlement",
+    "Step 2: ASHA/ANM informs families of the village/ward immunization session day (often Wednesdays/Saturdays)",
+    "Step 3: Bring the child or pregnant woman to the nearest government facility or anganwadi session",
+    "Step 4: Carry the MCP card if available (not mandatory) for recording doses",
+    "Step 5: ANM administers the due vaccine(s) per the National Immunization Schedule, free of cost",
+    "Step 6: Dose recorded in MCP card and on the U-WIN digital registry; a digital certificate can be generated",
+    "Step 7: Return on the next scheduled date for subsequent doses and boosters"
+  ],
+  "processing_time_days": 0,
+  "helpline_number": "104",
+  "portal_url": "https://nhm.gov.in/index1.php?lang=1&level=2&sublinkid=824&lid=220",
+  "version": "1.0",
+  "effective_date": "1985-01-01",
+  "expiry_date": null,
+  "last_verified": "2026-06-13",
+  "source_url": "https://nhm.gov.in/index1.php?lang=1&level=2&sublinkid=824&lid=220",
+  "confidence_level": "provisional",
+  "description_for_embedding": "The Universal Immunization Programme (UIP) is the Government of India's flagship public health programme, run by the Ministry of Health and Family Welfare under the National Health Mission, providing free vaccines to ALL children up to 16 years and ALL pregnant women — regardless of income, caste, religion, or BPL status. Launched in 1985, it is one of the world's largest immunization programmes, targeting about 2.67 crore newborns and 2.9 crore pregnant women every year. UIP protects against 12 vaccine-preventable diseases: childhood tuberculosis, diphtheria, pertussis (whooping cough), tetanus, polio, measles, rubella, hepatitis B, rotavirus diarrhoea, Japanese encephalitis (in endemic districts), Haemophilus influenzae type b, and pneumococcal pneumonia. Vaccines include BCG, OPV, IPV, Hepatitis B, Pentavalent, Rotavirus, PCV, Measles-Rubella (MR), JE, DPT and Td boosters. Pregnant women receive Tetanus-Diphtheria (Td) vaccination to protect both mother and newborn against tetanus. All vaccines, syringes and administration are completely free at government sub-centres, PHCs, anganwadis, and outreach sessions. Doses are recorded in the Mother and Child Protection (MCP) card and the U-WIN digital registry. No registration fee and no mandatory documents — no child or pregnant woman can be denied a free vaccine. ASHA and ANM workers inform families of session dates and follow up on due and missed doses. The programme is the foundation of child survival in India and feeds into catch-up drives such as Mission Indradhanush; families who have missed any dose can simply attend the next free immunization session to catch up.",
+  "keywords": [
+    "UIP", "universal immunization", "free vaccine", "vaccination", "tikakaran",
+    "immunization schedule", "BCG", "OPV polio drops", "pentavalent", "MR vaccine",
+    "measles rubella", "rotavirus", "hepatitis B", "DPT", "Td vaccine",
+    "pregnant women vaccine", "tetanus vaccine pregnancy", "child vaccination",
+    "newborn vaccine", "anganwadi", "ASHA", "ANM", "MCP card", "U-WIN",
+    "टीकाकरण", "मुफ्त टीका", "बच्चों का टीका", "गर्भवती महिला टीका",
+    "खसरा रूबेला", "पोलियो", "बीसीजी", "पेंटावैलेंट", "मातृ शिशु सुरक्षा कार्ड",
+    "free immunization", "preventive vaccine", "NHM", "central scheme",
+    "12 diseases", "infant vaccine", "booster dose", "polio drops", "104 helpline"
+  ]
+}
