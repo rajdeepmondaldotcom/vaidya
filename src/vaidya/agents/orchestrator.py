@@ -340,12 +340,29 @@ class Orchestrator:
 
         user_text = (user_input or "").strip()
 
-        # Turn 1 of the handshake: no user input yet.
+        # Turn 1: no user input yet.
         if not user_text:
+            if channel == "voice":
+                # No language-selection gate on voice. Greet briefly and ask Q1
+                # immediately in the default language; the voice edge auto-switches
+                # TTS to the caller's language from their FIRST answer
+                # (VaidyaAgentProcessor._maybe_switch_language). Skipping the gate
+                # removes a whole turn and the fragile re-welcome loop, and makes
+                # the call go straight to the point.
+                context.metadata["awaiting_language"] = False
+                context.metadata["language_confirmed"] = True
+                context.phase = ConversationPhase.INTAKE
+                context.intake_question_index = 1
+                greeting = get_msg("orchestrator", "greeting_voice", context.language)
+                q1 = get_msg("orchestrator", "intake_q1_voice", context.language)
+                return AgentResponse(
+                    text=f"{greeting} {q1}",
+                    phase_transition=ConversationPhase.INTAKE,
+                    already_localized=True,
+                )
             context.metadata["awaiting_language"] = True
-            key = "welcome_voice" if channel == "voice" else "welcome_text"
             return AgentResponse(
-                text=get_msg("orchestrator", key, context.language),
+                text=get_msg("orchestrator", "welcome_text", context.language),
                 already_localized=True,
             )
 

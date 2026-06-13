@@ -445,9 +445,11 @@ class TestWelcomePhase:
         # Universal fallback prompt lists language choices.
         assert "English" in response.text
 
-    async def test_welcome_voice_turn1_asks_language_stays_in_welcome(self):
-        """Voice turn 1 (empty input): speak a compact language-select
-        prompt with every supported language, stay in WELCOME."""
+    async def test_welcome_voice_turn1_greets_and_asks_q1_enters_intake(self):
+        """Voice turn 1 (empty input): no language-selection gate. Greet
+        briefly, ask Q1 (state) immediately, and go straight to INTAKE. The
+        voice edge auto-switches TTS to the caller's language from their first
+        answer, so the call is straight to the point with no re-welcome loop."""
         consent_tracker = ConsentTracker()
         orchestrator = _build_orchestrator(consent_tracker=consent_tracker)
         context = _make_context(phase=ConversationPhase.WELCOME)
@@ -460,22 +462,21 @@ class TestWelcomePhase:
         )
 
         text_lower = response.text.lower()
-        # Compact greeting, not a long multi-greeting IVR opener.
+        # Compact greeting.
         assert "namaste" in text_lower
         assert "vaidya" in text_lower
-        # Language-ask wording, not a state question.
-        # Shorter welcome: lists a few languages + "or any other".
-        assert "bhasha" in text_lower
-        assert "tamil" in text_lower
-        assert "english" in text_lower
+        # Goes straight to Q1 (state question), NOT a "which language?" gate.
+        assert "raajya" in text_lower
+        assert "bhasha" not in text_lower
         # Spoken consent is never narrated on voice.
         assert "record karne" not in text_lower
-        # Phase stays in WELCOME.
-        assert context.phase == ConversationPhase.WELCOME
-        assert response.phase_transition is None
+        # Straight to INTAKE — no language gate, no re-welcome loop possible.
+        assert context.phase == ConversationPhase.INTAKE
+        assert response.phase_transition == ConversationPhase.INTAKE
+        assert context.intake_question_index == 1
+        assert context.metadata.get("awaiting_language") is False
         # Consent still recorded structurally.
         assert consent_tracker.has_consent("test-call-001", "recording") is True
-        assert context.metadata.get("awaiting_language") is True
 
     async def test_welcome_voice_turn2_confirms_stt_language_and_asks_q1(self):
         """Voice turn 2: caller spoke in Tamil, processor pre-switched the
