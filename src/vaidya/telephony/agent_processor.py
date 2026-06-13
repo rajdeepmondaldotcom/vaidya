@@ -22,7 +22,11 @@ Requires ``pipecat-ai`` -- guarded import so the rest of the app works without i
 from __future__ import annotations
 
 import asyncio
+import base64
+import binascii
+import io
 import logging
+import wave
 from collections.abc import Coroutine
 from typing import TYPE_CHECKING, Any, cast
 
@@ -61,6 +65,28 @@ try:
     PIPECAT_AVAILABLE = True
 except ImportError:
     PIPECAT_AVAILABLE = False
+
+# Audio-output frames are imported separately: emitting pre-rendered cached
+# audio (instead of pushing text to the downstream TTS service) requires these
+# frame types, and their availability/signature is more version-sensitive than
+# the core frames above. If they can't be imported, the cache still renders
+# bytes but emission falls back to the proven TextFrame path.
+try:
+    from pipecat.frames.frames import (  # type: ignore[attr-defined]
+        TTSAudioRawFrame,
+        TTSStartedFrame,
+        TTSStoppedFrame,
+    )
+
+    TTS_AUDIO_FRAMES_AVAILABLE = True
+except ImportError:
+    TTS_AUDIO_FRAMES_AVAILABLE = False
+    # Defensive Any-typed placeholders so the cached-audio path fails safe to
+    # the text path (via the TTS_AUDIO_FRAMES_AVAILABLE guard) rather than
+    # NameError if the flag and these names ever diverge.
+    TTSAudioRawFrame: Any = None
+    TTSStartedFrame: Any = None
+    TTSStoppedFrame: Any = None
 
     # Stubs so the module can be imported without pipecat.
     class FrameProcessor:  # type: ignore[no-redef]
@@ -149,11 +175,72 @@ UTTERANCE_DEBOUNCE_SECONDS = 2.0
 
 _DEDUPE_STRIP_CHARS = ".,!?।|॥'\"-—:; \t\n"
 
+# Telephony audio target: 8 kHz, mono, 16-bit PCM. Cached prompts whose decoded
+# WAV matches this exactly can be emitted as raw audio frames; anything else
+# falls back to the text path so we never push a mismatched waveform to Twilio.
+_TELEPHONY_SAMPLE_RATE = 8000
+_TELEPHONY_CHANNELS = 1
+_TELEPHONY_SAMPLE_WIDTH = 2
+_TTS_CACHE_MODEL = "bulbul:v3"
+
 
 def _normalize_for_dedupe(text: str) -> str:
     """Normalize an utterance for duplicate detection across STT retries."""
     cleaned = "".join(ch for ch in text.lower() if ch not in _DEDUPE_STRIP_CHARS)
     return cleaned
+
+
+def _pcm_from_tts_bytes(audio: bytes | None) -> bytes | None:
+    """Decode Sarvam REST TTS output into raw 8 kHz mono 16-bit PCM, or None.
+
+    ``SarvamClient.tts`` returns the SDK's ``audios[0]`` — a base64-encoded WAV
+    string. To emit it through the telephony transport (which is configured
+    with ``add_wav_header=False``) we must base64-decode, strip the WAV
+    container, and confirm the format matches telephony exactly. Any deviation
+    (wrong rate/channels/width, non-WAV, undecodable) returns None so the caller
+    falls back to the text path rather than playing a mismatched waveform.
+    """
+    if not audio:
+        return None
+
+    raw: bytes
+    if isinstance(audio, (bytes, bytearray)):
+        raw = bytes(audio)
+    else:
+        return None
+
+    # The SDK hands back base64 text (as bytes or str). Decode it to the WAV
+    # container; if it's already raw WAV bytes, the decode will fail and we
+    # treat the original bytes as the container.
+    wav_bytes: bytes
+    try:
+        wav_bytes = base64.b64decode(raw, validate=True)
+    except (binascii.Error, ValueError):
+        wav_bytes = raw
+
+    try:
+        with wave.open(io.BytesIO(wav_bytes), "rb") as wav_file:
+            if (
+                wav_file.getframerate() != _TELEPHONY_SAMPLE_RATE
+                or wav_file.getnchannels() != _TELEPHONY_CHANNELS
+                or wav_file.getsampwidth() != _TELEPHONY_SAMPLE_WIDTH
+            ):
+                return None
+            return wav_file.readframes(wav_file.getnframes())
+    except (EOFError, wave.Error, OSError):
+        return None
+
+
+def _resolve_tts_cache(conversation_manager: object) -> Any:
+    """Find the shared TTS cache the app lifespan attached to the Sarvam client.
+
+    The pipeline constructs :class:`VaidyaAgentProcessor` without a ``tts_cache``
+    kwarg, so the single process-wide cache is reached through the conversation
+    manager's Sarvam client (``app.state`` wiring puts it there). Returns the
+    cache or ``None`` if it isn't wired (e.g. text-only deployments / tests).
+    """
+    client = getattr(conversation_manager, "_sarvam_client", None)
+    return getattr(client, "tts_cache", None)
 
 
 class VaidyaAgentProcessor(FrameProcessor):
@@ -169,6 +256,9 @@ class VaidyaAgentProcessor(FrameProcessor):
         call_id: str,
         language: str,
         playback_marks_enabled: bool = True,
+        tts_cache: Any = None,
+        tts_pace: float = 0.94,
+        tts_speaker: str | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -191,6 +281,17 @@ class VaidyaAgentProcessor(FrameProcessor):
         self._pending_language: object | None = None
         self._pending_confidence: float = 1.0
         self._debounce_task: asyncio.Task[None] | None = None
+        # TTS audio cache for fixed/templated prompts. The pipeline builds this
+        # processor without the kwarg today, so fall back to the shared cache
+        # attached to the conversation manager's Sarvam client (wired in the app
+        # lifespan). The cache key must use the SAME pace the downstream Sarvam
+        # TTS service was built with, or cached audio would differ from a live
+        # render — that is the call's tts_pace, NOT a per-utterance profile.
+        self._tts_cache = (
+            tts_cache if tts_cache is not None else _resolve_tts_cache(conversation_manager)
+        )
+        self._tts_pace = tts_pace
+        self._tts_speaker = tts_speaker
 
     async def process_frame(self, frame: Frame, direction: FrameDirection) -> None:
         """Route frames: handle silence signals, auto-switch language, route transcriptions."""
@@ -473,13 +574,76 @@ class VaidyaAgentProcessor(FrameProcessor):
 
         ``send_mark=False`` is for keepalive interjections ("one moment")
         that must not restart the idle watcher when their playback acks.
+
+        Fixed/templated prompts (greeting, intake questions, processing filler,
+        silence nudges, closure) are byte-identical every call, so we try the
+        TTS cache first: on a hit (or first-call render) the audio plays from
+        memory instead of round-tripping to Sarvam's TTS service. Any
+        uncertainty — no cache, cache miss returning None, unavailable audio
+        frames, or a decoded waveform that doesn't match telephony format —
+        falls back to the proven TextFrame path below, so emission is never
+        worse than today.
         """
         spoken = format_for_tts(text, profile=profile)
+
+        if await self._try_emit_cached_audio(spoken, send_mark=send_mark):
+            return
+
         await self.push_frame(LLMFullResponseStartFrame())
         await self.push_frame(TextFrame(text=spoken))
         await self.push_frame(LLMFullResponseEndFrame())
         if send_mark and self._playback_marks_enabled:
             await self._send_playback_mark()
+
+    async def _try_emit_cached_audio(self, spoken: str, *, send_mark: bool) -> bool:
+        """Emit pre-rendered cached audio for *spoken*; return False to fall back.
+
+        Returns ``True`` only when cached audio was successfully pushed as raw
+        telephony PCM frames. Returns ``False`` (so :meth:`_emit_bot_text` uses
+        the TextFrame path) when the cache is absent, audio frames are
+        unavailable, the render fails/returns None, or the decoded waveform
+        doesn't match the telephony format.
+        """
+        if self._tts_cache is None or not TTS_AUDIO_FRAMES_AVAILABLE or not spoken:
+            return False
+
+        speaker = self._tts_speaker or _speaker_for_language(self._language)
+        try:
+            audio = await self._tts_cache.get_or_render(
+                spoken,
+                self._language,
+                pace=self._tts_pace,
+                speaker=speaker,
+                model=_TTS_CACHE_MODEL,
+                sample_rate=_TELEPHONY_SAMPLE_RATE,
+            )
+        except Exception as exc:  # noqa: BLE001 - cache failure must fall back, not crash
+            logger.warning(
+                "TTS cache render failed; using text path",
+                extra={"call_id": self._call_id, "error": str(exc)[:200]},
+            )
+            return False
+
+        pcm = _pcm_from_tts_bytes(audio)
+        if not pcm:
+            return False
+
+        # Emit only the TTS envelope around the audio. The output transport
+        # derives Bot{Started,Stopped}SpeakingFrame from the audio it plays, so
+        # pushing those ourselves would double-signal and race the idle watcher
+        # / interruption gate (the normal TextFrame path never pushes them).
+        await self.push_frame(TTSStartedFrame())
+        await self.push_frame(
+            TTSAudioRawFrame(
+                audio=pcm,
+                sample_rate=_TELEPHONY_SAMPLE_RATE,
+                num_channels=_TELEPHONY_CHANNELS,
+            )
+        )
+        await self.push_frame(TTSStoppedFrame())
+        if send_mark and self._playback_marks_enabled:
+            await self._send_playback_mark()
+        return True
 
     async def _send_playback_mark(self) -> None:
         self._mark_counter += 1

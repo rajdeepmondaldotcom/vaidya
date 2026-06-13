@@ -33,6 +33,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     from vaidya.pipeline.degradation import DegradationManager
     from vaidya.pipeline.translator import Translator
     from vaidya.sarvam.client import SarvamClient
+    from vaidya.sarvam.tts_cache import TTSCache
     from vaidya.schemes.registry import get_schemes
     from vaidya.session.manager import SessionManager
 
@@ -90,6 +91,18 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     # Initialize Sarvam client
     client = SarvamClient(settings.sarvam_api_key, timeout=settings.llm_timeout_seconds)
+
+    # Cache synthesized audio for fixed/templated prompts (greeting, the five
+    # intake questions, processing filler, silence nudges, closure) so they
+    # aren't re-synthesized on every call. Wraps the same client, so cache
+    # misses still flow through its circuit breaker and cost tracking. Attach
+    # it to the client so the voice pipeline's agent processor — built without
+    # a cache kwarg — can reach this one shared instance via its manager.
+    tts_cache = TTSCache(client)
+    # setattr (not direct assignment) keeps this out of SarvamClient's declared
+    # surface: the cache is an app-level singleton bolted onto the shared client
+    # so the voice pipeline can reach it; the client itself stays cache-agnostic.
+    client.tts_cache = tts_cache  # type: ignore[attr-defined]
 
     # Initialize knowledge store and load schemes
     store = KnowledgeStore(
@@ -175,6 +188,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Store in app state for dependency injection
     app.state.settings = settings
     app.state.client = client
+    app.state.tts_cache = tts_cache
     app.state.store = store
     app.state.session = session
     app.state.conversation_manager = conversation_manager
