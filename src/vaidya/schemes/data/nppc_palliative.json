@@ -1,0 +1,134 @@
+{
+  "scheme_id": "NPPC-2024-v1",
+  "canonical_name": "National Programme for Palliative Care (NPPC)",
+  "aliases": [
+    "NPPC",
+    "National Programme for Palliative Care",
+    "National Palliative Care Programme",
+    "Palliative Care Programme",
+    "Free Palliative Care",
+    "End of Life Care Programme",
+    "Pain Relief Programme"
+  ],
+  "local_names": {
+    "hi": "राष्ट्रीय उपशामक देखभाल कार्यक्रम",
+    "bn": "জাতীয় উপশমকারী যত্ন কর্মসূচি",
+    "ta": "தேசிய தணிப்பூட்டு பராமரிப்பு திட்டம்",
+    "te": "జాతీయ ఉపశమన సంరక్షణ కార్యక్రమం",
+    "mr": "राष्ट्रीय उपशामक काळजी कार्यक्रम",
+    "gu": "રાષ્ટ્રીય ઉપશામક સંભાળ કાર્યક્રમ",
+    "kn": "ರಾಷ್ಟ್ರೀಯ ಉಪಶಮನ ಆರೈಕೆ ಕಾರ್ಯಕ್ರಮ",
+    "ml": "ദേശീയ സാന്ത്വന പരിചരണ പരിപാടി",
+    "pa": "ਰਾਸ਼ਟਰੀ ਉਪਸ਼ਾਮਕ ਦੇਖਭਾਲ ਪ੍ਰੋਗਰਾਮ",
+    "or": "ଜାତୀୟ ଉପଶାମକ ଯତ୍ନ କାର୍ଯ୍ୟକ୍ରମ"
+  },
+  "state_variant_of": null,
+  "jurisdiction": "central",
+  "state_code": null,
+  "income_thresholds": [],
+  "secc_categories": [],
+  "occupation_included": [
+    "all_citizens",
+    "cancer_patient",
+    "terminally_ill",
+    "chronic_illness_patient",
+    "elderly",
+    "hiv_aids_patient",
+    "stroke_survivor",
+    "neurological_disorder_patient"
+  ],
+  "occupation_excluded": [],
+  "exclusion_rules": [
+    {
+      "rule_id": "NPPC-EX-001",
+      "exclusion_type": "soft",
+      "field": "clinical_need",
+      "condition": "has_life_limiting_or_chronic_illness == false",
+      "description": "Palliative care is intended for patients with cancer, HIV/AIDS, neurological disorders, and other life-limiting or chronic progressive illnesses requiring pain relief and symptom control. This reflects clinical need, not an income or category bar — services are free and open to all who need them.",
+      "override_by_state": false
+    }
+  ],
+  "age_criteria": null,
+  "family_criteria": {
+    "max_family_size": null,
+    "family_definition": "Universal access based on clinical need — free palliative care is available to any patient with a life-limiting or chronic illness, and support extends to their family. No income test or formal enrollment is required.",
+    "head_of_family_required": false
+  },
+  "geographic_restrictions": [],
+  "coverage_amount_inr": 0,
+  "coverage_type": "per_event",
+  "covered_procedures": [
+    "Free pain relief and symptom management for patients with life-limiting illness",
+    "Free access to essential narcotic drugs (oral morphine) for cancer pain",
+    "Palliative care for cancer, HIV/AIDS, and chronic neurological disorders",
+    "Psychosocial and emotional support for patients and families",
+    "Spiritual and bereavement support from diagnosis through end of life",
+    "Home-based palliative care visits where available",
+    "Palliative care at Community Health Centres and district hospitals",
+    "Palliative care wards / services at tertiary care facilities",
+    "Nursing care, wound care, and management of distressing symptoms",
+    "Counselling and caregiver training for family members"
+  ],
+  "excluded_procedures": [
+    "Curative or disease-modifying treatment (delivered under other programmes such as NPCDCS or PM-JAY)",
+    "Private hospice or private nursing home charges",
+    "Out-of-pocket purchase of supplies not stocked at the government facility"
+  ],
+  "required_documents": [
+    {
+      "name": "Medical Records / Diagnosis",
+      "category": "medical",
+      "mandatory": false,
+      "alternatives": ["Doctor's referral", "Discharge summary"],
+      "local_name_hi": "चिकित्सा रिकॉर्ड / निदान",
+      "notes": "Existing diagnosis or referral helps the team plan care, but a patient in distress is assessed and supported regardless of paperwork."
+    },
+    {
+      "name": "Any Government Photo ID",
+      "category": "identity",
+      "mandatory": false,
+      "alternatives": ["Aadhaar Card", "Voter ID", "Ration Card"],
+      "local_name_hi": "कोई सरकारी फोटो पहचान पत्र",
+      "notes": "Helpful for hospital registration but not mandatory for receiving palliative care."
+    }
+  ],
+  "enrollment_channels": [
+    "District hospital palliative care unit",
+    "Community Health Centre (CHC)",
+    "Government medical college / tertiary care facility",
+    "Regional Cancer Centre palliative care department",
+    "Home-based palliative care team (where available under NHM)",
+    "ASHA / ANM community health worker referral",
+    "State NHM palliative care services"
+  ],
+  "enrollment_steps": [
+    "Step 1: Ask your treating doctor, a CHC, or a district hospital about palliative care for pain relief and symptom control",
+    "Step 2: Get referred to the nearest government palliative care unit (district hospital, medical college, or regional cancer centre)",
+    "Step 3: The palliative care team assesses the patient's pain and symptoms free of cost",
+    "Step 4: Receive free pain-relief medicines, including oral morphine for cancer pain where indicated",
+    "Step 5: The team provides psychosocial, emotional, and spiritual support to the patient and family",
+    "Step 6: Where available, home-based visits and caregiver training are arranged",
+    "Step 7: Ongoing symptom management and bereavement support continue through the course of illness"
+  ],
+  "processing_time_days": 1,
+  "helpline_number": "104",
+  "portal_url": "https://dghs.mohfw.gov.in/nppc.php",
+  "version": "1.0",
+  "effective_date": "2012-01-01",
+  "expiry_date": null,
+  "last_verified": "2026-06-13",
+  "source_url": "https://dghs.mohfw.gov.in/nppc.php",
+  "confidence_level": "provisional",
+  "description_for_embedding": "The National Programme for Palliative Care (NPPC) is a central government programme under the Ministry of Health & Family Welfare, implemented through the National Health Mission, to make rational and quality pain relief and palliative care available and accessible to the needy as an integral part of healthcare at all levels. It provides FREE pain relief, symptom control, and psychosocial support to patients suffering from cancer, HIV/AIDS, chronic neurological disorders, and other life-limiting or chronic progressive illnesses, with no income test or means assessment — access is based on clinical need. Palliative care under NPPC can be delivered in tertiary care facilities, at Community Health Centres and district hospitals, and even in patients' homes through home-based care teams. The programme improves quality of life for patients and families facing serious illness by providing pain and symptom relief, emotional, psychosocial, spiritual, and bereavement support from diagnosis through the end of life. A key focus is ensuring availability of essential narcotic drugs, particularly oral morphine, for cancer pain; the Ministry has trained Registered Medical Practitioners to safely prescribe and dispense these medicines. The programme is integrated into the NHM Mission Flexipool, with States and UTs incorporating palliative care into their Programme Implementation Plans. Anyone caring for a terminally ill or chronically ill family member who needs pain relief, comfort care, or emotional support can seek free palliative care at a government district hospital, medical college, or regional cancer centre.",
+  "keywords": [
+    "palliative care", "NPPC", "pain relief", "morphine", "cancer pain",
+    "end of life care", "terminal illness", "hospice", "symptom control",
+    "comfort care", "supportive care", "free palliative care", "bereavement",
+    "psychosocial support", "home based care", "chronic illness", "HIV care",
+    "उपशामक देखभाल", "दर्द निवारण", "कैंसर दर्द", "जीवन के अंत की देखभाल",
+    "लाइलाज बीमारी", "सांत्वना देखभाल", "मॉर्फिन", "मुफ्त उपशामक देखभाल",
+    "free pain management", "palliative unit", "regional cancer centre",
+    "central scheme", "public health", "quality of life", "caregiver support",
+    "104 helpline", "NHM palliative"
+  ]
+}
