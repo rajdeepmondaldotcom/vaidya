@@ -12,15 +12,15 @@ CAVEATS NEEDED: {caveats}
 TASK: Generate ONE combined spoken results message that names EVERY eligible scheme in a single turn. This will be converted to speech via TTS.
 
 STRUCTURE (follow exactly):
-1. INTRO (1 sentence, under 12 words): announce HOW MANY schemes they may get. E.g. "Achi khabar hai. Aapko teen yojanaayein mil sakti hain."
-2. SCHEME LINES (one short line PER scheme): the scheme NAME plus a one-line benefit in plain rupee terms. E.g. "Ayushman Bharat — har saal paanch lakh tak ka muft ilaaj." Cover ALL eligible schemes, one line each.
+1. INTRO (1 short sentence): warmly announce you found schemes that can help. Prefer "kai" (several) over a specific number — e.g. "Achi khabar hai — aapke liye kai sarkari yojanaayein mil sakti hain." If you DO state a number it MUST equal the number of scheme lines you list below; NEVER undercount.
+2. SCHEME LINES (one short line PER scheme): JUST the scheme NAME plus a one-line benefit in plain rupee terms — nothing else on the line. Do NOT repeat "mil sakti hai" or any "confirm hoga" caveat on each line. E.g. "Ayushman Bharat — har saal paanch lakh tak ka muft ilaaj." / "PMSBY — durghatna par do lakh." Cover ALL eligible schemes, one clean line each, like a person happily rattling off good news. ORDER them by relevance to the user's HEALTH NEED — the most directly useful first (e.g. for a heart condition, lead with the big hospital-cover schemes); broad/universal programmes (immunization, disease surveillance, digital health ID) come last.
 3. OFFER (1-2 sentences): offer fuller detail on any ONE scheme if they want it, and an SMS of the full list. E.g. "Kisi ek ke baare mein zyada jaanna ho to naam batayein. Poori list SMS bhi bhej sakta hoon."
 
 RULES:
 1. No sentence exceeds 15 words. Telephony audio at 8kHz — clarity over completeness.
-2. Say "mil sakti hai" (can get), NEVER "eligible hain" (are eligible). Advisory, not authoritative.
+2. Frame it as advisory ONCE, in the intro — "Aapko ye yojanaayein mil sakti hain" (you may get these). Do NOT stamp "mil sakti hai" onto every scheme line. NEVER say "eligible hain" (authoritative).
 3. NAME EVERY eligible scheme in this ONE turn, one concise line each. Do NOT deliver one scheme at a time. Do NOT ask "Ek aur yojana hai, sunna chahenge?" or any "want to hear the next one?" question. Do NOT read multi-paragraph details for each scheme — keep each to a single line; the OFFER lets them ask for more on any one.
-4. If caveats needed: add "mil sakti hai, lekin Jan Seva Kendra mein final confirm hoga."
+4. Say the verification caveat AT MOST ONCE — fold it naturally into the closing offer, e.g. "Inme se kuch Jan Seva Kendra par confirm karna hoga." NEVER repeat a "final confirm hoga" caveat after every scheme: repeating it on each line is the #1 thing that makes this sound like a machine instead of a person.
 5. No bureaucratic terms. "labharthi" → "aapko milega". "patrta" → "kya milta hai". "aavedan" → "form bharna hai".
 5a. NEVER speak internal identifiers, field names, or underscores. Use the human scheme NAME only (e.g. "Ayushman Bharat"), never an ID like "PMJAY-BR-2024" or a field like "income_bracket".
 6. If NO schemes match: "Abhi jo bataya usse koi yojana match nahi ho rahi. Do cheezein ho sakti hain — koi jaankari chhoot gayi ho, ya state ki nayi yojana humari list mein nahi hai. Najdeeki Jan Seva Kendra mein sab check ho sakta hai." Never blame the user.

@@ -32,6 +32,8 @@ def test_allowed_origins_accepts_json_env_value(monkeypatch):
 def test_scheme_evaluation_defaults():
     settings = Settings()
 
+    # Small batches + high parallelism is the latency-optimal setting
+    # (large batches make one slow call that risks the 45s per-call timeout).
     assert settings.scheme_eval_batch_size == 3
     assert settings.scheme_eval_max_parallel_batches == 8
     assert settings.scheme_retrieval_rank_top_k == 10

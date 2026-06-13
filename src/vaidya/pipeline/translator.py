@@ -145,7 +145,13 @@ class Translator:
     @staticmethod
     def _protect_term(term: str, registry: dict[str, str]) -> str:
         """Replace *term* with a unique token and record the mapping."""
-        token = f"__TERM{len(registry)}__"
+        # Letter-free token: Sarvam's fully-native output transliterates Latin
+        # letters, so "__TERM0__" came back as "टर्म0"/"டெர்ம்0"/"টার্ম0" and the
+        # restore below missed it (placeholder leaked into speech). Brackets +
+        # digits pass through every script verbatim (probed on hi/ta/bn), so the
+        # exact-match restore always succeeds. Distinct non-overlapping tokens
+        # ("[[1]]" is not a substring of "[[10]]"), so restore order is safe.
+        token = f"[[{len(registry)}]]"
         registry[token] = term
         return token
 
