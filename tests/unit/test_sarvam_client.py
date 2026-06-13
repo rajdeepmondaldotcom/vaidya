@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import asyncio
 import io
+import time
 import wave
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
 import pytest
 
 from vaidya.sarvam.client import (
@@ -589,6 +592,170 @@ class TestSarvamClientMethods:
         assert async_sarvam.stt_kwargs["language_code"] == "hi-IN"
         assert async_sarvam.tts_kwargs["speaker"] == "anushka"
         assert [entry.service for entry in client.costs.entries[-2:]] == ["stt", "tts"]
+
+
+def _install_mock_pool(
+    client: SarvamClient,
+    *,
+    head: MagicMock | None = None,
+    base: str = "https://api.sarvam.ai",
+) -> MagicMock:
+    """Wire a mock pooled httpx.Client (and base URL) onto a SarvamClient.
+
+    The SarvamAI SDK is patched in these tests, so the deep attribute path the
+    client reaches through is itself a MagicMock; we plant a spec'd httpx.Client
+    so ``isinstance(..., httpx.Client)`` in ``_pooled_httpx_client`` passes.
+    Returns the mock used as ``.head`` so tests can assert call counts.
+    """
+    head = head or MagicMock(return_value=MagicMock(status_code=200))
+    fake_raw = MagicMock(spec=httpx.Client)
+    fake_raw.head = head
+    client._client._client_wrapper.httpx_client.httpx_client = fake_raw
+    client._client._client_wrapper.get_environment.return_value.base = base
+    return head
+
+
+class TestConnectionPooling:
+    """The SDK reuses ONE pooled httpx client, and we tune it conservatively."""
+
+    def test_one_sarvamai_instance_constructed_with_tuned_httpx_client(self):
+        # A real (un-patched) client builds a real SarvamAI + tuned httpx pool.
+        client = SarvamClient(api_key="test-key-123", timeout=30.0)
+        try:
+            raw = client._pooled_httpx_client()
+            assert isinstance(raw, httpx.Client)
+            pool = raw._transport._pool  # type: ignore[attr-defined]
+            # Conservative tuning: keepalive lengthened, limits at httpx defaults.
+            assert pool._keepalive_expiry == 90.0
+            assert pool._max_keepalive_connections == 20
+            assert pool._max_connections == 100
+            # Read timeout mirrors the configured SarvamClient timeout.
+            assert raw.timeout.read == 30.0
+        finally:
+            raw = client._pooled_httpx_client()
+            if raw is not None:
+                raw.close()
+
+    def test_httpx_client_passed_into_sdk_constructor(self):
+        # The tuned client must actually be handed to the SDK (not discarded).
+        with patch("vaidya.sarvam.client.SarvamAI") as mock_cls:
+            SarvamClient(api_key="test-key-123", timeout=15.0)
+        kwargs = mock_cls.call_args.kwargs
+        assert "httpx_client" in kwargs
+        passed = kwargs["httpx_client"]
+        assert isinstance(passed, httpx.Client)
+        pool = passed._transport._pool  # type: ignore[attr-defined]
+        assert pool._keepalive_expiry == 90.0
+        passed.close()
+
+    @pytest.mark.parametrize("bad_timeout", [0.0, -5.0, None, "not-a-number"])
+    def test_build_httpx_client_falls_back_to_default_timeout(self, bad_timeout):
+        # Non-positive, None, or non-numeric timeouts fall back to the SDK's
+        # 60s default read timeout instead of crashing client construction.
+        raw = SarvamClient._build_httpx_client(bad_timeout)  # type: ignore[arg-type]
+        try:
+            assert raw.timeout.read == 60.0
+        finally:
+            raw.close()
+
+
+class TestPrewarm:
+    """prewarm() is idempotent, concurrency-safe, and never raises."""
+
+    @patch("vaidya.sarvam.client.SarvamAI")
+    async def test_prewarm_opens_connection_and_returns_true(self, mock_sarvam_cls):
+        client = SarvamClient(api_key="test-key-123")
+        head = _install_mock_pool(client)
+
+        assert await client.prewarm() is True
+        assert client._prewarmed is True
+        assert head.call_count == 1
+        # The warm-up targets the configured base URL.
+        assert head.call_args.args[0] == "https://api.sarvam.ai"
+
+    @patch("vaidya.sarvam.client.SarvamAI")
+    async def test_prewarm_is_idempotent(self, mock_sarvam_cls):
+        client = SarvamClient(api_key="test-key-123")
+        head = _install_mock_pool(client)
+
+        first = await client.prewarm()
+        second = await client.prewarm()
+        third = await client.prewarm()
+
+        assert (first, second, third) == (True, True, True)
+        # Repeat calls collapse to a single network round-trip.
+        assert head.call_count == 1
+
+    @patch("vaidya.sarvam.client.SarvamAI")
+    async def test_concurrent_prewarms_warm_once(self, mock_sarvam_cls):
+        client = SarvamClient(api_key="test-key-123")
+
+        def slow_head(_url):
+            # Force overlap so all coroutines contend on the lock together.
+            time.sleep(0.02)
+            return MagicMock(status_code=200)
+
+        head = MagicMock(side_effect=slow_head)
+        _install_mock_pool(client, head=head)
+
+        results = await asyncio.gather(*[client.prewarm() for _ in range(5)])
+
+        assert all(results)
+        assert head.call_count == 1
+
+    @patch("vaidya.sarvam.client.SarvamAI")
+    async def test_prewarm_swallows_failure_and_returns_false(self, mock_sarvam_cls):
+        client = SarvamClient(api_key="test-key-123")
+        boom = MagicMock(side_effect=httpx.ConnectError("no network"))
+        _install_mock_pool(client, head=boom)
+
+        # Must NEVER raise — startup safety.
+        result = await client.prewarm()
+
+        assert result is False
+        # Not marked warmed, so a later call may retry the handshake.
+        assert client._prewarmed is False
+
+    @patch("vaidya.sarvam.client.SarvamAI")
+    async def test_prewarm_swallows_timeout(self, mock_sarvam_cls):
+        # A tiny timeout makes asyncio.wait_for fire before the (mocked) head
+        # could ever return, exercising the TimeoutError branch.
+        client = SarvamClient(api_key="test-key-123", timeout=0.01)
+
+        def hang(_url):
+            time.sleep(0.5)
+            return MagicMock(status_code=200)
+
+        _install_mock_pool(client, head=MagicMock(side_effect=hang))
+
+        # asyncio.wait_for must bound the hang and prewarm swallows the timeout.
+        result = await client.prewarm()
+
+        assert result is False
+        assert client._prewarmed is False
+
+    @patch("vaidya.sarvam.client.SarvamAI")
+    async def test_prewarm_skips_when_pool_unavailable(self, mock_sarvam_cls):
+        client = SarvamClient(api_key="test-key-123")
+        # Simulate the SDK internal layout shifting: not an httpx.Client.
+        client._client._client_wrapper.httpx_client.httpx_client = object()
+        client._client._client_wrapper.get_environment.return_value.base = "https://api.sarvam.ai"
+
+        result = await client.prewarm()
+
+        assert result is False
+        assert client._prewarmed is False
+
+    @patch("vaidya.sarvam.client.SarvamAI")
+    async def test_prewarm_does_not_touch_circuit_breaker_or_costs(self, mock_sarvam_cls):
+        client = SarvamClient(api_key="test-key-123")
+        _install_mock_pool(client)
+
+        await client.prewarm()
+
+        # Warm-up is not a billable API call and must not disturb resilience state.
+        assert client._circuit_breakers.llm.state == CircuitState.CLOSED
+        assert client.costs.entries == []
 
 
 class _AsyncWs:
