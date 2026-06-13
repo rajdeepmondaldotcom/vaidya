@@ -60,6 +60,8 @@ async def test_lifespan_wires_conversation_manager():
         guidance_model="sarvam-30b",
         orchestrator_model="sarvam-30b",
         agent_timeout_seconds=15.0,
+        llm_timeout_seconds=45.0,
+        conversational_llm_timeout_seconds=12.0,
         scheme_eval_batch_size=20,
         scheme_eval_max_parallel_batches=3,
         scheme_retrieval_rank_top_k=10,
@@ -85,3 +87,13 @@ async def test_lifespan_wires_conversation_manager():
             assert hasattr(app.state, "client")
             assert hasattr(app.state, "consent_tracker")
             assert hasattr(app.state, "schemes")
+
+            # Conversational agents (intake, guidance) get the short fail-fast
+            # timeout so a hung Sarvam call can't stall the caller for the full
+            # eligibility tail. The heavy agents (eligibility, reviewer) keep
+            # the client default (None) and ride the longer 45s ceiling.
+            orchestrator = app.state.conversation_manager._orchestrator
+            assert orchestrator._intake._llm_timeout == 12.0
+            assert orchestrator._guidance._llm_timeout == 12.0
+            assert orchestrator._eligibility._llm_timeout is None
+            assert orchestrator._reviewer._llm_timeout is None
