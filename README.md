@@ -64,7 +64,7 @@ Every disagreement is logged with both reasoning traces. This is what makes it d
 | ESIC | Comprehensive | Salaried workers under ₹21K/month |
 | Arogya Karnataka | ₹5L/family/year | NFSA/BPL households |
 
-46 schemes across central and state programs. Real eligibility rules, real exclusion logic, real enrollment steps. Each stored as a validated JSON file with field-level data. At runtime, Vaidya evaluates every applicable scheme for the caller: central schemes plus the caller's state schemes, or the full registry when the state is unknown.
+61 schemes across central and state programs. Real eligibility rules, real exclusion logic, real enrollment steps. Each stored as a validated JSON file with field-level data. At runtime, Vaidya evaluates every applicable scheme for the caller: central schemes plus the caller's state schemes, or the full registry when the state is unknown.
 
 ## What's under the hood
 
@@ -190,7 +190,7 @@ At 10,000 calls/day, that's ~₹17.5L/month. At a million calls/day, ~₹17.5 cr
 
 ## What's next
 
-**Phase 1 (now):** 46 schemes across all states/UTs, 23 languages, text simulation mode, and real voice calls via Twilio.
+**Phase 1 (now):** 61 schemes across all states/UTs, 23 languages, text simulation mode, and real voice calls via Twilio.
 
 **Phase 2:** automated scheme-corpus refresh, WhatsApp via Samvaad, CSC integration, and NHA API verification.
 
