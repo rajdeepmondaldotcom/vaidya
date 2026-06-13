@@ -430,10 +430,12 @@ class IntakeAgent(BaseAgent):
         if extracted is None:
             extracted = await self._extract_answer(user_input, q_index, profile, language)
             if extracted.get("distress_detected"):
-                return self._handle_distress_response(context, profile, extracted, language)
+                return self._handle_distress_response(
+                    context, profile, extracted, language, q_index
+                )
             extracted = self._merge_heuristic_fields(extracted, user_input, q_index)
 
-        profile = self._apply_extracted(profile, extracted)
+        profile = self._apply_extracted(profile, extracted, current_question=q_index)
 
         if self._needs_repair(context, profile, extracted, q_index):
             repair_response = self._repair_or_skip_question(
@@ -454,6 +456,7 @@ class IntakeAgent(BaseAgent):
         profile: UserProfile,
         extracted: dict[str, Any],
         language: str,
+        q_index: int | None = None,
     ) -> AgentResponse:
         """Fast-track to confirmation when emotional distress is detected.
 
@@ -466,7 +469,7 @@ class IntakeAgent(BaseAgent):
         distressed caller needs is carried by tone, not a bespoke paragraph.
         """
         context.emotional_distress_detected = True
-        profile = self._apply_extracted(profile, extracted)
+        profile = self._apply_extracted(profile, extracted, current_question=q_index)
         response = self._enter_confirmation(context, profile, extracted, language)
         response.metadata["intake_distress_detected"] = True
         return response
@@ -719,8 +722,15 @@ class IntakeAgent(BaseAgent):
         self,
         profile: UserProfile,
         extracted: dict[str, Any],
+        current_question: int | None = None,
     ) -> UserProfile:
-        """Apply LLM-extracted fields to the profile with confidence tracking."""
+        """Apply LLM-extracted fields to the profile with confidence tracking.
+
+        On a numbered Q&A turn (``current_question`` set), the turn
+        authoritatively sets only ITS OWN question's fields; a field owned by a
+        different question is FILLED only if still unset, never overridden. The
+        free-form opening turn (``current_question=None``) applies everything.
+        """
         # The LLM sometimes returns these as a scalar/list instead of an
         # object (e.g. field_confidence: 0.9). Coerce to dict so the later
         # .get() calls can't crash the whole turn into an error fallback.
@@ -764,10 +774,34 @@ class IntakeAgent(BaseAgent):
             if transformed is None:
                 continue
 
+            # Field-stickiness: don't let a turn overwrite an already-set field
+            # it doesn't "own". The common Hindi STT slip "dihaadi mazdoori"
+            # (daily-wage) -> "Bihari mazdoori" otherwise flips a captured state
+            # from Rajasthan to Bihar on the occupation turn. Volunteered fields
+            # still FILL when empty; the owning question can still update its own.
+            if (
+                current_question is not None
+                and _FIELD_TO_QUESTION.get(field_name) not in (None, current_question)
+                and self._field_is_set(profile, attr_name)
+            ):
+                continue
+
             setattr(profile, attr_name, transformed)
             profile.confidence_flags[field_name] = confidence.get(field_name, 0.5)
 
         return profile
+
+    @staticmethod
+    def _field_is_set(profile: UserProfile, attr_name: str) -> bool:
+        """True when a profile field already holds a real (non-default) value."""
+        value = getattr(profile, attr_name, None)
+        if value is None:
+            return False
+        return value not in (
+            IncomeCategory.UNKNOWN,
+            OccupationType.UNKNOWN,
+            CoverageType.UNKNOWN,
+        )
 
     def _merge_heuristic_fields(
         self,
