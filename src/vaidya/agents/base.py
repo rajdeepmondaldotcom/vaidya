@@ -46,6 +46,12 @@ class BaseAgent:
         self._client = client
         self._model = model
         self._name = agent_name
+        # Per-instance LLM per-call timeout. None == use the client's default
+        # ceiling (the slow eligibility tail). The app sets this to a short
+        # value on the fast conversational agents (intake, guidance) after
+        # construction so a hung Sarvam call fails fast instead of stalling the
+        # caller; subclass __init__ signatures stay untouched.
+        self._llm_timeout: float | None = None
 
     @property
     def name(self) -> str:
@@ -83,6 +89,7 @@ class BaseAgent:
             max_tokens=max_tokens,
             reasoning_effort=reasoning_effort,
             wiki_grounding=wiki_grounding,
+            timeout=self._llm_timeout,
         )
 
     async def _call_llm_json(
@@ -113,6 +120,7 @@ class BaseAgent:
             max_tokens=max_tokens,
             reasoning_effort=reasoning_effort,
             wiki_grounding=wiki_grounding,
+            timeout=self._llm_timeout,
         )
 
     async def safe_process(

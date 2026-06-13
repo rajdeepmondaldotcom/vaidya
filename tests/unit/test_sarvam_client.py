@@ -293,6 +293,149 @@ class TestChatJson:
         assert client.chat.await_args_list[1].kwargs["reasoning_effort"] == "low"
 
 
+class TestRetryAsyncTimingLog:
+    """_retry_async emits an INFO timing log carrying label + elapsed + attempts."""
+
+    async def test_logs_elapsed_and_attempt_count_on_success(self, caplog):
+        with caplog.at_level("INFO", logger="vaidya.sarvam.client"):
+            result = await _retry_async(
+                lambda: "ok", retries=2, base_delay=0, timeout=1, call_label="sarvam chat"
+            )
+
+        assert result == "ok"
+        messages = [r.getMessage() for r in caplog.records]
+        # A single measurable "<label> done in <secs>s (1 attempt)" line.
+        assert any("sarvam chat done in" in m and "1 attempt" in m for m in messages)
+
+    async def test_logs_attempt_count_after_a_retry(self, caplog):
+        attempts = {"count": 0}
+
+        def flaky():
+            attempts["count"] += 1
+            if attempts["count"] == 1:
+                raise RuntimeError("temporary")
+            return "ok"
+
+        with caplog.at_level("INFO", logger="vaidya.sarvam.client"):
+            result = await _retry_async(
+                flaky, retries=2, base_delay=0, timeout=1, call_label="sarvam chat"
+            )
+
+        assert result == "ok"
+        messages = [r.getMessage() for r in caplog.records]
+        assert any("sarvam chat done in" in m and "2 attempts" in m for m in messages)
+
+    async def test_logs_timing_on_final_failure(self, caplog):
+        def always_fails():
+            raise RuntimeError("nope")
+
+        with (
+            caplog.at_level("INFO", logger="vaidya.sarvam.client"),
+            pytest.raises(RuntimeError, match="nope"),
+        ):
+            await _retry_async(
+                always_fails, retries=1, base_delay=0, timeout=1, call_label="sarvam tts"
+            )
+
+        messages = [r.getMessage() for r in caplog.records]
+        # Even on failure the latency is measurable (2 attempts = 1 + 1 retry).
+        assert any("sarvam tts failed after" in m and "2 attempts" in m for m in messages)
+
+
+class TestPerCallTimeoutForwarding:
+    """Public methods accept + forward an optional per-call timeout."""
+
+    @patch("vaidya.sarvam.client.SarvamAI")
+    async def test_chat_forwards_explicit_timeout_and_caps_retries(self, mock_sarvam_cls):
+        # 3 attempts by default; a SHORT timeout (< client default) caps retries
+        # at 1 so worst-case stays bounded (no 3x12s stall).
+        client = SarvamClient(api_key="test-key-123", timeout=45.0, retry_max_attempts=3)
+        with patch(
+            "vaidya.sarvam.client._retry_async", new=AsyncMock(return_value=_chat_response("hi"))
+        ) as retry:
+            await client.chat("sarvam-30b", [{"role": "user", "content": "hi"}], timeout=12.0)
+
+        assert retry.await_args.kwargs["timeout"] == 12.0
+        assert retry.await_args.kwargs["retries"] == 1
+        assert retry.await_args.kwargs["call_label"] == "sarvam chat"
+
+    @patch("vaidya.sarvam.client.SarvamAI")
+    async def test_chat_default_timeout_uses_ceiling_and_full_retries(self, mock_sarvam_cls):
+        client = SarvamClient(api_key="test-key-123", timeout=45.0, retry_max_attempts=3)
+        with patch(
+            "vaidya.sarvam.client._retry_async", new=AsyncMock(return_value=_chat_response("hi"))
+        ) as retry:
+            await client.chat("sarvam-105b", [{"role": "user", "content": "hi"}])
+
+        # timeout=None -> client default ceiling + full retry budget (3 - 1 = 2).
+        assert retry.await_args.kwargs["timeout"] == 45.0
+        assert retry.await_args.kwargs["retries"] == 2
+
+    @patch("vaidya.sarvam.client.SarvamAI")
+    async def test_chat_json_forwards_timeout_to_chat(self, mock_sarvam_cls):
+        client = SarvamClient(api_key="test-key-123")
+        client.chat = AsyncMock(return_value='{"ok": true}')
+
+        await client.chat_json(
+            "sarvam-30b", [{"role": "user", "content": "Return JSON"}], timeout=12.0
+        )
+
+        assert client.chat.await_args.kwargs["timeout"] == 12.0
+
+    @patch("vaidya.sarvam.client.SarvamAI")
+    async def test_chat_json_forwards_timeout_on_parse_error_retry(self, mock_sarvam_cls):
+        client = SarvamClient(api_key="test-key-123")
+        client.chat = AsyncMock(side_effect=["not json", '{"ok": true}'])
+
+        result = await client.chat_json(
+            "sarvam-30b", [{"role": "user", "content": "Return JSON"}], timeout=12.0
+        )
+
+        assert result == {"ok": True}
+        # Both the first call and the low-reasoning retry carry the timeout.
+        assert client.chat.await_args_list[0].kwargs["timeout"] == 12.0
+        assert client.chat.await_args_list[1].kwargs["timeout"] == 12.0
+
+    @patch("vaidya.sarvam.client.SarvamAI")
+    async def test_translate_forwards_timeout(self, mock_sarvam_cls):
+        mock_sarvam_cls.return_value = _fake_sdk()
+        client = SarvamClient(api_key="test-key-123", timeout=45.0, retry_max_attempts=3)
+        with patch(
+            "vaidya.sarvam.client._retry_async",
+            new=AsyncMock(return_value=SimpleNamespace(translated_text="namaste")),
+        ) as retry:
+            await client.translate("hello", "en-IN", "hi-IN", timeout=12.0)
+
+        assert retry.await_args.kwargs["timeout"] == 12.0
+        assert retry.await_args.kwargs["retries"] == 1
+        assert retry.await_args.kwargs["call_label"] == "sarvam translate"
+
+    @patch("vaidya.sarvam.client.SarvamAI")
+    async def test_tts_forwards_timeout(self, mock_sarvam_cls):
+        mock_sarvam_cls.return_value = _fake_sdk()
+        client = SarvamClient(api_key="test-key-123", timeout=45.0, retry_max_attempts=3)
+        with patch(
+            "vaidya.sarvam.client._retry_async",
+            new=AsyncMock(return_value=SimpleNamespace(audios=[b"wav"])),
+        ) as retry:
+            await client.tts("hello", "hi-IN", timeout=12.0)
+
+        assert retry.await_args.kwargs["timeout"] == 12.0
+        assert retry.await_args.kwargs["retries"] == 1
+        assert retry.await_args.kwargs["call_label"] == "sarvam tts"
+
+    @patch("vaidya.sarvam.client.SarvamAI")
+    def test_resolve_timeout_matrix(self, mock_sarvam_cls):
+        client = SarvamClient(api_key="test-key-123", timeout=45.0, retry_max_attempts=3)
+
+        # None -> client default + full retries.
+        assert client._resolve_timeout(None) == (45.0, 2)
+        # Shorter than default -> capped to 1 retry.
+        assert client._resolve_timeout(12.0) == (12.0, 1)
+        # >= default -> keep full retry budget at the requested timeout.
+        assert client._resolve_timeout(90.0) == (90.0, 2)
+
+
 class TestSarvamHelpers:
     async def test_retry_async_retries_then_succeeds(self):
         attempts = {"count": 0}

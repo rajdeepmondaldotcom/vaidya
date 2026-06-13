@@ -68,22 +68,42 @@ async def _retry_async(
     retries: int = 2,
     base_delay: float = 0.5,
     timeout: float = 30.0,
+    call_label: str = "API call",
     **kwargs: Any,
 ) -> Any:
-    """Execute *fn* in a thread with timeout and exponential-backoff retries."""
+    """Execute *fn* in a thread with timeout and exponential-backoff retries.
+
+    Emits an INFO timing log on completion (success or final failure) carrying
+    *call_label*, the elapsed wall-clock seconds, and the attempt count, so
+    per-call latency is measurable straight from server logs — e.g.
+    ``"sarvam chat done in 2.3s (1 attempt)"``.
+    """
     last_exc: Exception | None = None
+    start = time.perf_counter()
+    attempts_made = 0
     for attempt in range(1 + retries):
+        attempts_made = attempt + 1
         try:
-            return await asyncio.wait_for(
+            result = await asyncio.wait_for(
                 asyncio.to_thread(fn, *args, **kwargs),
                 timeout=timeout,
             )
+            logger.info(
+                "%s done in %.1fs (%d attempt%s)",
+                call_label,
+                time.perf_counter() - start,
+                attempts_made,
+                "" if attempts_made == 1 else "s",
+            )
+            return result
         except TimeoutError:
-            last_exc = TimeoutError(f"API call timed out after {timeout}s")
+            last_exc = TimeoutError(f"{call_label} timed out after {timeout}s")
             if attempt < retries:
                 delay = base_delay * (2**attempt)
                 logger.warning(
-                    "API call timed out, retrying in %.1fs (attempt %d/%d)",
+                    "%s timed out after %.0fs, retrying in %.1fs (attempt %d/%d)",
+                    call_label,
+                    timeout,
                     delay,
                     attempt + 1,
                     retries,
@@ -94,13 +114,21 @@ async def _retry_async(
             if attempt < retries:
                 delay = base_delay * (2**attempt)
                 logger.warning(
-                    "API call failed, retrying in %.1fs (attempt %d/%d)",
+                    "%s failed, retrying in %.1fs (attempt %d/%d)",
+                    call_label,
                     delay,
                     attempt + 1,
                     retries,
                     extra={"error": str(exc)},
                 )
                 await asyncio.sleep(delay)
+    logger.info(
+        "%s failed after %.1fs (%d attempt%s)",
+        call_label,
+        time.perf_counter() - start,
+        attempts_made,
+        "" if attempts_made == 1 else "s",
+    )
     raise last_exc  # type: ignore[misc]
 
 
@@ -385,6 +413,23 @@ class SarvamClient:
         """Number of retries (attempts minus one)."""
         return max(0, self._retry_max_attempts - 1)
 
+    def _resolve_timeout(self, timeout: float | None) -> tuple[float, int]:
+        """Return the (timeout, retries) pair for a call.
+
+        When *timeout* is None the client falls back to its default ceiling and
+        full retry budget — the historical behaviour. When a SHORT per-call
+        timeout is requested (a fast conversational call), retries are capped at
+        1 so the worst case stays bounded: a hung call must not burn the whole
+        retry budget at the short timeout (e.g. 3x12s = 36s would defeat the
+        point of failing fast). One retry covers a transient blip without
+        re-introducing the long stall.
+        """
+        if timeout is None:
+            return self._timeout, self._retries
+        if timeout < self._timeout:
+            return timeout, min(self._retries, 1)
+        return timeout, self._retries
+
     def set_active_call_id(self, call_id: str) -> None:
         """Set the call_id used for cost attribution on subsequent API calls."""
         self._active_call_id = call_id
@@ -496,8 +541,15 @@ class SarvamClient:
         frequency_penalty: float | None = None,
         seed: int | None = None,
         tools: list[dict[str, Any]] | None = None,
+        timeout: float | None = None,
     ) -> str:
-        """Call Sarvam LLM and return the response text."""
+        """Call Sarvam LLM and return the response text.
+
+        *timeout* overrides the client-wide per-call ceiling for this call only
+        (None keeps the default). Conversational agents pass a short timeout so
+        a hung call fails fast instead of stalling the caller for the full
+        eligibility tail.
+        """
         kwargs = self._build_chat_kwargs(
             model,
             messages,
@@ -510,13 +562,15 @@ class SarvamClient:
             seed=seed,
             tools=tools,
         )
+        call_timeout, call_retries = self._resolve_timeout(timeout)
 
         async def api_call() -> Any:
             return await _retry_async(
                 self._client.chat.completions,
-                retries=self._retries,
+                retries=call_retries,
                 base_delay=self._retry_base_delay,
-                timeout=self._timeout,
+                timeout=call_timeout,
+                call_label="sarvam chat",
                 **kwargs,
             )
 
@@ -555,8 +609,13 @@ class SarvamClient:
         max_tokens: int = 2048,
         reasoning_effort: str | None = None,
         wiki_grounding: bool = False,
+        timeout: float | None = None,
     ) -> dict[str, Any]:
-        """Call LLM and parse JSON response, with code-fence stripping."""
+        """Call LLM and parse JSON response, with code-fence stripping.
+
+        *timeout* is forwarded to the underlying ``chat`` call (None keeps the
+        client default), so conversational JSON turns can fail fast too.
+        """
         if not reasoning_effort or reasoning_effort == "none":
             reasoning_effort = None  # also skips the pointless no-reasoning retry
         raw = await self.chat(
@@ -566,6 +625,7 @@ class SarvamClient:
             max_tokens=max_tokens,
             reasoning_effort=reasoning_effort,
             wiki_grounding=wiki_grounding,
+            timeout=timeout,
         )
         parsed = parse_llm_json(raw)
         if parsed.get("_parse_error"):
@@ -580,6 +640,7 @@ class SarvamClient:
                 max_tokens=max_tokens,
                 reasoning_effort="low",
                 wiki_grounding=wiki_grounding,
+                timeout=timeout,
             )
             parsed = parse_llm_json(raw)
         return parsed
@@ -594,17 +655,26 @@ class SarvamClient:
         speaker_gender: str = "Male",
         output_script: str = "fully-native",
         numerals_format: str = "international",
+        timeout: float | None = None,
     ) -> str:
-        """Translate text between languages using Mayura or Sarvam Translate."""
+        """Translate text between languages using Mayura or Sarvam Translate.
+
+        *timeout* overrides the client-wide per-call ceiling for this call only
+        (None keeps the default), so a latency-sensitive translation can fail
+        fast instead of waiting the long eligibility tail.
+        """
         if source_lang == target_lang:
             return text
+
+        call_timeout, call_retries = self._resolve_timeout(timeout)
 
         async def api_call() -> Any:
             return await _retry_async(
                 self._client.text.translate,
-                retries=self._retries,
+                retries=call_retries,
                 base_delay=self._retry_base_delay,
-                timeout=self._timeout,
+                timeout=call_timeout,
+                call_label="sarvam translate",
                 input=text,
                 source_language_code=source_lang,
                 target_language_code=target_lang,
@@ -652,16 +722,25 @@ class SarvamClient:
         pace: float = 1.0,
         speech_sample_rate: int = 8000,
         output_audio_codec: str = "wav",
+        timeout: float | None = None,
     ) -> bytes | None:
-        """Convert text to speech using Bulbul v3."""
+        """Convert text to speech using Bulbul v3.
+
+        *timeout* overrides the client-wide per-call ceiling for this call only
+        (None keeps the default), so a latency-sensitive synthesis can fail
+        fast instead of waiting the long eligibility tail.
+        """
         truncated = text[:TTS_MAX_CHARS_V3]
+
+        call_timeout, call_retries = self._resolve_timeout(timeout)
 
         async def api_call() -> Any:
             return await _retry_async(
                 self._client.text_to_speech.convert,
-                retries=self._retries,
+                retries=call_retries,
                 base_delay=self._retry_base_delay,
-                timeout=self._timeout,
+                timeout=call_timeout,
+                call_label="sarvam tts",
                 text=truncated,
                 target_language_code=language,
                 speaker=speaker,
@@ -751,6 +830,7 @@ class SarvamClient:
                 retries=self._retries,
                 base_delay=self._retry_base_delay,
                 timeout=self._timeout,
+                call_label="sarvam stt",
                 **kwargs,
             )
 
@@ -886,6 +966,7 @@ class SarvamClient:
                 retries=self._retries,
                 base_delay=self._retry_base_delay,
                 timeout=self._timeout,
+                call_label="sarvam identify_language",
                 input=text,
             )
 
@@ -937,6 +1018,7 @@ class SarvamClient:
                 retries=self._retries,
                 base_delay=self._retry_base_delay,
                 timeout=self._timeout,
+                call_label="sarvam transliterate",
                 **tl_kwargs,
             )
 
