@@ -202,3 +202,155 @@ class TestTermPreservation:
         )
         assert result == "Visit CSC for PM-JAY"
         client.translate.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# Translation memoization (LRU cache)
+# ---------------------------------------------------------------------------
+
+
+class TestTranslationCache:
+    @pytest.mark.asyncio
+    async def test_second_identical_call_hits_cache(self) -> None:
+        """A repeated translation returns the cached value without re-calling."""
+        translator, client = _make_translator(translate_return="Namaste duniya")
+
+        first = await translator.translate_if_needed(
+            "Hello world", source_lang="en-IN", target_lang="hi-IN"
+        )
+        second = await translator.translate_if_needed(
+            "Hello world", source_lang="en-IN", target_lang="hi-IN"
+        )
+
+        assert first == "Namaste duniya"
+        assert second == "Namaste duniya"
+        # Client invoked exactly once across both calls.
+        client.translate.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_cache_stores_final_term_preserved_output(self) -> None:
+        """Cached value is the post-term-preservation result, not the raw client output."""
+        translator, client = _make_translator(
+            translate_return="__TERM0__ ke zariye __TERM1__ se verification"
+        )
+
+        first = await translator.translate_if_needed(
+            "Get PM-JAY via Aadhaar verification",
+            source_lang="en-IN",
+            target_lang="hi-IN",
+        )
+        second = await translator.translate_if_needed(
+            "Get PM-JAY via Aadhaar verification",
+            source_lang="en-IN",
+            target_lang="hi-IN",
+        )
+
+        # Both calls must contain the restored domain terms, and the client
+        # is only hit once (the second is served from cache).
+        for result in (first, second):
+            assert "PM-JAY" in result
+            assert "Aadhaar" in result
+            assert "__TERM0__" not in result
+        client.translate.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_same_language_does_not_use_cache(self) -> None:
+        """src == tgt still short-circuits and never touches the client/cache."""
+        translator, client = _make_translator()
+        result = await translator.translate_if_needed(
+            "Namaste", source_lang="hi-IN", target_lang="hi-IN"
+        )
+        assert result == "Namaste"
+        client.translate.assert_not_called()
+        # Short-circuited results are not stored in the cache.
+        assert len(translator._cache) == 0
+
+    @pytest.mark.asyncio
+    async def test_different_params_are_cached_separately(self) -> None:
+        """Different speaker_gender / output_script keys do not collide."""
+        translator, client = _make_translator(translate_return="result")
+
+        await translator.translate_if_needed(
+            "Hello", source_lang="en-IN", target_lang="hi-IN", speaker_gender="Male"
+        )
+        await translator.translate_if_needed(
+            "Hello", source_lang="en-IN", target_lang="hi-IN", speaker_gender="Female"
+        )
+
+        # Distinct keys -> two separate client calls.
+        assert client.translate.await_count == 2
+
+    @pytest.mark.asyncio
+    async def test_failed_translation_is_not_cached(self) -> None:
+        """A failed translation is not cached; a later success recomputes."""
+        client = MagicMock()
+        client.translate = AsyncMock(side_effect=[RuntimeError("API down"), "Namaste duniya"])
+        translator = Translator(client)
+
+        first = await translator.translate_if_needed(
+            "Hello world", source_lang="en-IN", target_lang="hi-IN"
+        )
+        assert first == "Hello world"  # graceful degradation to original
+        assert len(translator._cache) == 0
+
+        second = await translator.translate_if_needed(
+            "Hello world", source_lang="en-IN", target_lang="hi-IN"
+        )
+        assert second == "Namaste duniya"
+        assert client.translate.await_count == 2
+
+    @pytest.mark.asyncio
+    async def test_empty_translation_result_is_not_cached(self) -> None:
+        """An empty client result is not cached so it can be retried."""
+        client = MagicMock()
+        client.translate = AsyncMock(side_effect=["", "Namaste duniya"])
+        translator = Translator(client)
+
+        await translator.translate_if_needed(
+            "Hello world", source_lang="en-IN", target_lang="hi-IN"
+        )
+        assert len(translator._cache) == 0
+
+        second = await translator.translate_if_needed(
+            "Hello world", source_lang="en-IN", target_lang="hi-IN"
+        )
+        assert second == "Namaste duniya"
+        assert client.translate.await_count == 2
+
+    @pytest.mark.asyncio
+    async def test_lru_eviction_respects_maxsize(self) -> None:
+        """Cache is bounded; the least-recently-used entry is evicted."""
+        client = MagicMock()
+        client.translate = AsyncMock(side_effect=lambda text, *a, **k: f"tr:{text}")
+        translator = Translator(client, cache_maxsize=2)
+
+        await translator.translate_if_needed("a", source_lang="en-IN", target_lang="hi-IN")
+        await translator.translate_if_needed("b", source_lang="en-IN", target_lang="hi-IN")
+        # Touch "a" so "b" becomes least-recently-used.
+        await translator.translate_if_needed("a", source_lang="en-IN", target_lang="hi-IN")
+        # Insert "c" -> evicts "b" (LRU). Cache now holds {"a", "c"}.
+        await translator.translate_if_needed("c", source_lang="en-IN", target_lang="hi-IN")
+
+        assert len(translator._cache) == 2
+        baseline = client.translate.await_count
+
+        # "a" and "c" are still cached: served without new client calls.
+        await translator.translate_if_needed("a", source_lang="en-IN", target_lang="hi-IN")
+        await translator.translate_if_needed("c", source_lang="en-IN", target_lang="hi-IN")
+        assert client.translate.await_count == baseline
+
+        # "b" was evicted: re-translating it calls the client again.
+        await translator.translate_if_needed("b", source_lang="en-IN", target_lang="hi-IN")
+        assert client.translate.await_count == baseline + 1
+
+    @pytest.mark.asyncio
+    async def test_cache_is_per_instance(self) -> None:
+        """Two Translator instances do not share a cache."""
+        translator_a, client_a = _make_translator(translate_return="A")
+        translator_b, client_b = _make_translator(translate_return="B")
+
+        await translator_a.translate_if_needed("Hi", source_lang="en-IN", target_lang="hi-IN")
+        await translator_b.translate_if_needed("Hi", source_lang="en-IN", target_lang="hi-IN")
+
+        client_a.translate.assert_awaited_once()
+        client_b.translate.assert_awaited_once()
