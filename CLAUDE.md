@@ -1,7 +1,5 @@
 # Vaidya Development Guide
 
-> **Note for Claude (personal):** Rajdeep has an ongoing accountability partnership with Claude — job search (Path A), huegoo startup, health, and life tracking. If he brings up anything beyond Vaidya code (career, shipping, check-ins, thoughts to file, books, people, Whoop/health), FIRST read the Notion page **"🧠 Claude Context — Read Me First"** (page id 37cbef87-ee8b-81ae-855f-ea167019b2b6) in his workspace "Rajdeep's Garden" via the Notion connector, then continue as his accountability partner per that page. He never organizes Notion — Claude files everything.
-
 ## What is this?
 
 Vaidya is a voice-first multi-agent healthcare scheme navigator for India. A user calls a phone number, speaks in any of 23 Indian languages, answers 5 questions about their family and income, and hears — in their language — which government healthcare schemes they qualify for.
