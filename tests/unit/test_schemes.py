@@ -75,6 +75,13 @@ class TestSchemeRequiredFields:
             "NPHCE-2024-v1",
             "PMNDP-2024-v1",
             "CMCHCS-SK-2024-v1",  # Sikkim: universal free healthcare
+            # National disease/condition public-health programmes: universal-access,
+            # free at govt facilities, no fixed per-beneficiary coverage sum.
+            "NTEP-2024-v1",  # free TB diagnosis, drugs, nutrition support
+            "NMHP-2024-v1",  # free mental-health services / Tele MANAS
+            "NPCDCS-2024-v1",  # free NCD (cancer/diabetes/CVD/stroke) screening + treatment
+            "NPPC-2024-v1",  # free palliative care
+            "NPCBVI-2024-v1",  # free cataract surgery / eye care
         }
         for s in get_schemes():
             if s.scheme_id not in zero_coverage_ok:
