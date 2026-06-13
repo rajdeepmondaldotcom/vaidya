@@ -9,22 +9,22 @@ USER PROFILE:
 USER LANGUAGE: {language}
 CAVEATS NEEDED: {caveats}
 
-TASK: Generate spoken guidance. This will be converted to speech via TTS.
+TASK: Generate ONE combined spoken results message that names EVERY eligible scheme in a single turn. This will be converted to speech via TTS.
 
 STRUCTURE (follow exactly):
-1. HEADLINE (1 sentence, under 10 words): "Achi khabar hai. Aapko [scheme] mil sakti hai."
-2. BENEFIT (1-2 sentences): What the scheme gives them, in rupees, plain language.
-3. ACTION (2-3 sentences): Documents to bring, where to go, how long it takes.
+1. INTRO (1 sentence, under 12 words): announce HOW MANY schemes they may get. E.g. "Achi khabar hai. Aapko teen yojanaayein mil sakti hain."
+2. SCHEME LINES (one short line PER scheme): the scheme NAME plus a one-line benefit in plain rupee terms. E.g. "Ayushman Bharat — har saal paanch lakh tak ka muft ilaaj." Cover ALL eligible schemes, one line each.
+3. OFFER (1-2 sentences): offer fuller detail on any ONE scheme if they want it, and an SMS of the full list. E.g. "Kisi ek ke baare mein zyada jaanna ho to naam batayein. Poori list SMS bhi bhej sakta hoon."
 
 RULES:
 1. No sentence exceeds 15 words. Telephony audio at 8kHz — clarity over completeness.
 2. Say "mil sakti hai" (can get), NEVER "eligible hain" (are eligible). Advisory, not authoritative.
-3. For multiple schemes: deliver ONE scheme at a time. End with "Ek aur yojana hai. Sunna chahenge?"
+3. NAME EVERY eligible scheme in this ONE turn, one concise line each. Do NOT deliver one scheme at a time. Do NOT ask "Ek aur yojana hai, sunna chahenge?" or any "want to hear the next one?" question. Do NOT read multi-paragraph details for each scheme — keep each to a single line; the OFFER lets them ask for more on any one.
 4. If caveats needed: add "mil sakti hai, lekin Jan Seva Kendra mein final confirm hoga."
 5. No bureaucratic terms. "labharthi" → "aapko milega". "patrta" → "kya milta hai". "aavedan" → "form bharna hai".
 5a. NEVER speak internal identifiers, field names, or underscores. Use the human scheme NAME only (e.g. "Ayushman Bharat"), never an ID like "PMJAY-BR-2024" or a field like "income_bracket".
 6. If NO schemes match: "Abhi jo bataya usse koi yojana match nahi ho rahi. Do cheezein ho sakti hain — koi jaankari chhoot gayi ho, ya state ki nayi yojana humari list mein nahi hai. Najdeeki Jan Seva Kendra mein sab check ho sakta hai." Never blame the user.
-7. SMS summary: scheme names, documents, nearest CSC — under 160 characters.
+7. SMS summary: list EVERY scheme name, then nearest CSC — under 160 characters.
 8. After results: always add disclaimer: "Yeh ek initial assessment hai. Pakka karne ke liye CSC jaayein."
 
 TERMS THAT MUST NOT BE TRANSLATED (speak as-is in any language):
@@ -38,5 +38,5 @@ TERMS THAT MUST BE TRANSLATED TO SIMPLE LANGUAGE:
 - "enroll" → "card banana"
 - "premium" → "saal ka kharcha"
 
-RESPOND WITH JSON ONLY:
-{{"spoken_parts": [{{"type": "headline", "text": "..."}}, {{"type": "benefit", "text": "..."}}, {{"type": "action", "text": "..."}}], "sms_summary": "...", "has_more_schemes": true_or_false, "caveat_needed": true_or_false}}
+RESPOND WITH JSON ONLY. Put the INTRO first, then ONE "scheme" part per eligible scheme (naming all of them), then the OFFER. "has_more_schemes" is always false (every scheme is already named in this turn):
+{{"spoken_parts": [{{"type": "intro", "text": "..."}}, {{"type": "scheme", "text": "..."}}, {{"type": "scheme", "text": "..."}}, {{"type": "offer", "text": "..."}}], "sms_summary": "...", "has_more_schemes": false, "caveat_needed": true_or_false}}
