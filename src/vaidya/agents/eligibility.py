@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 import time
 from typing import TYPE_CHECKING, Any
@@ -41,18 +42,33 @@ logger = logging.getLogger(__name__)
 
 _DEFAULT_FALLBACK_MODEL = SARVAM_30B
 
+# Placeholder substituted into the rendered system prompt once per call so the
+# invariant prompt body (instructions + user profile) is rendered a single time
+# and each batch only swaps in its own serialized scheme payload.
+_SCHEMES_PLACEHOLDER = "\x00__VAIDYA_SCHEMES_PAYLOAD__\x00"
+
+# Keys used to cache the RAG retrieval ordering across turns of one session.
+_RAG_CACHE_FINGERPRINT_KEY = "eligibility_rag_fingerprint"
+_RAG_CACHE_ORDER_KEY = "eligibility_rag_scheme_id_order"
+
 
 class EligibilityAgent(BaseAgent):
     """Determines scheme eligibility using structured LLM evaluation.
 
     When a :class:`KnowledgeStore` is provided, the agent uses vector
-    retrieval only to rank the applicable candidate set. It never allows
-    retrieval to exclude an applicable scheme. Large candidate sets are
-    evaluated in bounded LLM batches.
+    retrieval to rank and prune the applicable candidate set to the
+    most-relevant top-k. This keeps the LLM workload (and latency) flat as the
+    corpus grows. The retrieval ranking is cached per session against a profile
+    fingerprint, so unchanged profiles reuse the prior ordering without
+    re-querying the store. When NO store is available, the full applicable set
+    is evaluated -- retrieval-based pruning is the only mechanism that may drop
+    a state-applicable scheme, never a hard cap.
 
     For each candidate scheme, the LLM performs field-by-field matching
     against the user profile, checking income thresholds, occupation,
-    geographic restrictions, exclusion rules, and family criteria.
+    geographic restrictions, exclusion rules, and family criteria. Large
+    candidate sets are evaluated in bounded, concurrent LLM batches that all
+    share a single rendered system prompt.
     """
 
     def __init__(
@@ -131,7 +147,14 @@ class EligibilityAgent(BaseAgent):
         self,
         context: ConversationContext,
     ) -> list[SchemeRecord]:
-        """Get every applicable scheme, optionally ranked by RAG retrieval."""
+        """Get candidate schemes for evaluation.
+
+        With a knowledge store, returns the RAG-ranked top-k of the
+        state-applicable set (pruned, so the batched LLM workload stays flat as
+        the corpus grows). Without a store -- or if retrieval yields no usable
+        hits or errors -- returns the FULL applicable set so a weak/empty
+        retrieval can never silently drop a genuinely applicable scheme.
+        """
         applicable = self._filter_schemes(context.user_profile.state)
         if not applicable:
             return []
@@ -183,7 +206,12 @@ class EligibilityAgent(BaseAgent):
                 schemes_evaluated=0,
             )
 
-        batch_results = await self._evaluate_batches(context, model, batches)
+        # Render the invariant prompt body (instructions + user profile) ONCE
+        # per call. The schemes payload is the only per-batch variable, so we
+        # leave a placeholder here and each batch substitutes its own payload.
+        system_template = self._render_system_template(context)
+
+        batch_results = await self._evaluate_batches(context, model, batches, system_template)
         matches_by_id: dict[str, SchemeMatch] = {}
         for result in batch_results:
             for match in result.matches:
@@ -202,18 +230,37 @@ class EligibilityAgent(BaseAgent):
             schemes_evaluated=len(candidate_schemes),
         )
 
+    def _render_system_template(self, context: ConversationContext) -> str:
+        """Render the invariant system prompt once, leaving a schemes placeholder.
+
+        The eligibility prompt embeds two variables: the user profile (constant
+        across every batch of a single call) and the per-batch schemes payload.
+        We render the profile here and keep ``{schemes}`` as a sentinel so each
+        batch only has to splice in its own serialized schemes -- avoiding a
+        full template re-render per batch.
+        """
+        profile_dict = context.user_profile.model_dump(mode="json", exclude_none=True)
+        return prompts.render(
+            "eligibility_system",
+            user_profile=json_compact(profile_dict),
+            schemes=_SCHEMES_PLACEHOLDER,
+        )
+
     async def _evaluate_batches(
         self,
         context: ConversationContext,
         model: str,
         batches: list[list[SchemeRecord]],
+        system_template: str,
     ) -> list[EligibilityResult]:
         """Evaluate scheme batches with bounded concurrency."""
         semaphore = asyncio.Semaphore(self._max_parallel_batches)
 
         async def _run(batch: list[SchemeRecord], batch_index: int) -> EligibilityResult:
             async with semaphore:
-                return await self._evaluate_batch(context, model, batch, batch_index)
+                return await self._evaluate_batch(
+                    context, model, batch, batch_index, system_template
+                )
 
         return await asyncio.gather(*[_run(batch, idx) for idx, batch in enumerate(batches)])
 
@@ -223,9 +270,10 @@ class EligibilityAgent(BaseAgent):
         model: str,
         batch: list[SchemeRecord],
         batch_index: int,
+        system_template: str,
     ) -> EligibilityResult:
         """Evaluate one batch and retry once if the LLM omits scheme IDs."""
-        result = await self._evaluate_batch_once(context, model, batch)
+        result = await self._evaluate_batch_once(context, model, batch, system_template)
         result = self._normalize_batch_result(result, batch)
         missing = missing_candidate_ids(result.matches, batch)
 
@@ -238,7 +286,7 @@ class EligibilityAgent(BaseAgent):
                     "call_id": context.call_id,
                 },
             )
-            retry = await self._evaluate_batch_once(context, model, batch)
+            retry = await self._evaluate_batch_once(context, model, batch, system_template)
             retry = self._normalize_batch_result(retry, batch)
             result = self._merge_batch_retry(result, retry, batch)
             missing = missing_candidate_ids(result.matches, batch)
@@ -258,16 +306,11 @@ class EligibilityAgent(BaseAgent):
         context: ConversationContext,
         model: str,
         candidate_schemes: list[SchemeRecord],
+        system_template: str,
     ) -> EligibilityResult:
-        """Build one prompt, call the LLM, and parse the batch result."""
-        profile_dict = context.user_profile.model_dump(mode="json", exclude_none=True)
+        """Splice this batch's schemes into the pre-rendered prompt and call the LLM."""
         schemes_payload = self._serialize_schemes(candidate_schemes)
-
-        system = prompts.render(
-            "eligibility_system",
-            user_profile=json_compact(profile_dict),
-            schemes=json_compact(schemes_payload),
-        )
+        system = system_template.replace(_SCHEMES_PLACEHOLDER, json_compact(schemes_payload))
 
         raw = await self._call_llm_json(
             system,
@@ -312,8 +355,26 @@ class EligibilityAgent(BaseAgent):
         context: ConversationContext,
         applicable: list[SchemeRecord],
     ) -> list[SchemeRecord]:
-        """Rank applicable schemes by vector hits, appending non-hits afterward."""
+        """Rank applicable schemes by RAG retrieval, pruned to the top-k hits.
+
+        The retrieval-ranked top-k drives the LLM workload, so it stays flat as
+        the corpus grows. Within one session the ranking is cached against a
+        profile fingerprint, so repeated eligibility turns on an unchanged
+        profile do not re-hit the vector store.
+        """
         from vaidya.utils.states import state_name_to_code
+
+        applicable_ids = {s.scheme_id for s in applicable}
+        fingerprint = self._profile_fingerprint(context)
+
+        cached = self._cached_retrieval_order(context, fingerprint, applicable)
+        if cached is not None:
+            logger.info(
+                "Reusing cached RAG ranking (%d schemes); fingerprint unchanged",
+                len(cached),
+                extra={"call_id": context.call_id},
+            )
+            return cached
 
         retrieval_start = time.perf_counter()
         query = self._build_retrieval_query(context)
@@ -326,12 +387,15 @@ class EligibilityAgent(BaseAgent):
             state_code=state_code,
         )
         registry_map = {s.scheme_id: s for s in self._schemes}
-        applicable_ids = {s.scheme_id for s in applicable}
 
+        # Prune to the retrieval-ranked applicable hits (top-k), de-duplicated.
+        # Schemes the user's state does not qualify for are never surfaced.
+        seen: set[str] = set()
         ranked_hits: list[SchemeRecord] = []
         for stub in hits:
             resolved = registry_map.get(stub.scheme_id, stub)
-            if resolved.scheme_id in applicable_ids:
+            if resolved.scheme_id in applicable_ids and resolved.scheme_id not in seen:
+                seen.add(resolved.scheme_id)
                 ranked_hits.append(resolved)
 
         retrieval_ms = (time.perf_counter() - retrieval_start) * 1000
@@ -342,19 +406,69 @@ class EligibilityAgent(BaseAgent):
                 "state_code": state_code,
                 "vector_hits": len(hits),
                 "applicable_total": len(applicable),
+                "ranked_hits": len(ranked_hits),
                 "retrieval_ms": round(retrieval_ms, 1),
                 "call_id": context.call_id,
             },
         )
 
-        # Preserve retrieval order for hits, then original registry order for the rest.
-        seen: set[str] = set()
-        ranked: list[SchemeRecord] = []
-        for scheme in ranked_hits + applicable:
-            if scheme.scheme_id not in seen:
-                seen.add(scheme.scheme_id)
-                ranked.append(scheme)
-        return ranked
+        # Only cache a usable ordering; an empty result must not pin the cache,
+        # so the caller can safely fall back to the full applicable set and a
+        # later turn can retry retrieval.
+        if ranked_hits:
+            context.metadata[_RAG_CACHE_FINGERPRINT_KEY] = fingerprint
+            context.metadata[_RAG_CACHE_ORDER_KEY] = [s.scheme_id for s in ranked_hits]
+        return ranked_hits
+
+    def _cached_retrieval_order(
+        self,
+        context: ConversationContext,
+        fingerprint: str,
+        applicable: list[SchemeRecord],
+    ) -> list[SchemeRecord] | None:
+        """Return the cached RAG ordering when the fingerprint is unchanged.
+
+        The cached ordering is re-resolved against the *current* applicable set
+        so any scheme that is no longer applicable (e.g. state changed) is
+        dropped. Returns ``None`` when there is no valid cache hit, forcing a
+        fresh retrieval.
+        """
+        if context.metadata.get(_RAG_CACHE_FINGERPRINT_KEY) != fingerprint:
+            return None
+        cached_order = context.metadata.get(_RAG_CACHE_ORDER_KEY)
+        if not isinstance(cached_order, list) or not cached_order:
+            return None
+
+        applicable_by_id = {s.scheme_id: s for s in applicable}
+        resolved = [
+            applicable_by_id[scheme_id]
+            for scheme_id in cached_order
+            if scheme_id in applicable_by_id
+        ]
+        return resolved or None
+
+    @staticmethod
+    def _profile_fingerprint(context: ConversationContext) -> str:
+        """Stable hash of the eligibility-relevant profile fields.
+
+        Covers every field that drives the retrieval query or candidate set
+        (``state``, ``occupation_type``, ``income_bracket``, ``health_need``),
+        plus ``family_size`` and ``health_need_en`` as additional intake
+        signals. Including the extra fields only makes the cache invalidate more
+        eagerly when intake progresses -- never less -- so it cannot serve a
+        stale ranking, while a turn that changes none of them reuses the cache.
+        """
+        profile = context.user_profile
+        parts = [
+            profile.state or "",
+            profile.occupation_type.value,
+            profile.income_bracket.value,
+            str(profile.family_size) if profile.family_size is not None else "",
+            profile.health_need or "",
+            profile.health_need_en or "",
+        ]
+        raw = "|".join(parts)
+        return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
     @staticmethod
     def _build_retrieval_query(context: ConversationContext) -> str:
