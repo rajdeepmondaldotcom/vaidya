@@ -1,0 +1,177 @@
+{
+  "scheme_id": "RSBY-2024-v1",
+  "canonical_name": "Rashtriya Swasthya Bima Yojana",
+  "aliases": [
+    "RSBY",
+    "National Health Insurance Scheme for BPL",
+    "Smart Card Health Scheme",
+    "RSBY Smart Card",
+    "Rashtriya Swasthya Bima"
+  ],
+  "local_names": {
+    "hi": "राष्ट्रीय स्वास्थ्य बीमा योजना",
+    "bn": "রাষ্ট্রীয় স্বাস্থ্য বীমা যোজনা",
+    "ta": "ராஷ்டிரிய ஸ்வஸ்த்ய பீமா யோஜனா",
+    "te": "రాష్ట్రీయ స్వస్థ్య బీమా యోజన",
+    "mr": "राष्ट्रीय स्वास्थ्य विमा योजना",
+    "gu": "રાષ્ટ્રીય સ્વાસ્થ્ય વીમા યોજના",
+    "kn": "ರಾಷ್ಟ್ರೀಯ ಸ್ವಾಸ್ಥ್ಯ ಬಿಮಾ ಯೋಜನೆ",
+    "ml": "രാഷ്ട്രീയ സ്വാസ്ഥ്യ ബീമാ യോജന",
+    "pa": "ਰਾਸ਼ਟਰੀ ਸਵਾਸਥ ਬੀਮਾ ਯੋਜਨਾ",
+    "or": "ରାଷ୍ଟ୍ରୀୟ ସ୍ୱାସ୍ଥ୍ୟ ବୀମା ଯୋଜନା"
+  },
+  "state_variant_of": null,
+  "jurisdiction": "central",
+  "state_code": null,
+  "income_thresholds": [],
+  "secc_categories": ["BPL"],
+  "occupation_included": [
+    "daily_wage",
+    "construction_worker",
+    "building_worker",
+    "beedi_worker",
+    "street_vendor",
+    "domestic_worker",
+    "mgnrega_worker",
+    "rickshaw_puller",
+    "rag_picker",
+    "mine_worker",
+    "railway_porter",
+    "auto_taxi_driver",
+    "sanitation_worker",
+    "unorganized_sector_worker"
+  ],
+  "occupation_excluded": [
+    "government_employee",
+    "income_tax_payer",
+    "esic_covered_employee",
+    "organized_sector_salaried"
+  ],
+  "exclusion_rules": [
+    {
+      "rule_id": "RSBY-EX-001",
+      "exclusion_type": "hard",
+      "field": "bpl_status",
+      "condition": "is_bpl == false and registered_unorganized_worker == false",
+      "description": "Households must either be on the state BPL list OR be registered unorganized-sector workers under a notified welfare board. Above Poverty Line households with no such registration are not eligible.",
+      "override_by_state": true
+    },
+    {
+      "rule_id": "RSBY-EX-002",
+      "exclusion_type": "soft",
+      "field": "existing_coverage",
+      "condition": "covered_under_pmjay == true",
+      "description": "RSBY has been largely subsumed by Ayushman Bharat PM-JAY since 2018. In most states RSBY is no longer separately enrolling and BPL families are migrated to PM-JAY (Rs 5 lakh cover). Check whether your state still operates RSBY independently before applying.",
+      "override_by_state": true
+    },
+    {
+      "rule_id": "RSBY-EX-003",
+      "exclusion_type": "soft",
+      "field": "family_size",
+      "condition": "enrolled_members > 5",
+      "description": "Coverage is limited to a family unit of up to five members (head of household, spouse, and up to three dependents). Additional members are not covered on the same card.",
+      "override_by_state": false
+    }
+  ],
+  "age_criteria": null,
+  "family_criteria": {
+    "max_family_size": 5,
+    "family_definition": "Head of household, spouse, and up to three dependents (children and/or dependent parents), to a maximum of five members per smart card. Coverage is a family floater shared across the enrolled members.",
+    "head_of_family_required": true
+  },
+  "geographic_restrictions": [],
+  "coverage_amount_inr": 30000,
+  "coverage_type": "per_family_per_year",
+  "covered_procedures": [
+    "Hospitalization (inpatient care, room, nursing, ICU) up to Rs 30,000 per family per year",
+    "Surgical procedures requiring admission",
+    "Maternity and delivery (normal and cesarean) including newborn coverage from day one",
+    "Pre-existing diseases covered from day one of the policy",
+    "Pre-hospitalization expenses (up to 1 day before admission)",
+    "Post-hospitalization expenses (up to 5 days after discharge)",
+    "Day-care procedures not requiring 24-hour admission (cataract, dialysis, chemotherapy)",
+    "Transport allowance of Rs 100 per hospitalization (subject to annual cap of Rs 1,000)",
+    "Cashless treatment at any empanelled public or private network hospital across India"
+  ],
+  "excluded_procedures": [
+    "OPD (Out-Patient Department) consultation without hospitalization",
+    "Cosmetic and aesthetic surgery",
+    "Fertility treatment and IVF",
+    "Organ transplantation",
+    "Drug and alcohol rehabilitation",
+    "Congenital external conditions",
+    "Treatment costs exceeding the Rs 30,000 annual family ceiling"
+  ],
+  "required_documents": [
+    {
+      "name": "BPL Card / BPL List Inclusion",
+      "category": "eligibility_proof",
+      "mandatory": true,
+      "alternatives": ["Unorganized Worker Welfare Board Registration", "Antyodaya (AAY) Card"],
+      "local_name_hi": "बीपीएल कार्ड / बीपीएल सूची",
+      "notes": "Proof of Below Poverty Line status from the state BPL census, OR registration with a notified unorganized-worker welfare board."
+    },
+    {
+      "name": "Aadhaar Card",
+      "category": "identity",
+      "mandatory": false,
+      "alternatives": ["Voter ID", "Ration Card"],
+      "local_name_hi": "आधार कार्ड",
+      "notes": "Identity proof for family members at the enrollment kiosk."
+    },
+    {
+      "name": "Family Member Photographs and Fingerprints",
+      "category": "identity",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "परिवार के सदस्यों के फोटो और फिंगरप्रिंट",
+      "notes": "Biometric (fingerprint) and photo capture of all family members is done at the enrollment station to issue the smart card."
+    },
+    {
+      "name": "Registration Fee Rs 30",
+      "category": "financial",
+      "mandatory": true,
+      "alternatives": [],
+      "local_name_hi": "पंजीकरण शुल्क 30 रुपये",
+      "notes": "A nominal one-time registration fee of Rs 30 is paid by the beneficiary; the annual premium is paid by the central and state governments."
+    }
+  ],
+  "enrollment_channels": [
+    "Village/ward enrollment camps run by the empanelled insurer",
+    "District Kiosk Management Agency (DKMA) enrollment stations",
+    "State Nodal Agency (Department of Labour) office",
+    "Common Service Centre (CSC) where notified"
+  ],
+  "enrollment_steps": [
+    "Step 1: Confirm your family appears on the state BPL list (or that you are a registered unorganized-sector worker) — the list is published by the District Authority",
+    "Step 2: Attend the RSBY enrollment camp held in your village/ward (dates announced by the panchayat and insurer)",
+    "Step 3: Carry BPL proof; all family members to be covered should attend in person for biometrics",
+    "Step 4: Fingerprints and photographs of all members are captured at the enrollment station",
+    "Step 5: Pay the Rs 30 registration fee",
+    "Step 6: The RSBY smart card (with biometric and family data) is printed and handed over on the spot",
+    "Step 7: Present the smart card at any empanelled network hospital for cashless admission up to Rs 30,000 per year",
+    "Step 8: Renew the card annually at the camp to continue coverage",
+    "Note: In most states RSBY beneficiaries have been migrated to Ayushman Bharat PM-JAY (Rs 5 lakh cover); verify your state's current scheme before enrolling"
+  ],
+  "processing_time_days": 1,
+  "helpline_number": "1800-180-1142",
+  "portal_url": "https://www.india.gov.in/spotlight/rashtriya-swasthya-bima-yojana",
+  "version": "1.0",
+  "effective_date": "2008-04-01",
+  "expiry_date": null,
+  "last_verified": "2026-06-13",
+  "source_url": "https://www.india.gov.in/spotlight/rashtriya-swasthya-bima-yojana",
+  "confidence_level": "provisional",
+  "description_for_embedding": "Rashtriya Swasthya Bima Yojana (RSBY) is a central government health insurance scheme launched in 2008 by the Ministry of Labour & Employment to provide cashless hospitalization cover of Rs 30,000 per family per year to Below Poverty Line (BPL) households and unorganized-sector workers. Coverage is a family floater for up to five members (head of household, spouse, and three dependents). Beneficiaries pay only a nominal Rs 30 registration fee; the central and state governments fund the premium. RSBY uses a biometric smart card enrolling members' fingerprints and photographs at village camps, enabling cashless treatment at any empanelled public or private network hospital across India with full portability. It covers inpatient hospitalization, surgery, maternity (with newborn cover from day one), pre-existing diseases from day one, day-care procedures, and a transport allowance of Rs 100 per visit. Eligibility is based on BPL status or registration under a notified unorganized-worker welfare board (construction, beedi, MGNREGA, domestic, street vendors). Importantly, RSBY has been largely subsumed by Ayushman Bharat PM-JAY since 2018 — in most states BPL families have been migrated to PM-JAY's far larger Rs 5 lakh cover — so beneficiaries should verify whether their state still operates RSBY independently before applying. RSBY excludes government employees, income-tax payers, and ESIC-covered organized-sector workers.",
+  "keywords": [
+    "rsby", "rashtriya swasthya bima yojana", "BPL health insurance",
+    "30000 cover", "smart card", "unorganized worker", "labour scheme",
+    "cashless hospital", "family floater", "below poverty line",
+    "राष्ट्रीय स्वास्थ्य बीमा योजना", "बीपीएल बीमा", "स्मार्ट कार्ड",
+    "30000 रुपये", "असंगठित मजदूर", "मुफ्त इलाज", "गरीबी रेखा",
+    "national health insurance", "construction worker", "beedi worker",
+    "MGNREGA", "30 rupee registration", "ministry of labour",
+    "subsumed by pmjay", "ayushman bharat predecessor", "legacy scheme",
+    "biometric card", "empanelled hospital", "1800-180-1142"
+  ]
+}
