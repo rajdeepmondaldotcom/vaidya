@@ -56,6 +56,7 @@ try:
         LLMFullResponseStartFrame,
         TextFrame,
         TranscriptionFrame,
+        TTSSpeakFrame,
         TTSUpdateSettingsFrame,
         UserStartedSpeakingFrame,
     )
@@ -113,6 +114,10 @@ except ImportError:
         pass
 
     class TextFrame(Frame):  # type: ignore[no-redef]
+        def __init__(self, text: str = "") -> None:
+            self.text = text
+
+    class TTSSpeakFrame(Frame):  # type: ignore[no-redef]
         def __init__(self, text: str = "") -> None:
             self.text = text
 
@@ -182,6 +187,93 @@ _TELEPHONY_SAMPLE_RATE = 8000
 _TELEPHONY_CHANNELS = 1
 _TELEPHONY_SAMPLE_WIDTH = 2
 _TTS_CACHE_MODEL = "bulbul:v3"
+
+# Sentence-ending punctuation across the 11 voice scripts (Latin + Indic),
+# matching pipecat's own SENTENCE_ENDING_PUNCTUATION for the languages we
+# support. A fragment that ends on one of these is a complete utterance the
+# TTS can synthesize and speak on its own.
+_SENTENCE_ENDERS = frozenset(".?!;…।॥।。？！；．")
+# Clause separators: weaker boundaries used to break an over-long leading
+# sentence so the FIRST spoken fragment stays short (fast time-to-first-audio)
+# without ever splitting mid-word. Comma, colon, semicolon, dashes, and the
+# full-width / Indic / Arabic comma variants.
+_CLAUSE_SEPARATORS = frozenset(",:;—–-،，、；：")
+# Lower bound (chars / code points) for the leading fragment. Large enough
+# that the head is a natural clause (~6+ words) rather than a clipped two-word
+# sliver, yet small enough to catch common Indic clause boundaries (e.g. a
+# Hindi/Tamil "..., " around 30 chars) so audio starts almost immediately.
+# Only applies once the whole reply is already past _STREAM_MIN_SPLIT_LENGTH,
+# so the remaining tail is always substantial too.
+_STREAM_HEAD_MIN_CHARS = 28
+# If the leading sentence/clause is longer than this we still speak it as the
+# head (better to start a slightly longer fragment now than buffer everything);
+# this only bounds how far we scan for the first boundary.
+_STREAM_HEAD_MAX_CHARS = 140
+# Below this total length there is nothing to gain from splitting a head off:
+# the whole reply is short enough that the end-frame flush is already prompt.
+_STREAM_MIN_SPLIT_LENGTH = 60
+
+
+def _split_leading_fragment(text: str) -> tuple[str, str]:
+    """Split *text* into a short, speakable leading fragment and the remainder.
+
+    Returns ``(head, tail)``. The ``head`` is meant to be spoken IMMEDIATELY
+    (via a TTS speak frame) so the caller hears audio without waiting for the
+    whole reply to synthesize; ``tail`` is everything after it and flows
+    through the normal sentence-aggregating TTS envelope.
+
+    Boundary selection (longest-first preference for a natural unit):
+
+    1. Prefer the first **sentence** boundary (``. ? ! । ॥`` …) at or past
+       :data:`_STREAM_HEAD_MIN_CHARS`.
+    2. Otherwise fall back to the first **clause** boundary (comma/colon/dash,
+       incl. Indic/Arabic/full-width variants) at or past the minimum.
+
+    Robustness guarantees:
+
+    - Boundaries are only taken at whitespace-delimited word ends, so a run of
+      non-whitespace characters — and therefore any multi-byte grapheme in
+      Devanagari, Tamil, Bengali, Odia, etc. — is never cut in half.
+    - Boundary punctuation stays attached to the ``head`` so prosody is intact.
+    - Concatenating ``head`` and ``tail`` with a single space reproduces the
+      input (already single-space normalized by :func:`format_for_tts`), so the
+      total synthesized audio is unchanged.
+
+    When there is no clean early boundary (or the reply is short), returns
+    ``("", text)`` so the caller keeps today's single-envelope behaviour with
+    no regression.
+    """
+    text = text.strip()
+    # Short replies: the end-frame flush already starts them promptly.
+    if len(text) < _STREAM_MIN_SPLIT_LENGTH:
+        return "", text
+
+    words = text.split()
+    sentence_split: int | None = None
+    clause_split: int | None = None
+    length = 0
+    for idx, word in enumerate(words):
+        length += len(word) + (1 if length else 0)
+        if length < _STREAM_HEAD_MIN_CHARS:
+            continue
+        last = word[-1]
+        if sentence_split is None and last in _SENTENCE_ENDERS:
+            sentence_split = idx + 1
+            break  # a sentence boundary is the best head; stop scanning
+        if clause_split is None and last in _CLAUSE_SEPARATORS:
+            clause_split = idx + 1
+        if length >= _STREAM_HEAD_MAX_CHARS:
+            break  # don't scan unboundedly for a head
+
+    # Prefer a sentence boundary, but only if it leaves a real remainder to
+    # stream behind it. If the only sentence end is the final word, fall back
+    # to the clause boundary we found earlier (also requiring a remainder).
+    # A split at the very last word yields no streaming win, so we skip it.
+    last_index = len(words)
+    for split_at in (sentence_split, clause_split):
+        if split_at is not None and split_at < last_index:
+            return " ".join(words[:split_at]), " ".join(words[split_at:])
+    return "", text
 
 
 def _normalize_for_dedupe(text: str) -> str:
@@ -561,6 +653,7 @@ class VaidyaAgentProcessor(FrameProcessor):
         text: str,
         profile: str = "default",
         send_mark: bool = True,
+        stream: bool = True,
     ) -> None:
         """Push text to TTS and, for Twilio, request a playback-complete mark.
 
@@ -583,14 +676,51 @@ class VaidyaAgentProcessor(FrameProcessor):
         frames, or a decoded waveform that doesn't match telephony format —
         falls back to the proven TextFrame path below, so emission is never
         worse than today.
+
+        Time-to-first-audio: for a long reply we split off a short leading
+        fragment and speak it FIRST via a ``TTSSpeakFrame``, which the
+        downstream Sarvam service synthesizes immediately instead of buffering
+        the whole paragraph behind its sentence-aggregation / ``min_buffer_size``
+        gate. The remainder still flows through the ``LLMFullResponseStart`` /
+        ``LLMFullResponseEnd`` envelope so its final sentence is flushed by the
+        end frame. Short replies (and the cached fast-path) are unchanged.
+
+        ``stream=False`` forces the whole reply through a single audio context
+        (no leading-fragment split). The terminal closure uses it: it pushes
+        an ``EndTaskFrame`` immediately after, and a single uninterrupted
+        context is least likely to be truncated by the teardown than two
+        contexts with a gap between them.
         """
         spoken = format_for_tts(text, profile=profile)
 
         if await self._try_emit_cached_audio(spoken, send_mark=send_mark):
             return
 
+        # Only stream a leading fragment for real replies (send_mark=True) that
+        # are not about to be torn down (stream=True). Keepalive interjections
+        # ("one moment") pass send_mark=False precisely so their playback must
+        # NOT touch the idle watcher; speaking a head fragment would surface an
+        # extra BotStoppedSpeaking with no pending mark to suppress it. They are
+        # also already short, so there is nothing to gain. Keep their exact
+        # single-envelope behaviour.
+        head, tail = _split_leading_fragment(spoken) if (send_mark and stream) else ("", spoken)
+        if head:
+            # Speak the leading fragment right away. TTSSpeakFrame bypasses the
+            # downstream sentence aggregator and synthesizes its own context
+            # immediately, so the caller hears audio while `tail` is still being
+            # synthesized. The output transport derives Bot{Started,Stopped}-
+            # SpeakingFrame from the audio it plays, so we do not push those
+            # ourselves (mirrors the cached-audio path). The pending playback
+            # mark (set below) suppresses the head's BotStoppedSpeaking from
+            # starting the idle watch before the tail has played.
+            await self.push_frame(TTSSpeakFrame(text=head))
+
+        # Remainder (or the whole reply when there was no clean early split)
+        # goes through the proven envelope: the end frame forces the TTS to
+        # flush its sentence aggregation AND Sarvam's server-side buffer, so the
+        # last sentence is never left stuck.
         await self.push_frame(LLMFullResponseStartFrame())
-        await self.push_frame(TextFrame(text=spoken))
+        await self.push_frame(TextFrame(text=tail))
         await self.push_frame(LLMFullResponseEndFrame())
         if send_mark and self._playback_marks_enabled:
             await self._send_playback_mark()
@@ -725,9 +855,14 @@ class VaidyaAgentProcessor(FrameProcessor):
             if not spoken:
                 continue
 
-            await self._emit_bot_text(spoken, profile="repair")
+            ending = is_terminal or terminal
+            # The terminal closure is followed immediately by EndTaskFrame, so
+            # speak it as a single uninterrupted audio context (stream=False):
+            # a leading-fragment split would add a second context the teardown
+            # could truncate. Non-terminal nudges stream normally.
+            await self._emit_bot_text(spoken, profile="repair", stream=not ending)
 
-            if is_terminal or terminal:
+            if ending:
                 # Give the TTS a moment to flush, then end the task.
                 await self.push_frame(EndTaskFrame(), FrameDirection.UPSTREAM)
                 return
