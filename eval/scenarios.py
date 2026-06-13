@@ -52,6 +52,33 @@ Scenario = dict[str, Any]
 # ---------------------------------------------------------------------------
 
 
+# A real intake ends with the agent reading the gathered profile back and asking
+# the caller to confirm before it evaluates schemes ("Sahi hai na?"). That
+# confirmation is part of the conversation protocol — eligibility only runs once
+# the caller agrees. Each scenario lists the *answer* turns; we append the
+# caller's confirmation so the scripted conversation reaches the RESULTS phase the
+# same way a live call does. Phrased in the scenario's language so the agent's
+# heuristic + LLM confirmation check recognises it.
+_CONFIRMATION_TURNS: dict[str, str] = {
+    "hi": "Haan, sab kuch bilkul sahi hai",
+    "en": "Yes, that is all correct",
+    "bn": "Hyan, sob thik aache, ekdom thik",
+    "ta": "Aamaam, ellaam sariyaana thaan",
+    "te": "Avunu, anni sariyaina unnayi",
+    "kn": "Houdu, ellaa sariyaagide",
+    "ml": "Athe, ellaam shariyaanu",
+    "mr": "Hoy, sarva barobar aahe",
+    "gu": "Haan, badhu barabar chhe",
+    "pa": "Haan ji, sabh theek hai",
+    "od": "Haan, sabu thik achi",
+}
+
+
+def _confirmation_turn(language: str) -> str:
+    """Return a 'yes, that's correct' turn in the scenario's language."""
+    return _CONFIRMATION_TURNS.get(language.split("-")[0], "Haan, sab sahi hai")
+
+
 def _scenario(
     id: str,
     name: str,
@@ -67,7 +94,13 @@ def _scenario(
         "name": name,
         "description": description,
         "language": language,
-        "turns": turns,
+        # Append the caller's profile confirmation so the scripted conversation
+        # advances past intake into PROCESSING/RESULTS, exactly as a live call
+        # does. Two turns: scenarios that volunteer an extra detail (a BPL/ration
+        # mention) push the agent's read-back one turn later, so the first "yes"
+        # may answer the final question and the second confirms the summary. For
+        # scenarios that need only one, the second lands harmlessly in guidance.
+        "turns": [*turns, _confirmation_turn(language), _confirmation_turn(language)],
         "expected_eligible_schemes": expected_eligible,
         "expected_ineligible_schemes": expected_ineligible,
         "tags": tags,
