@@ -15,12 +15,16 @@ from vaidya.models.scheme import (
     ConvergenceResult,
     EligibilityVerdict,
     GuidanceOutput,
+    Jurisdiction,
     SchemeMatch,
+    SchemeRecord,
     SpokenPart,
 )
 from vaidya.prompts import registry as prompts
 from vaidya.sarvam.client import SarvamClient
 from vaidya.sarvam.models import SARVAM_30B
+from vaidya.schemes.registry import get_schemes
+from vaidya.utils.states import state_name_to_code
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +33,91 @@ _SMS_MAX_LENGTH = 160
 # many of them universal national programmes) is a multi-minute monologue; speak
 # the most relevant few and SMS the complete list.
 _MAX_SPOKEN_SCHEMES = 5
+
+# Maps a caller's stated condition to the words that identify the scheme(s) which
+# directly address it (in scheme names / covered procedures), so a TB patient
+# hears NTEP, an eye patient hears the blindness-control programme, a heart/BP/
+# diabetes patient hears the NCD programme, etc. Keys are matched as substrings
+# of the (lower-cased) health need, including common transliterations.
+_CONDITION_KEYWORDS: dict[str, tuple[str, ...]] = {
+    "tb": ("tuberculosis",),
+    "tuberculosis": ("tuberculosis",),
+    "kshay": ("tuberculosis",),
+    "jokkha": ("tuberculosis",),
+    "cataract": ("cataract", "blindness", "visual"),
+    "eye": ("cataract", "blindness", "visual", "ophthal"),
+    "aankh": ("cataract", "blindness", "visual"),
+    "kannu": ("cataract", "blindness", "visual"),
+    "blind": ("blindness", "visual"),
+    "vision": ("blindness", "visual"),
+    "heart": ("cardio", "cardiac", "non-communicable", "hypertension"),
+    "cardiac": ("cardio", "cardiac"),
+    "dil": ("cardio", "cardiac", "non-communicable", "hypertension"),
+    "bp": ("hypertension", "non-communicable"),
+    "hypertension": ("hypertension", "non-communicable"),
+    "diabet": ("diabetes", "non-communicable"),
+    "sugar": ("diabetes", "non-communicable"),
+    "cancer": ("cancer", "oncology"),
+    "tumour": ("cancer", "oncology"),
+    "mental": ("mental",),
+    "depress": ("mental",),
+    "kidney": ("dialysis", "renal", "nephro"),
+    "dialysis": ("dialysis", "renal"),
+    "pregnan": ("maternal", "matru", "janani", "pregnan"),
+    "matern": ("maternal", "matru", "janani"),
+    "baby": ("child", "shishu", "bal swasthya", "newborn"),
+    "child": ("child", "shishu", "bal swasthya", "newborn"),
+    "accident": ("accident", "suraksha"),
+}
+
+
+def _scheme_matches_need(record: SchemeRecord | None, health_need: str) -> bool:
+    """True when *record* directly addresses the caller's stated *health_need*.
+
+    Matches the need (and its transliteration/synonym expansions) against the
+    scheme's name, aliases, and covered procedures. Best-effort: a miss simply
+    means the scheme isn't condition-boosted, never a wrong answer.
+    """
+    if record is None or not health_need:
+        return False
+    need = health_need.lower()
+    targets: set[str] = set()
+    for key, expansions in _CONDITION_KEYWORDS.items():
+        if key in need:
+            targets.update(expansions)
+    # Also try the caller's own words (already-English needs like "tuberculosis").
+    targets.update(tok for tok in need.split() if len(tok) > 3)
+    if not targets:
+        return False
+    haystack = " ".join(
+        [record.canonical_name, *record.aliases, *record.covered_procedures]
+    ).lower()
+    return any(t in haystack for t in targets)
+
+
+def _relevance_score(match: SchemeMatch, record: SchemeRecord | None, profile: object) -> float:
+    """Rank schemes for the SPOKEN top-N: the scheme the caller actually enrols in
+    (their state scheme) first, then PM-JAY, then ones addressing their condition,
+    then by financial cover — so the handful spoken aloud is the most useful, not
+    the universal low-value programmes that merely happen to score high confidence.
+    """
+    score = float(getattr(match, "confidence", 0.0))  # 0..1 base / tiebreaker
+    if record is None:
+        return score
+    state = getattr(profile, "state", None)
+    state_code = state_name_to_code(state) if state else None
+    if (
+        record.jurisdiction == Jurisdiction.STATE
+        and state_code
+        and record.state_code == state_code
+    ):
+        score += 100.0  # the caller's own state scheme — their enrolment vehicle
+    if "PMJAY" in match.scheme_id.upper():
+        score += 80.0  # national flagship cover
+    if _scheme_matches_need(record, getattr(profile, "health_need", "") or ""):
+        score += 60.0  # directly addresses the stated condition
+    score += min(record.coverage_amount_inr, 2_500_000) / 100_000.0  # financial cover, up to ~25
+    return score
 
 
 def _extract_spoken_parts(raw: dict[str, Any]) -> list[SpokenPart]:
@@ -95,7 +184,16 @@ class GuidanceAgent(BaseAgent):
         # The free-form LLM path read every eligible scheme (sometimes twice) and
         # risked the wrong TTS voice. Deterministic template parts are capped,
         # never duplicated, and render in the caller's voice via the TTS cache.
-        ranked = sorted(eligible, key=lambda m: m.confidence, reverse=True)
+        # Rank by RELEVANCE (state scheme -> PM-JAY -> condition match -> cover),
+        # not raw confidence, so the spoken few are the schemes that actually
+        # matter to this caller rather than the universal low-value programmes.
+        by_id = {s.scheme_id: s for s in get_schemes()}
+        profile = context.user_profile
+        ranked = sorted(
+            eligible,
+            key=lambda m: _relevance_score(m, by_id.get(m.scheme_id), profile),
+            reverse=True,
+        )
         spoken_schemes = ranked[:_MAX_SPOKEN_SCHEMES]
         guidance_output = GuidanceOutput(
             spoken_parts=self._build_fallback_parts(
