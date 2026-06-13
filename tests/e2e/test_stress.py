@@ -772,9 +772,12 @@ class TestStateMachineEdgeCases:
         assert isinstance(resp.text, str)
 
     async def test_double_start_same_phone(self):
-        """Call start_conversation twice with same phone_hash.
+        """Call start_conversation twice with the same phone_hash.
 
-        Verify second call gets resume message (dropped-call recovery).
+        A session still in WELCOME holds no progress, so it is intentionally
+        not resumed (see ``_try_recover_session``). Once it has advanced past
+        WELCOME, the second call resumes the existing session — dropped-call
+        recovery.
         """
         mgr = _build_conversation_manager()
 
@@ -783,9 +786,14 @@ class TestStateMachineEdgeCases:
         assert call_id1 is not None
         assert msg1 != ""
 
-        # Second start with same phone hash -- should recover existing session
-        call_id2, msg2 = await mgr.start_conversation("hash_double_test", "hi-IN")
-        assert call_id2 == call_id1  # Same call_id recovered
+        # Advance past WELCOME so the in-progress session is worth resuming.
+        ctx = await mgr.get_context(call_id1)
+        assert ctx is not None
+        ctx.phase = ConversationPhase.INTAKE
+
+        # Second start with the same phone hash recovers the existing session.
+        call_id2, _msg2 = await mgr.start_conversation("hash_double_test", "hi-IN")
+        assert call_id2 == call_id1  # resumed, not a fresh call
 
     async def test_turn_after_session_end(self):
         """Call end_conversation, then handle_turn. Verify session_expired message."""
