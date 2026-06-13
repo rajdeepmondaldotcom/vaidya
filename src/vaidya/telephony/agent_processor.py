@@ -169,9 +169,11 @@ if TYPE_CHECKING:
 # quick turns still answer silently, while a slow eligibility crunch reassures
 # the caller ~2s sooner than the old 7.0s floor.
 PROCESSING_ACK_DELAY_SECONDS = 4.0
-PROCESSING_PROGRESS_INTERVAL_SECONDS = 9.0
-# Must cover the longest agent phase (eligibility+reviewer).
-PROCESSING_PROGRESS_MAX_NOTES = 12
+PROCESSING_PROGRESS_INTERVAL_SECONDS = 15.0
+# A few unobtrusive reassurances over the eligibility crunch — NOT a stream.
+# At 12 every long turn buried the actual reply under a wall of "still working"
+# notes; 4 at a 15s cadence covers ~1 min of waiting without the chatter.
+PROCESSING_PROGRESS_MAX_NOTES = 4
 
 # Sarvam's VAD splits natural pauses mid-sentence ("আমার পরিবারে" +
 # "5 জন আছে।" arrive as two transcripts). Launching a turn per fragment
