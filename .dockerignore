@@ -1,0 +1,36 @@
+# Keep the Railway/Docker build context lean and secrets out of it.
+# (The Dockerfile only COPYs src/, pyproject.toml, README.md — but excluding
+# the rest keeps uploads fast and guarantees no secrets/junk in the context.)
+
+# Secrets / local env
+.env
+.env.local
+.env.*.local
+
+# VCS & tooling
+.git
+.github
+.gitignore
+
+# Python caches / build artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+dist/
+build/
+
+# Local virtualenvs & data
+.venv/
+venv/
+chroma_data/
+*.log
+
+# Agent worktrees / plans / scratch (can be many copies of the repo)
+.claude/
+
+# Reports & OS cruft
+reports/
+.DS_Store

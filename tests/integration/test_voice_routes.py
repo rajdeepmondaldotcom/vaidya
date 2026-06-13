@@ -9,7 +9,6 @@ from unittest.mock import MagicMock
 import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
-from twilio.request_validator import RequestValidator
 
 from vaidya.api.routes import voice as voice_module
 from vaidya.api.routes.voice import (
@@ -17,6 +16,18 @@ from vaidya.api.routes.voice import (
 )
 from vaidya.api.routes.voice import (
     router as voice_router,
+)
+
+# Twilio ships only with the optional [telephony] extra. Skip this module
+# cleanly when it is not installed rather than erroring at collection time.
+try:
+    from twilio.request_validator import RequestValidator
+except ImportError:  # pragma: no cover - exercised only without the extra
+    RequestValidator = None  # type: ignore[assignment, misc]
+
+pytestmark = pytest.mark.skipif(
+    RequestValidator is None,
+    reason="twilio (optional [telephony] extra) not installed",
 )
 
 
