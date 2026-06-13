@@ -19,6 +19,7 @@ from vaidya.models.scheme import (
     SchemeRecord,
 )
 from vaidya.models.user_profile import IncomeCategory, OccupationType, UserProfile
+from vaidya.prompts import registry as prompts_registry
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -488,3 +489,276 @@ class TestProcess:
 
         assert response.eligibility_result is not None
         assert len(response.eligibility_result.matches) == 1
+
+
+# ---------------------------------------------------------------------------
+# System-prompt render hoist
+# ---------------------------------------------------------------------------
+
+
+def _extract_schemes_payload(system_prompt: str) -> list[dict[str, Any]]:
+    """Recover the serialized schemes list from a prompt.
+
+    Works whether the prompt is the bare schemes JSON (render mocked to echo
+    ``schemes``) or the fully rendered template (render wrapped). In the latter
+    case the compact JSON array immediately follows the SCHEME DATA marker.
+    """
+    text = system_prompt.strip()
+    marker = "SCHEME DATA (retrieved from knowledge base):"
+    if marker in text:
+        after = text.split(marker, 1)[1].lstrip("\n")
+        text = after.split("\n", 1)[0]
+    return json.loads(text)
+
+
+def _ineligible_match_for_each(system_prompt: str) -> dict[str, Any]:
+    """Fake LLM: echo back an ineligible verdict for every scheme in the prompt."""
+    payload = _extract_schemes_payload(system_prompt)
+    return {
+        "matches": [
+            {
+                "scheme_id": item["scheme_id"],
+                "scheme_name": item["canonical_name"],
+                "verdict": "ineligible",
+                "confidence": 0.8,
+                "coverage_summary": "n/a",
+            }
+            for item in payload
+        ]
+    }
+
+
+class TestSystemPromptRenderHoist:
+    @pytest.mark.asyncio
+    async def test_system_prompt_rendered_once_not_per_batch(self):
+        # 46 schemes / batch_size 20 => 3 batches, but a single render call.
+        schemes = [_make_scheme(f"s{i}") for i in range(46)]
+        agent = EligibilityAgent(
+            client=_mock_client(),
+            model="sarvam-105b",
+            schemes=schemes,
+            batch_size=20,
+            max_parallel_batches=1,
+        )
+        ctx = _make_context(state=None)
+
+        async def fake_llm(system_prompt: str, *_a: Any, **_k: Any) -> dict[str, Any]:
+            return _ineligible_match_for_each(system_prompt)
+
+        # Use the real template render so the placeholder substitution path is
+        # exercised, but spy on the render function to count calls.
+        with patch(
+            "vaidya.agents.eligibility.prompts.render",
+            wraps=prompts_registry.render,
+        ) as spy_render:
+            agent._call_llm_json = AsyncMock(side_effect=fake_llm)  # type: ignore[method-assign]
+            result = await agent._evaluate(ctx, "sarvam-105b")
+
+        # One render for the whole call; three LLM calls (one per batch).
+        assert spy_render.call_count == 1
+        assert agent._call_llm_json.call_count == 3
+        # Every candidate still evaluated -- pruning/hoisting must not drop any.
+        assert result.schemes_evaluated == 46
+        assert len(result.matches) == 46
+
+    @pytest.mark.asyncio
+    async def test_each_batch_receives_its_own_schemes_payload(self):
+        # The hoisted template must still splice the correct per-batch schemes.
+        schemes = [_make_scheme(f"s{i}") for i in range(5)]
+        agent = EligibilityAgent(
+            client=_mock_client(),
+            model="sarvam-105b",
+            schemes=schemes,
+            batch_size=2,
+            max_parallel_batches=1,
+        )
+        ctx = _make_context(state=None)
+
+        seen_ids: list[set[str]] = []
+
+        async def fake_llm(system_prompt: str, *_a: Any, **_k: Any) -> dict[str, Any]:
+            payload = _extract_schemes_payload(system_prompt)
+            seen_ids.append({item["scheme_id"] for item in payload})
+            return _ineligible_match_for_each(system_prompt)
+
+        with patch(
+            "vaidya.agents.eligibility.prompts.render",
+            wraps=prompts_registry.render,
+        ):
+            agent._call_llm_json = AsyncMock(side_effect=fake_llm)  # type: ignore[method-assign]
+            result = await agent._evaluate(ctx, "sarvam-105b")
+
+        # 5 schemes / batch 2 => batches of {s0,s1}, {s2,s3}, {s4}
+        assert seen_ids == [{"s0", "s1"}, {"s2", "s3"}, {"s4"}]
+        assert {m.scheme_id for m in result.matches} == {f"s{i}" for i in range(5)}
+
+
+# ---------------------------------------------------------------------------
+# RAG retrieval caching + top-k pruning
+# ---------------------------------------------------------------------------
+
+
+def _mock_store(hits: list[SchemeRecord]) -> MagicMock:
+    """A KnowledgeStore stand-in whose search() returns a fixed hit list."""
+    store = MagicMock()
+    store.search = MagicMock(return_value=list(hits))
+    return store
+
+
+class TestRetrievalCacheAndPruning:
+    @pytest.mark.asyncio
+    async def test_store_search_not_called_again_on_unchanged_fingerprint(self):
+        schemes = [_make_scheme(f"s{i}") for i in range(5)]
+        store = _mock_store(schemes[:3])  # retrieval surfaces s0,s1,s2
+        agent = EligibilityAgent(
+            client=_mock_client(),
+            model="sarvam-105b",
+            schemes=schemes,
+            store=store,
+            batch_size=20,
+            max_parallel_batches=1,
+        )
+        ctx = _make_context(state=None)
+
+        async def fake_llm(system_prompt: str, *_a: Any, **_k: Any) -> dict[str, Any]:
+            return _ineligible_match_for_each(system_prompt)
+
+        with patch(
+            "vaidya.agents.eligibility.prompts.render",
+            side_effect=lambda _name, **kw: kw["schemes"],
+        ):
+            agent._call_llm_json = AsyncMock(side_effect=fake_llm)  # type: ignore[method-assign]
+            # First eligibility turn -- retrieval runs once.
+            await agent._evaluate(ctx, "sarvam-105b")
+            assert store.search.call_count == 1
+            # Second turn on the SAME (unchanged) profile -- cache hit, no search.
+            await agent._evaluate(ctx, "sarvam-105b")
+            assert store.search.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_store_search_recalled_when_fingerprint_changes(self):
+        schemes = [_make_scheme(f"s{i}") for i in range(5)]
+        store = _mock_store(schemes[:3])
+        agent = EligibilityAgent(
+            client=_mock_client(),
+            model="sarvam-105b",
+            schemes=schemes,
+            store=store,
+            batch_size=20,
+            max_parallel_batches=1,
+        )
+        ctx = _make_context(state=None, health_need="heart surgery")
+
+        async def fake_llm(system_prompt: str, *_a: Any, **_k: Any) -> dict[str, Any]:
+            return _ineligible_match_for_each(system_prompt)
+
+        with patch(
+            "vaidya.agents.eligibility.prompts.render",
+            side_effect=lambda _name, **kw: kw["schemes"],
+        ):
+            agent._call_llm_json = AsyncMock(side_effect=fake_llm)  # type: ignore[method-assign]
+            await agent._evaluate(ctx, "sarvam-105b")
+            assert store.search.call_count == 1
+            # Mutate an eligibility-relevant field -> fingerprint changes.
+            ctx.user_profile.health_need = "kidney dialysis"
+            await agent._evaluate(ctx, "sarvam-105b")
+            assert store.search.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_rag_prunes_to_topk_hits_not_full_applicable(self):
+        # 10 applicable schemes, but retrieval only surfaces 3 -> evaluate 3.
+        schemes = [_make_scheme(f"s{i}") for i in range(10)]
+        store = _mock_store([schemes[2], schemes[5], schemes[7]])
+        agent = EligibilityAgent(
+            client=_mock_client(),
+            model="sarvam-105b",
+            schemes=schemes,
+            store=store,
+            batch_size=20,
+            max_parallel_batches=1,
+        )
+        ctx = _make_context(state=None)
+
+        async def fake_llm(system_prompt: str, *_a: Any, **_k: Any) -> dict[str, Any]:
+            return _ineligible_match_for_each(system_prompt)
+
+        with patch(
+            "vaidya.agents.eligibility.prompts.render",
+            side_effect=lambda _name, **kw: kw["schemes"],
+        ):
+            agent._call_llm_json = AsyncMock(side_effect=fake_llm)  # type: ignore[method-assign]
+            result = await agent._evaluate(ctx, "sarvam-105b")
+
+        # Pruned to the retrieval-ranked top-k, preserving retrieval order.
+        assert result.schemes_evaluated == 3
+        assert [m.scheme_id for m in result.matches] == ["s2", "s5", "s7"]
+
+    @pytest.mark.asyncio
+    async def test_empty_rag_result_falls_back_to_full_applicable(self):
+        # Retrieval finds nothing applicable -> evaluate the FULL applicable set
+        # so a weak/empty retrieval can never cause false negatives.
+        schemes = [_make_scheme(f"s{i}") for i in range(4)]
+        store = _mock_store([])
+        agent = EligibilityAgent(
+            client=_mock_client(),
+            model="sarvam-105b",
+            schemes=schemes,
+            store=store,
+            batch_size=20,
+            max_parallel_batches=1,
+        )
+        ctx = _make_context(state=None)
+
+        async def fake_llm(system_prompt: str, *_a: Any, **_k: Any) -> dict[str, Any]:
+            return _ineligible_match_for_each(system_prompt)
+
+        with patch(
+            "vaidya.agents.eligibility.prompts.render",
+            side_effect=lambda _name, **kw: kw["schemes"],
+        ):
+            agent._call_llm_json = AsyncMock(side_effect=fake_llm)  # type: ignore[method-assign]
+            result = await agent._evaluate(ctx, "sarvam-105b")
+
+        assert result.schemes_evaluated == 4
+        # An empty retrieval must not pin the cache (so a later turn retries).
+        assert "eligibility_rag_fingerprint" not in ctx.metadata
+
+    @pytest.mark.asyncio
+    async def test_no_store_evaluates_full_applicable_without_search(self):
+        # No knowledge store at all -> full applicable set, no pruning, no cache.
+        schemes = [_make_scheme(f"s{i}") for i in range(4)]
+        agent = EligibilityAgent(
+            client=_mock_client(),
+            model="sarvam-105b",
+            schemes=schemes,
+            batch_size=20,
+            max_parallel_batches=1,
+        )
+        ctx = _make_context(state=None)
+
+        async def fake_llm(system_prompt: str, *_a: Any, **_k: Any) -> dict[str, Any]:
+            return _ineligible_match_for_each(system_prompt)
+
+        with patch(
+            "vaidya.agents.eligibility.prompts.render",
+            side_effect=lambda _name, **kw: kw["schemes"],
+        ):
+            agent._call_llm_json = AsyncMock(side_effect=fake_llm)  # type: ignore[method-assign]
+            result = await agent._evaluate(ctx, "sarvam-105b")
+
+        assert result.schemes_evaluated == 4
+        assert "eligibility_rag_fingerprint" not in ctx.metadata
+
+    def test_profile_fingerprint_stable_and_sensitive(self):
+        ctx = _make_context(
+            state="Maharashtra",
+            income=IncomeCategory.BELOW_1L,
+            occupation=OccupationType.DAILY_WAGE,
+            health_need="heart surgery",
+        )
+        fp1 = EligibilityAgent._profile_fingerprint(ctx)
+        # Stable across calls when nothing changes.
+        assert fp1 == EligibilityAgent._profile_fingerprint(ctx)
+        # Sensitive to an eligibility-relevant change.
+        ctx.user_profile.income_bracket = IncomeCategory.ABOVE_5L
+        assert EligibilityAgent._profile_fingerprint(ctx) != fp1
