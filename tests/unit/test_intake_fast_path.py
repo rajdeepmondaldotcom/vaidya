@@ -18,7 +18,9 @@ from vaidya.models.user_profile import UserProfile
 
 
 def _agent() -> IntakeAgent:
-    return IntakeAgent(client=object(), model="mock")
+    agent = IntakeAgent(client=object(), model="mock")
+    agent._fast_path_enabled = True  # tests exercise the opt-in fast path
+    return agent
 
 
 class TestTryFastExtractGate:
