@@ -16,6 +16,7 @@ from vaidya.voice.language import (
     TTS_SPEAKERS,
     Language,
     get_sarvam_code,
+    is_filler_utterance,
     is_supported,
     normalize_language,
 )
@@ -168,6 +169,22 @@ class TestGetSarvamCode:
 # ---------------------------------------------------------------------------
 
 
+# Speakers accepted by BOTH bulbul:v3 surfaces, taken verbatim from each
+# API's 400 error listing (the two lists differ: "anushka"/"abhilash" are
+# streaming-only, "niharika" is REST-only, "amelia" is v2-only). A speaker
+# outside this intersection 400s on one surface and the bot goes silent.
+_BULBUL_V3_SPEAKERS = frozenset(
+    {
+        "aditya", "ritu", "ashutosh", "priya", "neha", "rahul", "pooja",
+        "rohan", "simran", "kavya", "amit", "dev", "ishita", "shreya",
+        "ratan", "varun", "manan", "sumit", "roopa", "kabir", "aayan",
+        "shubh", "advait", "anand", "tanya", "tarun", "sunny", "mani",
+        "gokul", "vijay", "shruti", "suhani", "mohit", "kavitha", "rehan",
+        "soham", "rupali",
+    }
+)  # fmt: skip
+
+
 class TestTTSSpeakers:
     def test_has_entry_for_every_language(self) -> None:
         for lang in Language:
@@ -176,6 +193,37 @@ class TestTTSSpeakers:
     def test_values_are_non_empty_strings(self) -> None:
         for lang, speaker in TTS_SPEAKERS.items():
             assert isinstance(speaker, str) and speaker, f"Empty speaker for {lang}"
+
+    def test_every_speaker_is_valid_for_bulbul_v3(self) -> None:
+        """An invalid speaker 400s at call time and the bot goes silent."""
+        for lang, speaker in TTS_SPEAKERS.items():
+            assert speaker in _BULBUL_V3_SPEAKERS, (
+                f"{lang}: speaker {speaker!r} is not a bulbul:v3 voice"
+            )
+
+
+# ---------------------------------------------------------------------------
+# is_filler_utterance
+# ---------------------------------------------------------------------------
+
+
+class TestIsFillerUtterance:
+    def test_common_fillers_across_languages(self) -> None:
+        for utterance in ["Okay", "ok!", "Hello", "हाँ", "ठीक है", "ঠিক আছে", "Haan ji", "hmm"]:
+            assert is_filler_utterance(utterance), utterance
+
+    def test_substantive_utterances_are_not_fillers(self) -> None:
+        for utterance in [
+            "Tamil",
+            "Main Bihar mein rehta hoon",
+            "আমার কি কি স্বাস্থ্য প্রকল্প আছে?",
+            "My family has five people",
+        ]:
+            assert not is_filler_utterance(utterance), utterance
+
+    def test_empty_and_whitespace_are_not_fillers(self) -> None:
+        assert not is_filler_utterance("")
+        assert not is_filler_utterance("   ")
 
 
 # ---------------------------------------------------------------------------

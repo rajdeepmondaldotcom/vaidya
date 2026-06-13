@@ -463,8 +463,9 @@ class TestWelcomePhase:
         assert "namaste" in text_lower
         assert "vaidya" in text_lower
         # Language-ask wording, not a state question.
-        assert "language" in text_lower
-        assert "odia" in text_lower
+        # Shorter welcome: lists a few languages + "or any other".
+        assert "bhasha" in text_lower
+        assert "tamil" in text_lower
         assert "english" in text_lower
         # Spoken consent is never narrated on voice.
         assert "record karne" not in text_lower

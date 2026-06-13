@@ -50,5 +50,31 @@
     "pa-IN": "Maafi, thodi dikkat aa gayi. Fir dassoge?",
     "od-IN": "Kshama karantu, gotie samasya aasila. Punithare kahantu?",
     "en-IN": "Sorry, something went wrong. Could you say that again?"
+  },
+  "processing_ack": {
+    "hi-IN": "Ji, ek second.",
+    "ta-IN": "Sari, oru nimisham.",
+    "bn-IN": "Acchha, ek second.",
+    "te-IN": "Sare, okka kshanam.",
+    "gu-IN": "Saru, ek second.",
+    "kn-IN": "Sari, ondu kshana.",
+    "ml-IN": "Sheri, oru nimisham.",
+    "mr-IN": "Theek aahe, ek second.",
+    "pa-IN": "Theek hai, ik second.",
+    "od-IN": "Thik achhi, tike rahantu.",
+    "en-IN": "Okay, one moment."
+  },
+  "still_working": {
+    "hi-IN": "Bas thoda aur, main dekh raha hoon.",
+    "ta-IN": "Innum paarkiren, konjam poruthunga.",
+    "bn-IN": "Ektu dhorun, ami dekhchhi.",
+    "te-IN": "Inka chustunnanu, konchem aagandi.",
+    "gu-IN": "Hajee jou chhu, ek minute.",
+    "kn-IN": "Innu noduttiddene, ondu nimisha.",
+    "ml-IN": "Ippozhum nokkunnu, oru nimisham.",
+    "mr-IN": "Ajun baghat aahe, ek minute.",
+    "pa-IN": "Haale dekh reha haan, ik minute.",
+    "od-IN": "Aau tike, mun dekhuchhi.",
+    "en-IN": "Still checking, just a moment."
   }
 }

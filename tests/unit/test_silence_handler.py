@@ -16,9 +16,9 @@ class TestSilenceSteps:
     def test_has_three_steps(self):
         assert len(SILENCE_STEPS) == 3
 
-    def test_thresholds_are_6_12_20(self):
+    def test_thresholds_are_10_20_32(self):
         thresholds = [s[0] for s in SILENCE_STEPS]
-        assert thresholds == [6.0, 12.0, 20.0]
+        assert thresholds == [10.0, 20.0, 32.0]
 
     def test_keys_match_i18n(self):
         keys = [s[1] for s in SILENCE_STEPS]
@@ -42,27 +42,27 @@ class TestGetVoiceStep:
     def setup_method(self):
         self.handler = SilenceHandler()
 
-    def test_returns_nudge_at_6s(self):
-        step = self.handler.get_voice_step(6.0)
+    def test_returns_nudge_at_10s(self):
+        step = self.handler.get_voice_step(10.0)
         assert step is not None
         threshold, key, terminal = step
-        assert threshold == 6.0
+        assert threshold == 10.0
         assert key == "silence_nudge"
         assert terminal is False
 
-    def test_returns_reprompt_at_12s(self):
-        step = self.handler.get_voice_step(12.0)
-        assert step is not None
-        threshold, key, terminal = step
-        assert threshold == 12.0
-        assert key == "silence_reprompt_prefix"
-        assert terminal is False
-
-    def test_returns_closure_at_20s_terminal(self):
+    def test_returns_reprompt_at_20s(self):
         step = self.handler.get_voice_step(20.0)
         assert step is not None
         threshold, key, terminal = step
         assert threshold == 20.0
+        assert key == "silence_reprompt_prefix"
+        assert terminal is False
+
+    def test_returns_closure_at_32s_terminal(self):
+        step = self.handler.get_voice_step(32.0)
+        assert step is not None
+        threshold, key, terminal = step
+        assert threshold == 32.0
         assert key == "silence_closure"
         assert terminal is True
 
@@ -96,5 +96,5 @@ class TestLegacyGetSilenceResponse:
         )
 
     def test_should_end_call_at_20s(self):
-        assert self.handler.should_end_call(20.0) is True
+        assert self.handler.should_end_call(32.0) is True
         assert self.handler.should_end_call(19.0) is False

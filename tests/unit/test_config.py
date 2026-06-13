@@ -32,6 +32,6 @@ def test_allowed_origins_accepts_json_env_value(monkeypatch):
 def test_scheme_evaluation_defaults():
     settings = Settings()
 
-    assert settings.scheme_eval_batch_size == 20
-    assert settings.scheme_eval_max_parallel_batches == 3
+    assert settings.scheme_eval_batch_size == 3
+    assert settings.scheme_eval_max_parallel_batches == 8
     assert settings.scheme_retrieval_rank_top_k == 10

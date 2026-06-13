@@ -369,7 +369,7 @@ class TestTurnLocking:
 
 class TestHandleSilence:
     @pytest.mark.asyncio
-    async def test_6s_returns_nudge_not_terminal(self):
+    async def test_10s_returns_nudge_not_terminal(self):
         orch, session, translator, audit, _ = _make_deps()
         ctx = _make_context(language="hi-IN", phase=ConversationPhase.INTAKE)
         session.get = AsyncMock(return_value=ctx)
@@ -380,12 +380,12 @@ class TestHandleSilence:
             translator=translator,
             audit_trail=audit,
         )
-        spoken, terminal = await mgr.handle_silence("test-call-001", 6.0)
+        spoken, terminal = await mgr.handle_silence("test-call-001", 10.0)
         assert "sun raha hoon" in spoken
         assert terminal is False
 
     @pytest.mark.asyncio
-    async def test_12s_intake_prepends_reprompt_to_last_assistant_turn(self):
+    async def test_20s_intake_prepends_reprompt_to_last_assistant_turn(self):
         orch, session, translator, audit, _ = _make_deps()
         ctx = _make_context(language="hi-IN", phase=ConversationPhase.INTAKE)
         ctx.transcript = [
@@ -410,14 +410,14 @@ class TestHandleSilence:
             translator=translator,
             audit_trail=audit,
         )
-        spoken, terminal = await mgr.handle_silence("test-call-001", 12.0)
+        spoken, terminal = await mgr.handle_silence("test-call-001", 20.0)
         # Prefix + last question glued together
         assert "Ek baar phir" in spoken
         assert "Aap kahaan rehte hain?" in spoken
         assert terminal is False
 
     @pytest.mark.asyncio
-    async def test_12s_intake_with_no_assistant_transcript_returns_bare_prefix(self):
+    async def test_20s_intake_with_no_assistant_transcript_returns_bare_prefix(self):
         orch, session, translator, audit, _ = _make_deps()
         ctx = _make_context(language="hi-IN", phase=ConversationPhase.INTAKE)
         ctx.transcript = []  # no prior turns
@@ -429,13 +429,13 @@ class TestHandleSilence:
             translator=translator,
             audit_trail=audit,
         )
-        spoken, terminal = await mgr.handle_silence("test-call-001", 12.0)
+        spoken, terminal = await mgr.handle_silence("test-call-001", 20.0)
         # Prefix alone still returned
         assert "Ek baar phir" in spoken
         assert terminal is False
 
     @pytest.mark.asyncio
-    async def test_12s_in_welcome_uses_short_english_language_reprompt(self):
+    async def test_20s_in_welcome_uses_short_english_language_reprompt(self):
         """During WELCOME (language-select) we must NOT replay the long
         multi-lingual greeting — we use a short English prompt instead."""
         orch, session, translator, audit, _ = _make_deps()
@@ -458,7 +458,7 @@ class TestHandleSilence:
             translator=translator,
             audit_trail=audit,
         )
-        spoken, terminal = await mgr.handle_silence("test-call-001", 12.0)
+        spoken, terminal = await mgr.handle_silence("test-call-001", 20.0)
         # Short English prompt, not the prefix + long welcome
         assert "Please say one language name" in spoken
         assert "Hindi, Tamil, Bengali" in spoken
@@ -469,7 +469,7 @@ class TestHandleSilence:
         assert terminal is False
 
     @pytest.mark.asyncio
-    async def test_20s_returns_closure_terminal(self):
+    async def test_32s_returns_closure_terminal(self):
         orch, session, translator, audit, _ = _make_deps()
         ctx = _make_context(language="hi-IN", phase=ConversationPhase.INTAKE)
         session.get = AsyncMock(return_value=ctx)
@@ -480,7 +480,7 @@ class TestHandleSilence:
             translator=translator,
             audit_trail=audit,
         )
-        spoken, terminal = await mgr.handle_silence("test-call-001", 20.0)
+        spoken, terminal = await mgr.handle_silence("test-call-001", 32.0)
         assert "Line cut" in spoken or "Dhanyavaad" in spoken
         assert terminal is True
         assert ctx.phase == ConversationPhase.CLOSURE
@@ -514,7 +514,7 @@ class TestHandleSilence:
             translator=translator,
             audit_trail=audit,
         )
-        spoken, _ = await mgr.handle_silence("test-call-001", 6.0)
+        spoken, _ = await mgr.handle_silence("test-call-001", 10.0)
         # Tamil nudge, not Hindi
         assert "ketkiren" in spoken.lower() or "sollunga" in spoken.lower()
 
@@ -532,7 +532,7 @@ class TestHandleSilence:
             audit_trail=audit,
         )
 
-        early, terminal = await mgr.handle_silence("test-call-001", 6.0)
+        early, terminal = await mgr.handle_silence("test-call-001", 10.0)
         assert early == ""
         assert terminal is False
 
@@ -569,9 +569,32 @@ class TestSwitchLanguage:
         assert updated_ctx.metadata["language_source"] == "stt"
 
     @pytest.mark.asyncio
-    async def test_no_switch_when_same_language(self):
+    async def test_same_language_confirms_choice_without_switching(self):
+        """Speaking the default language is still a choice: no switch, but
+        the welcome gate must release via ``language_confirmed``."""
+        orch, session, translator, audit, _ = _make_deps()
+        ctx = _make_context(language="hi-IN", phase=ConversationPhase.WELCOME)
+        session.get = AsyncMock(return_value=ctx)
+
+        mgr = ConversationManager(
+            orchestrator=orch,
+            session_manager=session,
+            translator=translator,
+            audit_trail=audit,
+        )
+        result = await mgr.switch_language("test-call-001", "hi-IN")
+        assert result is False
+        session.update.assert_awaited()
+        updated_ctx = session.update.await_args.args[0]
+        assert updated_ctx.language == "hi-IN"
+        assert updated_ctx.metadata["language_confirmed"] is True
+        assert updated_ctx.metadata["language_source"] == "stt"
+
+    @pytest.mark.asyncio
+    async def test_same_language_already_confirmed_is_a_noop(self):
         orch, session, translator, audit, _ = _make_deps()
         ctx = _make_context(language="hi-IN", phase=ConversationPhase.INTAKE)
+        ctx.metadata["language_confirmed"] = True
         session.get = AsyncMock(return_value=ctx)
 
         mgr = ConversationManager(
@@ -614,3 +637,77 @@ class TestSwitchLanguage:
         result = await mgr.switch_language("ghost-call", "ta-IN")
         assert result is False
         session.update.assert_not_awaited()
+
+
+# ---------------------------------------------------------------------------
+# Dropped-call recovery (start_conversation resume policy)
+# ---------------------------------------------------------------------------
+
+
+class TestDroppedCallRecovery:
+    @pytest.mark.asyncio
+    async def test_welcome_phase_session_is_not_resumed(self):
+        """A session still at the language gate has no progress worth
+        resuming — the caller should get a fresh welcome instead."""
+        orch, session, translator, audit, _ = _make_deps()
+        stale = _make_context(call_id="old-call", phase=ConversationPhase.WELCOME)
+        session.find_by_phone = AsyncMock(return_value="old-call")
+        session.get = AsyncMock(return_value=stale)
+
+        mgr = ConversationManager(
+            orchestrator=orch,
+            session_manager=session,
+            translator=translator,
+            audit_trail=audit,
+        )
+        call_id, welcome = await mgr.start_conversation("hash123", "hi-IN", channel="voice")
+
+        session.create.assert_awaited()  # fresh session, not a resume
+        assert call_id != "old-call"
+        assert "kat gaya" not in welcome
+
+    @pytest.mark.asyncio
+    async def test_intake_session_resumes_and_reasks_last_question(self):
+        orch, session, translator, audit, _ = _make_deps()
+        ctx = _make_context(call_id="old-call", phase=ConversationPhase.INTAKE)
+        ctx.add_turn(role="user", text="Bihar", raw_text="Bihar", language="hi-IN")
+        ctx.add_turn(
+            role="assistant",
+            text="Aapke ghar mein kitne log hain?",
+            raw_text="Aapke ghar mein kitne log hain?",
+            language="hi-IN",
+        )
+        session.find_by_phone = AsyncMock(return_value="old-call")
+        session.get = AsyncMock(return_value=ctx)
+
+        mgr = ConversationManager(
+            orchestrator=orch,
+            session_manager=session,
+            translator=translator,
+            audit_trail=audit,
+        )
+        call_id, welcome = await mgr.start_conversation("hash123", "hi-IN", channel="voice")
+
+        assert call_id == "old-call"
+        session.create.assert_not_awaited()
+        # Resume notice followed by the pending question — no dead air.
+        assert "kat gaya" in welcome
+        assert welcome.endswith("Aapke ghar mein kitne log hain?")
+
+    @pytest.mark.asyncio
+    async def test_resume_without_transcript_still_returns_resume_notice(self):
+        orch, session, translator, audit, _ = _make_deps()
+        ctx = _make_context(call_id="old-call", phase=ConversationPhase.INTAKE)
+        session.find_by_phone = AsyncMock(return_value="old-call")
+        session.get = AsyncMock(return_value=ctx)
+
+        mgr = ConversationManager(
+            orchestrator=orch,
+            session_manager=session,
+            translator=translator,
+            audit_trail=audit,
+        )
+        call_id, welcome = await mgr.start_conversation("hash123", "hi-IN", channel="voice")
+
+        assert call_id == "old-call"
+        assert "kat gaya" in welcome

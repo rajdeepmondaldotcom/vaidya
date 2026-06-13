@@ -69,12 +69,12 @@ class TestTTSSpeakerSelection:
         assert mock.tts.call_args.args[2] == "rupali"
 
     @pytest.mark.asyncio
-    async def test_english_uses_amelia(self) -> None:
+    async def test_english_uses_ritu(self) -> None:
         client, mock = _make_client()
 
         await client.synthesize("hello", language="en-IN")
 
-        assert mock.tts.call_args.args[2] == "amelia"
+        assert mock.tts.call_args.args[2] == "ritu"
 
     @pytest.mark.asyncio
     async def test_all_tts_speakers_covered(self) -> None:

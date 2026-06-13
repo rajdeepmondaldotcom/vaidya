@@ -974,3 +974,24 @@ class TestDisagreementFieldIdentification:
         d = result.disagreements[0]
         # "age" keyword found in reasoning -> field is "age"
         assert d.disagreement_field == "age"
+
+
+class TestEligibleVsUncertainSurfaces:
+    """Regression: an eligible-vs-uncertain disagreement (no disqualifier
+    found by either agent) must be surfaced conservatively, not dropped as
+    'no scheme matched'. This was the production false-negative."""
+
+    def test_eligible_vs_uncertain_is_surfaced(
+        self,
+        checker: ConvergenceChecker,
+        ctx_empty_transcript: ConversationContext,
+    ):
+        e = make_scheme_match(scheme_id="PMJAY", verdict=EligibilityVerdict.ELIGIBLE)
+        r = make_scheme_match(scheme_id="PMJAY", verdict=EligibilityVerdict.UNCERTAIN)
+        result = checker.check(
+            make_eligibility_result([e]),
+            make_reviewer_result([r]),
+            ctx_empty_transcript,
+        )
+        all_ids = [m.scheme_id for m in result.all_eligible]
+        assert "PMJAY" in all_ids
