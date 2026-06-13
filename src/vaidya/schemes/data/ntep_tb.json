@@ -1,0 +1,142 @@
+{
+  "scheme_id": "NTEP-2024-v1",
+  "canonical_name": "National Tuberculosis Elimination Programme (NTEP)",
+  "aliases": [
+    "NTEP",
+    "National TB Elimination Programme",
+    "RNTCP",
+    "Revised National Tuberculosis Control Programme",
+    "TB Mukt Bharat",
+    "DOTS Programme",
+    "Free TB Treatment",
+    "Government TB Programme"
+  ],
+  "local_names": {
+    "hi": "राष्ट्रीय क्षय रोग उन्मूलन कार्यक्रम",
+    "bn": "জাতীয় যক্ষ্মা নির্মূল কর্মসূচি",
+    "ta": "தேசிய காசநோய் ஒழிப்புத் திட்டம்",
+    "te": "జాతీయ క్షయ నిర్మూలన కార్యక్రమం",
+    "mr": "राष्ट्रीय क्षयरोग निर्मूलन कार्यक्रम",
+    "gu": "રાષ્ટ્રીય ક્ષય નિર્મૂલન કાર્યક્રમ",
+    "kn": "ರಾಷ್ಟ್ರೀಯ ಕ್ಷಯ ರೋಗ ನಿರ್ಮೂಲನಾ ಕಾರ್ಯಕ್ರಮ",
+    "ml": "ദേശീയ ക്ഷയരോഗ നിർമാർജന പരിപാടി",
+    "pa": "ਰਾਸ਼ਟਰੀ ਟੀਬੀ ਖਾਤਮਾ ਪ੍ਰੋਗਰਾਮ",
+    "or": "ଜାତୀୟ ଯକ୍ଷ୍ମା ନିର୍ମୂଳନ କାର୍ଯ୍ୟକ୍ରମ"
+  },
+  "state_variant_of": null,
+  "jurisdiction": "central",
+  "state_code": null,
+  "income_thresholds": [],
+  "secc_categories": [],
+  "occupation_included": [
+    "all_citizens",
+    "presumptive_tb_case",
+    "tb_patient",
+    "daily_wage",
+    "farmer",
+    "construction_worker",
+    "migrant_worker",
+    "tribal",
+    "homeless",
+    "prisoner",
+    "factory_worker",
+    "mine_worker"
+  ],
+  "occupation_excluded": [],
+  "exclusion_rules": [
+    {
+      "rule_id": "NTEP-EX-001",
+      "exclusion_type": "soft",
+      "field": "tb_status",
+      "condition": "has_tb_symptoms == false AND diagnosed_tb == false",
+      "description": "TB diagnostic and treatment services apply to persons with presumptive TB (cough >2 weeks, fever, weight loss) or diagnosed TB. Anyone with symptoms can walk in for free testing — there is no income, age, or category bar. This is not a hard exclusion: the programme actively seeks out presumptive cases.",
+      "override_by_state": false
+    }
+  ],
+  "age_criteria": null,
+  "family_criteria": {
+    "max_family_size": null,
+    "family_definition": "Universal access — every individual in India is entitled to free TB diagnosis and treatment regardless of income, family size, or social category. Household contacts of TB patients are also screened and offered free TB Preventive Treatment (TPT).",
+    "head_of_family_required": false
+  },
+  "geographic_restrictions": [],
+  "coverage_amount_inr": 0,
+  "coverage_type": "per_event",
+  "covered_procedures": [
+    "Free TB diagnosis — sputum microscopy, NAAT/CBNAAT (GeneXpert), Truenat molecular testing",
+    "Free chest X-ray for presumptive TB cases",
+    "Free drug-susceptibility testing (DST) including Line Probe Assay for drug-resistant TB",
+    "Free anti-TB drugs (first-line FDC) for drug-sensitive TB for the full 6-month course",
+    "Free second-line and newer drugs (Bedaquiline, Delamanid) for MDR-TB and XDR-TB",
+    "Daily fixed-dose combination (FDC) regimen under DOTS",
+    "Nutrition support of Rs 1000 per month via DBT for the full treatment duration (Ni-kshay Poshan Yojana)",
+    "Free TB Preventive Treatment (TPT) for household contacts and high-risk groups",
+    "Free treatment of TB-HIV co-infection in coordination with NACO",
+    "Follow-up sputum testing and treatment monitoring at no cost",
+    "Treatment adherence support via Ni-kshay Mitra and digital adherence technologies"
+  ],
+  "excluded_procedures": [
+    "Private hospital room charges or non-TB hospitalization costs",
+    "Treatment of unrelated illnesses (covered under other schemes such as PM-JAY)",
+    "Cosmetic or non-TB surgical procedures"
+  ],
+  "required_documents": [
+    {
+      "name": "Aadhaar Card",
+      "category": "identity",
+      "mandatory": false,
+      "alternatives": ["Voter ID", "Ration Card", "Any government photo ID"],
+      "local_name_hi": "आधार कार्ड",
+      "notes": "Helpful for Ni-kshay registration and DBT nutrition support, but TB testing and treatment are NOT denied for lack of ID. Aadhaar is needed only to receive the Rs 1000/month DBT."
+    },
+    {
+      "name": "Bank Account (Aadhaar-linked)",
+      "category": "financial",
+      "mandatory": false,
+      "alternatives": ["Family member's Aadhaar-linked bank account"],
+      "local_name_hi": "बैंक खाता (आधार से जुड़ा)",
+      "notes": "Required only to receive the Rs 1000/month nutrition DBT. Not required for free diagnosis or drugs."
+    }
+  ],
+  "enrollment_channels": [
+    "Any government hospital, PHC, CHC, or district hospital",
+    "Designated Microscopy Centre (DMC) at government facilities",
+    "District TB Centre (DTC)",
+    "Tuberculosis Unit (TU) at block level",
+    "Private doctors and labs notifying through Ni-kshay portal",
+    "ASHA / ANM community health worker referral",
+    "Ni-kshay portal (nikshay.in)",
+    "National TB Helpline 1800-11-6666"
+  ],
+  "enrollment_steps": [
+    "Step 1: Visit any government health facility (PHC, CHC, district hospital, or DMC) if you have cough for more than 2 weeks, fever, night sweats, or weight loss",
+    "Step 2: Provide a sputum sample for free microscopy / NAAT (CBNAAT or Truenat) molecular testing",
+    "Step 3: Get a free chest X-ray if advised by the medical officer",
+    "Step 4: If diagnosed with TB, the treating doctor notifies (registers) your case on the Ni-kshay portal — mandatory by law",
+    "Step 5: Receive free anti-TB drugs and begin the DOTS treatment regimen at the nearest facility",
+    "Step 6: Provide Aadhaar and bank details so the Rs 1000/month nutrition DBT can be credited",
+    "Step 7: Attend follow-up visits for sputum re-testing and complete the full treatment course (6 months for drug-sensitive TB)",
+    "Step 8: Household contacts are screened and offered free TB Preventive Treatment"
+  ],
+  "processing_time_days": 1,
+  "helpline_number": "1800-11-6666",
+  "portal_url": "https://nikshay.in",
+  "version": "1.0",
+  "effective_date": "2020-01-01",
+  "expiry_date": null,
+  "last_verified": "2026-06-13",
+  "source_url": "https://dghs.mohfw.gov.in/national-tuberculosis-elimination-programme.php",
+  "confidence_level": "provisional",
+  "description_for_embedding": "The National Tuberculosis Elimination Programme (NTEP), formerly the Revised National TB Control Programme (RNTCP), is India's central government programme to eliminate tuberculosis under the TB Mukt Bharat mission. It provides completely FREE TB services to every person in India regardless of income, age, or social category. Free services include sputum microscopy, molecular diagnostics (CBNAAT/GeneXpert, Truenat), chest X-ray, drug-susceptibility testing, and the full course of quality-assured anti-TB drugs delivered under DOTS. Drug-resistant TB (MDR-TB, XDR-TB) patients receive free second-line and newer drugs such as Bedaquiline and Delamanid. All notified TB patients also get Rs 1000 per month as Direct Benefit Transfer for nutrition support (Ni-kshay Poshan Yojana) for the full treatment duration. Household contacts and high-risk groups are screened and offered free TB Preventive Treatment. Anyone with TB symptoms — cough over two weeks, fever, weight loss, night sweats — can walk into any government health facility (PHC, CHC, district hospital, or designated microscopy centre) for free testing and treatment. Services are delivered through the public health system and coordinated via the Ni-kshay digital portal, where private providers are also legally required to notify TB cases. NTEP is broader than the standalone Ni-kshay Poshan nutrition scheme: it covers the entire diagnosis-to-cure pathway at no cost to the patient.",
+  "keywords": [
+    "tuberculosis", "TB", "NTEP", "RNTCP", "TB Mukt Bharat", "DOTS",
+    "free TB treatment", "free TB test", "sputum test", "chest x-ray",
+    "CBNAAT", "GeneXpert", "Truenat", "MDR-TB", "drug resistant TB",
+    "anti-TB drugs", "TB diagnosis", "TB medicine free", "nikshay",
+    "TB nutrition", "Rs 1000 TB", "DBT", "presumptive TB", "cough 2 weeks",
+    "क्षय रोग", "टीबी", "तपेदिक", "मुफ्त टीबी इलाज", "टीबी जांच",
+    "बलगम जांच", "टीबी की दवा", "निक्षय", "डॉट्स", "टीबी मुक्त भारत",
+    "free tuberculosis", "government TB programme", "TB helpline", "1800-11-6666",
+    "central scheme", "public health", "TB preventive treatment", "TPT"
+  ]
+}

@@ -1,0 +1,120 @@
+{
+  "scheme_id": "NPCBVI-2024-v1",
+  "canonical_name": "National Programme for Control of Blindness and Visual Impairment (NPCBVI)",
+  "aliases": [
+    "NPCBVI",
+    "NPCB",
+    "National Programme for Control of Blindness",
+    "National Programme for Control of Blindness and Visual Impairment",
+    "Free Cataract Surgery Scheme",
+    "Netra Jyoti Abhiyan",
+    "Eye Care Programme",
+    "Blindness Control Programme"
+  ],
+  "local_names": {
+    "hi": "राष्ट्रीय दृष्टिहीनता एवं दृष्टि दोष नियंत्रण कार्यक्रम",
+    "bn": "জাতীয় অন্ধত্ব ও দৃষ্টি প্রতিবন্ধকতা নিয়ন্ত্রণ কর্মসূচি",
+    "ta": "தேசிய பார்வையின்மை மற்றும் பார்வைக் குறைபாடு கட்டுப்பாட்டு திட்டம்",
+    "te": "జాతీయ అంధత్వ దృష్టి లోప నియంత్రణ కార్యక్రమం",
+    "mr": "राष्ट्रीय अंधत्व व दृष्टिदोष नियंत्रण कार्यक्रम",
+    "gu": "રાષ્ટ્રીય અંધત્વ અને દૃષ્ટિ ક્ષતિ નિયંત્રણ કાર્યક્રમ",
+    "kn": "ರಾಷ್ಟ್ರೀಯ ಅಂಧತ್ವ ಮತ್ತು ದೃಷ್ಟಿ ದೋಷ ನಿಯಂತ್ರಣ ಕಾರ್ಯಕ್ರಮ",
+    "ml": "ദേശീയ അന്ധത നിയന്ത്രണ കാഴ്ച വൈകല്യ പരിപാടി",
+    "pa": "ਰਾਸ਼ਟਰੀ ਅੰਨ੍ਹੇਪਣ ਅਤੇ ਨਜ਼ਰ ਨੁਕਸ ਕੰਟਰੋਲ ਪ੍ਰੋਗਰਾਮ",
+    "or": "ଜାତୀୟ ଅନ୍ଧତ୍ୱ ଓ ଦୃଷ୍ଟି ବିକଳାଙ୍ଗ ନିୟନ୍ତ୍ରଣ କାର୍ଯ୍ୟକ୍ରମ"
+  },
+  "state_variant_of": null,
+  "jurisdiction": "central",
+  "state_code": null,
+  "income_thresholds": [],
+  "secc_categories": [],
+  "occupation_included": [
+    "all_citizens",
+    "cataract_patient",
+    "visually_impaired",
+    "elderly",
+    "school_child",
+    "farmer",
+    "daily_wage",
+    "tribal",
+    "diabetic"
+  ],
+  "occupation_excluded": [],
+  "exclusion_rules": [],
+  "age_criteria": null,
+  "family_criteria": {
+    "max_family_size": null,
+    "family_definition": "Universal access — free eye care, cataract surgery, and visual-impairment services are available to every person in India regardless of income, age, or family size. School children are specifically covered for refractive-error screening and free spectacles.",
+    "head_of_family_required": false
+  },
+  "geographic_restrictions": [],
+  "coverage_amount_inr": 0,
+  "coverage_type": "per_event",
+  "covered_procedures": [
+    "Free cataract surgery (including intraocular lens / IOL) at government hospitals and empanelled NGO eye hospitals",
+    "Free eye check-ups and screening at outreach eye camps in rural areas",
+    "Free treatment and management of other eye diseases (glaucoma, diabetic retinopathy, corneal blindness)",
+    "Free distribution of spectacles to school children with refractive errors",
+    "Free spectacles for near vision to the elderly (presbyopia) where provided",
+    "Corneal transplantation and eye banking services (collection and distribution of donated corneas)",
+    "Treatment of childhood blindness and squint correction",
+    "Diabetic retinopathy screening and laser treatment at designated centres",
+    "Screening and management of glaucoma",
+    "Vision centres and eye care services integrated with primary health care"
+  ],
+  "excluded_procedures": [
+    "Private hospital cataract or eye surgery charges",
+    "Premium / cosmetic intraocular lenses beyond the standard IOL provided",
+    "Refractive (LASIK) surgery for cosmetic vision correction"
+  ],
+  "required_documents": [
+    {
+      "name": "Any Government Photo ID",
+      "category": "identity",
+      "mandatory": false,
+      "alternatives": ["Aadhaar Card", "Voter ID", "Ration Card"],
+      "local_name_hi": "कोई सरकारी फोटो पहचान पत्र",
+      "notes": "Helpful for hospital registration and follow-up, but free eye screening and cataract surgery at camps and government hospitals are not denied for lack of ID."
+    }
+  ],
+  "enrollment_channels": [
+    "Government district hospital eye / ophthalmology department",
+    "Regional Institute of Ophthalmology",
+    "Empanelled NGO and private eye hospitals (under NPCBVI tie-up)",
+    "Free eye screening camps in villages and urban areas",
+    "Vision Centre at Primary Health Centre level",
+    "District Blindness Control Society (DBCS)",
+    "School eye screening programme (for children)",
+    "ASHA / ANM community health worker referral"
+  ],
+  "enrollment_steps": [
+    "Step 1: Attend a free eye screening camp in your area, or visit the eye department of a government district hospital or a vision centre",
+    "Step 2: Get a free eye examination by an ophthalmologist or ophthalmic assistant",
+    "Step 3: If a cataract is detected, you are registered for free cataract surgery at a government or empanelled NGO eye hospital",
+    "Step 4: Undergo free cataract surgery with an intraocular lens (IOL) implant",
+    "Step 5: Receive post-operative care, medicines, and follow-up free of cost",
+    "Step 6: For refractive errors, school children and others receive free spectacles",
+    "Step 7: Other eye conditions (glaucoma, diabetic retinopathy, corneal blindness) are treated or referred to specialized centres at no cost"
+  ],
+  "processing_time_days": 7,
+  "helpline_number": "104",
+  "portal_url": "https://npcbvi.mohfw.gov.in",
+  "version": "1.0",
+  "effective_date": "2017-01-01",
+  "expiry_date": null,
+  "last_verified": "2026-06-13",
+  "source_url": "https://dghs.mohfw.gov.in/opthalmology-division.php",
+  "confidence_level": "provisional",
+  "description_for_embedding": "The National Programme for Control of Blindness and Visual Impairment (NPCBVI), originally launched in 1976 as the National Programme for Control of Blindness and renamed in 2017, is a central government programme implemented within the National Health Mission framework to reduce avoidable blindness in India. It provides FREE cataract surgery in government hospitals, district health centres, and empanelled NGO-run eye hospitals, and funds outreach eye camps where free eye check-ups and cataract operations are conducted in rural areas — all with no income test or means assessment. Cataract is the leading cause of blindness in India, and free cataract surgery with intraocular lens (IOL) implantation is the programme's flagship service; the Mission Mode Cataract Surgery campaign (Netra Jyoti Abhiyan) has cleared large backlogs of eligible cases. Beyond cataract, NPCBVI covers treatment of other eye diseases such as glaucoma, diabetic retinopathy, and corneal blindness, supports eye banking and corneal transplantation, screens school children for refractive errors and distributes free spectacles, and manages childhood blindness. Primary and secondary eye care is delivered through district hospitals, regional institutes of ophthalmology, vision centres at primary health level, and District Blindness Control Societies. Anyone with poor vision, suspected cataract, or any eye problem — especially the elderly — can get a free eye check-up at a government eye camp or district hospital and receive free cataract surgery if needed. The programme is centrally funded with cost-sharing arrangements with States under NHM.",
+  "keywords": [
+    "blindness", "NPCBVI", "NPCB", "cataract", "free cataract surgery",
+    "eye care", "eye camp", "spectacles", "vision", "visual impairment",
+    "eye check up", "IOL", "intraocular lens", "glaucoma", "diabetic retinopathy",
+    "corneal transplant", "eye donation", "Netra Jyoti", "free eye surgery",
+    "अंधापन", "मोतियाबिंद", "मुफ्त मोतियाबिंद ऑपरेशन", "आंख की जांच",
+    "नेत्र शिविर", "चश्मा", "दृष्टि दोष", "आंख का इलाज", "नेत्र ज्योति",
+    "free eye check up", "cataract operation", "eye hospital", "ophthalmology",
+    "central scheme", "public health", "low vision", "school eye screening",
+    "104 helpline", "blindness control"
+  ]
+}
