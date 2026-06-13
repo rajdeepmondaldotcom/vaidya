@@ -165,7 +165,10 @@ if TYPE_CHECKING:
 # translations), then a progress note on an interval. The ack delay is set
 # ABOVE the intake-turn time so quick turns just answer (no "one second"
 # filler); only the multi-call eligibility crunch (~15-25s) trips it.
-PROCESSING_ACK_DELAY_SECONDS = 7.0
+# Held just above a normal intake turn (~3-5s with the faster intake path) so
+# quick turns still answer silently, while a slow eligibility crunch reassures
+# the caller ~2s sooner than the old 7.0s floor.
+PROCESSING_ACK_DELAY_SECONDS = 5.0
 PROCESSING_PROGRESS_INTERVAL_SECONDS = 14.0
 # Must cover the longest agent phase (eligibility+reviewer).
 PROCESSING_PROGRESS_MAX_NOTES = 12
@@ -173,10 +176,37 @@ PROCESSING_PROGRESS_MAX_NOTES = 12
 # Sarvam's VAD splits natural pauses mid-sentence ("আমার পরিবারে" +
 # "5 জন আছে।" arrive as two transcripts). Launching a turn per fragment
 # makes the agent answer half-sentences and re-ask questions. Buffer
-# fragments and start the turn after this much transcript quiet.
-# Fragment transcripts arrive up to ~2s apart on slow speech, so the
-# window must comfortably exceed that.
-UTTERANCE_DEBOUNCE_SECONDS = 2.0
+# fragments and start the turn only after a window of transcript *quiet*.
+#
+# The window is ADAPTIVE rather than a flat floor on every turn:
+#
+# - The timer RESETS whenever a new fragment arrives (``_on_transcription``
+#   cancels and re-arms it), so multi-fragment slow speech still merges —
+#   only true quiet, measured from the LAST fragment, ever flushes.
+# - A non-terminal fragment (no sentence-final punctuation yet, i.e. the
+#   speaker is probably mid-sentence) waits the conservative
+#   ``UTTERANCE_DEBOUNCE_SECONDS`` window. This is the floor that has to
+#   tolerate Sarvam's real inter-fragment gaps inside one slow sentence, so
+#   it stays well above them — only modestly below the old 2.0s flat floor.
+# - When the latest fragment carries a strong end-of-utterance signal — it
+#   ends on sentence-final punctuation AND STT confidence is high — we flush
+#   after the much shorter ``UTTERANCE_FLUSH_SECONDS`` window. That is the
+#   common case (Saaras tags a finished utterance with terminal punctuation)
+#   and the big latency win: a single complete sentence starts ~1.5s sooner
+#   than the old 2.0s floor, with no risk of splitting because a fragment
+#   that already *ended* a sentence has no mid-sentence remainder to merge.
+UTTERANCE_DEBOUNCE_SECONDS = 1.3
+# Short window used when the last fragment looks like a finished sentence
+# (sentence-final punctuation + high STT confidence). Still non-zero so a
+# trailing fragment that arrives right behind a sentence end can still merge.
+UTTERANCE_FLUSH_SECONDS = 0.4
+# Below this STT confidence we don't trust the end-of-utterance shortcut and
+# fall back to the full quiet window (sarvam reports per-transcript confidence
+# in 0..1; mid/low-confidence fragments are often mid-thought partials). When
+# the streaming frame carries no confidence field, ``_on_transcription``
+# defaults to 1.0, so a terminal-punctuation fragment still takes the fast
+# path on the strength of the punctuation signal alone.
+UTTERANCE_FLUSH_MIN_CONFIDENCE = 0.6
 
 _DEDUPE_STRIP_CHARS = ".,!?।|॥'\"-—:; \t\n"
 
@@ -280,6 +310,20 @@ def _normalize_for_dedupe(text: str) -> str:
     """Normalize an utterance for duplicate detection across STT retries."""
     cleaned = "".join(ch for ch in text.lower() if ch not in _DEDUPE_STRIP_CHARS)
     return cleaned
+
+
+def _looks_complete(text: str) -> bool:
+    """True when *text* ends on sentence-final punctuation across our scripts.
+
+    Sarvam tags a transcript fragment with terminal punctuation (``.`` ``?``
+    ``।`` …) when its VAD believes the utterance ended, so a fragment ending
+    this way — paired with high STT confidence — is a strong end-of-utterance
+    signal we can flush on quickly instead of waiting out the full quiet window.
+    Trailing whitespace is ignored; an empty/whitespace fragment is never
+    "complete".
+    """
+    stripped = text.rstrip()
+    return bool(stripped) and stripped[-1] in _SENTENCE_ENDERS
 
 
 def _pcm_from_tts_bytes(audio: bytes | None) -> bytes | None:
@@ -410,9 +454,15 @@ class VaidyaAgentProcessor(FrameProcessor):
         """Buffer the transcript fragment and (re)start the debounce timer.
 
         Sarvam's VAD splits slow natural speech into fragments; the turn
-        starts only after ``UTTERANCE_DEBOUNCE_SECONDS`` of transcript
-        quiet, with the fragments merged into one utterance. Turns then run
-        as spawned tasks: agent work takes 10-60s and blocking
+        starts only after a window of transcript quiet, with the fragments
+        merged into one utterance. The window is adaptive (see
+        :meth:`_debounce_window`): a finished-looking, high-confidence
+        fragment flushes fast, anything else waits the full quiet window so
+        a trailing fragment can still merge. Re-arming on every fragment
+        means the quiet is always measured from the LAST fragment, so
+        multi-fragment slow speech never splits.
+
+        Turns then run as spawned tasks: agent work takes 10-60s and blocking
         ``process_frame`` for that long would stall every queued frame.
         """
         user_text = (frame.text or "").strip()
@@ -440,16 +490,36 @@ class VaidyaAgentProcessor(FrameProcessor):
         language = getattr(frame, "language", None)
         if language is not None:
             self._pending_language = language
-        self._pending_confidence = float(getattr(frame, "confidence", 1.0) or 1.0)
+        confidence = float(getattr(frame, "confidence", 1.0) or 1.0)
+        self._pending_confidence = confidence
+
+        # Choose the quiet window from THIS fragment (the latest one): a
+        # complete-looking, high-confidence fragment flushes fast; otherwise
+        # we wait the full window so a trailing fragment can still merge.
+        window = self._debounce_window(user_text, confidence)
 
         if self._debounce_task is not None:
             self._debounce_task.cancel()
-        self._debounce_task = self.create_task(self._flush_utterance_after_debounce())
+        self._debounce_task = self.create_task(self._flush_utterance_after_debounce(window))
 
-    async def _flush_utterance_after_debounce(self) -> None:
-        """After transcript quiet, merge fragments and launch the turn."""
+    @staticmethod
+    def _debounce_window(latest_fragment: str, confidence: float) -> float:
+        """Pick the transcript-quiet window before flushing this utterance.
+
+        Returns :data:`UTTERANCE_FLUSH_SECONDS` when the latest fragment is a
+        strong end-of-utterance signal (ends on sentence-final punctuation and
+        STT confidence is high), else :data:`UTTERANCE_DEBOUNCE_SECONDS`. The
+        shorter window still leaves room for an immediately-following fragment
+        to merge, while a mid-thought partial waits out the full window.
+        """
+        if confidence >= UTTERANCE_FLUSH_MIN_CONFIDENCE and _looks_complete(latest_fragment):
+            return UTTERANCE_FLUSH_SECONDS
+        return UTTERANCE_DEBOUNCE_SECONDS
+
+    async def _flush_utterance_after_debounce(self, window: float) -> None:
+        """After ``window`` seconds of transcript quiet, merge and launch the turn."""
         try:
-            await asyncio.sleep(UTTERANCE_DEBOUNCE_SECONDS)
+            await asyncio.sleep(window)
         except asyncio.CancelledError:
             return  # superseded by a newer fragment
 
