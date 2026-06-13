@@ -1,13 +1,20 @@
 """Interactive CLI call simulator for Vaidya.
 
 Simulates a phone call by sending user messages to the Vaidya conversation API
-one turn at a time. Displays the assistant's response after each turn.
+one turn at a time. Displays the assistant's response after each turn with clear
+speaker labels, per-turn latency, and a tidy end-of-call summary listing the
+eligible schemes and the total Sarvam cost in rupees.
 
 Usage
 -----
     python scripts/simulate_call.py
     python scripts/simulate_call.py --base-url http://localhost:8000
     python scripts/simulate_call.py --language ta-IN
+
+In-call commands:
+    /status      show the current phase, profile, and eligible schemes
+    /lang <code> switch the language code for subsequent turns (e.g. /lang ta-IN)
+    /quit        end the call and print the summary
 """
 
 from __future__ import annotations
@@ -27,6 +34,98 @@ _GREEN = "\033[32m"
 _CYAN = "\033[36m"
 _YELLOW = "\033[33m"
 _DIM = "\033[2m"
+
+# Speaker labels (kept short and fixed-width so the transcript reads cleanly).
+_CALLER_LABEL = "Caller"
+_VAIDYA_LABEL = "Vaidya"
+
+
+# ---------------------------------------------------------------------------
+# Pure formatting helpers (no I/O -- unit-testable)
+# ---------------------------------------------------------------------------
+
+
+def format_rupees(amount_inr: float | None) -> str:
+    """Format a rupee amount for display, e.g. ``0.0123`` -> ``"Rs 0.0123"``.
+
+    Returns ``"n/a"`` when the amount is unknown (``None``). Whole numbers are
+    shown without a trailing decimal; fractional amounts keep up to four
+    significant decimal places (Sarvam free-tier per-call costs are tiny).
+    """
+    if amount_inr is None:
+        return "n/a"
+    if amount_inr == 0:
+        return "Rs 0"
+    # Trim trailing zeros so "Rs 1.5000" reads as "Rs 1.5", but keep at least
+    # one fractional digit for sub-rupee amounts.
+    text = f"{amount_inr:.4f}".rstrip("0").rstrip(".")
+    return f"Rs {text}"
+
+
+def format_meta(
+    phase: str,
+    schemes_found: int | None,
+    latency_ms: float,
+    cost_so_far_inr: float | None = None,
+) -> str:
+    """Build the single-line metadata footer shown under each Vaidya turn."""
+    parts = [f"phase={phase}"]
+    if schemes_found is not None:
+        parts.append(f"schemes_found={schemes_found}")
+    parts.append(f"latency={latency_ms:.0f}ms")
+    if cost_so_far_inr is not None:
+        parts.append(f"cost={format_rupees(cost_so_far_inr)}")
+    return f"  [{', '.join(parts)}]"
+
+
+def format_summary(
+    eligible_schemes: list[str] | None,
+    total_cost_inr: float | None,
+    turn_count: int,
+    width: int = 60,
+) -> str:
+    """Render the end-of-call summary block as plain text (no ANSI codes).
+
+    Parameters
+    ----------
+    eligible_schemes:
+        Human-readable scheme names the caller qualifies for, or ``None`` /
+        empty if eligibility was never determined.
+    total_cost_inr:
+        Total Sarvam API cost for the call in rupees, or ``None`` if unknown.
+    turn_count:
+        Number of caller turns exchanged during the call.
+    width:
+        Width of the divider rules (defaults to 60 chars).
+
+    Returns
+    -------
+    A multi-line string suitable for printing directly. Kept free of color
+    codes so it is easy to assert on in unit tests.
+    """
+    rule = "=" * width
+    lines = [rule, "  Call summary", rule]
+
+    turn_word = "turn" if turn_count == 1 else "turns"
+    lines.append(f"  Caller turns:    {turn_count} {turn_word}")
+    lines.append(f"  Total cost:      {format_rupees(total_cost_inr)}")
+
+    if eligible_schemes:
+        count = len(eligible_schemes)
+        scheme_word = "scheme" if count == 1 else "schemes"
+        lines.append(f"  Eligible for {count} {scheme_word}:")
+        for index, name in enumerate(eligible_schemes, start=1):
+            lines.append(f"    {index}. {name}")
+    else:
+        lines.append("  Eligible schemes: none determined")
+
+    lines.append(rule)
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# HTTP helpers
+# ---------------------------------------------------------------------------
 
 
 def _parse_args() -> argparse.Namespace:
@@ -102,16 +201,22 @@ async def _get_conversation_state(
     return resp.json()
 
 
+# ---------------------------------------------------------------------------
+# Printing helpers (color wrappers around the pure formatters above)
+# ---------------------------------------------------------------------------
+
+
 def _print_assistant(text: str) -> None:
-    print(f"\n{_GREEN}{_BOLD}Vaidya:{_RESET} {_GREEN}{text}{_RESET}")
+    print(f"\n{_GREEN}{_BOLD}{_VAIDYA_LABEL}:{_RESET} {_GREEN}{text}{_RESET}")
 
 
-def _print_meta(phase: str, schemes_found: int | None, latency_ms: float) -> None:
-    parts = [f"phase={phase}"]
-    if schemes_found is not None:
-        parts.append(f"schemes_found={schemes_found}")
-    parts.append(f"latency={latency_ms:.0f}ms")
-    print(f"{_DIM}  [{', '.join(parts)}]{_RESET}")
+def _print_meta(
+    phase: str,
+    schemes_found: int | None,
+    latency_ms: float,
+    cost_so_far_inr: float | None = None,
+) -> None:
+    print(f"{_DIM}{format_meta(phase, schemes_found, latency_ms, cost_so_far_inr)}{_RESET}")
 
 
 async def _run_interactive(args: argparse.Namespace) -> None:
@@ -124,6 +229,9 @@ async def _run_interactive(args: argparse.Namespace) -> None:
     print(f"{_DIM}  API: {base_url}  |  Language: {language}  |  Channel: {channel}{_RESET}")
     print(f"{_DIM}  Type your messages. Commands: /quit, /status, /lang <code>{_RESET}")
     print(f"{_BOLD}{'=' * 60}{_RESET}")
+
+    turn_count = 0
+    last_cost_inr: float | None = None
 
     async with httpx.AsyncClient(timeout=args.timeout) as client:
         # Health check
@@ -152,7 +260,7 @@ async def _run_interactive(args: argparse.Namespace) -> None:
         # Turn loop
         while True:
             try:
-                user_input = input(f"\n{_CYAN}{_BOLD}You:{_RESET} {_CYAN}").strip()
+                user_input = input(f"\n{_CYAN}{_BOLD}{_CALLER_LABEL}:{_RESET} {_CYAN}").strip()
                 print(_RESET, end="")  # reset color after input
             except (EOFError, KeyboardInterrupt):
                 print(f"\n\n{_DIM}Call ended.{_RESET}")
@@ -213,26 +321,29 @@ async def _run_interactive(args: argparse.Namespace) -> None:
                 print(f"\n{_YELLOW}Request failed: {exc}{_RESET}")
                 continue
 
+            turn_count += 1
+            cost_so_far = response.get("cost_so_far_inr")
+            if cost_so_far is not None:
+                last_cost_inr = cost_so_far
+
             _print_assistant(response["text"])
             _print_meta(
                 response.get("phase", "?"),
                 response.get("schemes_found"),
                 turn_latency,
+                cost_so_far,
             )
 
-        # Show final state
-        print(f"\n{_DIM}--- Final conversation state ---{_RESET}")
+        # Show final state + tidy summary
+        eligible: list[str] | None = None
         try:
             final = await _get_conversation_state(client, base_url, call_id)
-            print(f"{_DIM}  Phase: {final.get('phase')}")
             eligible = final.get("eligible_schemes")
-            if eligible:
-                print(f"  Eligible schemes: {', '.join(eligible)}")
-            else:
-                print("  No eligible schemes determined")
-            print(_RESET)
         except Exception:
-            print(f"{_DIM}  (could not fetch final state){_RESET}")
+            print(f"\n{_DIM}  (could not fetch final state){_RESET}")
+
+        summary = format_summary(eligible, last_cost_inr, turn_count)
+        print(f"\n{_BOLD}{summary}{_RESET}")
 
 
 def main() -> None:
