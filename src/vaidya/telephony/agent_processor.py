@@ -412,6 +412,11 @@ class VaidyaAgentProcessor(FrameProcessor):
         self._language = language
         self._wake: asyncio.Event = asyncio.Event()
         self._idle_task: asyncio.Task[None] | None = None
+        # Silence escalation passed so far (seconds). Persists across the watch
+        # restarts that each nudge's playback-mark triggers, so successive silent
+        # stretches ESCALATE (nudge -> reprompt -> graceful close) instead of
+        # re-firing the first nudge forever. Reset to 0 whenever the caller speaks.
+        self._silence_elapsed: float = 0.0
         self._language_locked: bool = False
         self._playback_marks_enabled = playback_marks_enabled
         self._pending_playback_mark: str | None = None
@@ -447,7 +452,12 @@ class VaidyaAgentProcessor(FrameProcessor):
             return
 
         if isinstance(frame, BotStoppedSpeakingFrame):
-            if not self._pending_playback_mark:
+            # Start the idle/silence watch only when a real turn is NOT being
+            # processed. Keepalive interjections ("one moment") emit without a
+            # playback mark; without this guard their BotStoppedSpeaking starts a
+            # watch mid-processing whose nudge then glues onto the reply. The real
+            # reply restarts the watch cleanly via its own playback mark.
+            if not self._pending_playback_mark and self._inflight_text is None:
                 self._start_idle_watch()
         elif isinstance(frame, UserStartedSpeakingFrame | TranscriptionFrame):
             self._cancel_idle_watch(interrupted=True)
@@ -883,6 +893,9 @@ class VaidyaAgentProcessor(FrameProcessor):
     def _cancel_idle_watch(self, *, interrupted: bool = False) -> None:
         if interrupted:
             self._pending_playback_mark = None
+            # The caller spoke (or a new turn began): reset the silence escalation
+            # so the next silent stretch starts again from a gentle nudge.
+            self._silence_elapsed = 0.0
         if self._idle_task is not None:
             self._wake.set()
             self._idle_task = None
@@ -905,16 +918,24 @@ class VaidyaAgentProcessor(FrameProcessor):
         await super().cleanup()  # type: ignore[no-untyped-call]
 
     async def _idle_loop(self) -> None:
-        """Wait through SILENCE_STEPS thresholds, escalating on each timeout."""
-        elapsed = 0.0
+        """Wait through the silence steps, ESCALATING across watch restarts.
+
+        ``self._silence_elapsed`` persists the thresholds already fired — each
+        nudge's playback mark restarts this loop — so a continuously-silent caller
+        progresses nudge -> reprompt -> graceful closure instead of re-hearing the
+        first nudge forever. It resets to 0 the instant the caller speaks
+        (``_cancel_idle_watch(interrupted=True)``).
+        """
         for threshold, _key, terminal in await self._silence_steps():
-            wait_for = threshold - elapsed
+            if threshold <= self._silence_elapsed:
+                continue  # already escalated past this step in an earlier stretch
+            wait_for = threshold - self._silence_elapsed
             try:
                 await asyncio.wait_for(self._wake.wait(), timeout=wait_for)
                 return  # user spoke -> silence broken
             except TimeoutError:
                 pass
-            elapsed = threshold
+            self._silence_elapsed = threshold
 
             if self._inflight_text is not None:
                 # The "silence" is ours, not the caller's: a turn is being
@@ -924,11 +945,11 @@ class VaidyaAgentProcessor(FrameProcessor):
                 return
 
             try:
-                spoken, is_terminal = await self._mgr.handle_silence(self._call_id, elapsed)
+                spoken, is_terminal = await self._mgr.handle_silence(self._call_id, threshold)
             except Exception:
                 logger.error(
                     "handle_silence failed",
-                    extra={"call_id": self._call_id, "elapsed": elapsed},
+                    extra={"call_id": self._call_id, "elapsed": threshold},
                     exc_info=True,
                 )
                 return
