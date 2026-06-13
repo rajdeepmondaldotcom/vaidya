@@ -62,12 +62,13 @@ class Settings(BaseSettings):
     guidance_reasoning_effort: str = "low"
     wiki_grounding: bool = True
 
-    # Scheme evaluation. Batch size MUST stay small: with the full scheme
-    # records + always-on reasoning, ~3 schemes is what reliably fits the
-    # 4096-token output cap (5+ risks finish=length/empty content on the
-    # real prompt). Batches run in parallel, so small batches + high
-    # parallelism is both correct and fast. The terse prompt output (no
-    # per-scheme reasoning trace) is what keeps each batch under the cap.
+    # Scheme evaluation. Keep batches SMALL and parallelism HIGH — this is a
+    # LATENCY optimisation, not just a token-budget one. Many small 105b calls
+    # run concurrently and finish in ~one call's time; one big batch is a single
+    # long call that also risks the per-call llm_timeout (45s) and then retries.
+    # Measured on the paid tier: batch_size=10 blew a 6-turn sim past 220s,
+    # whereas batch_size=3 keeps it near real-time. The terse prompt output (no
+    # per-scheme reasoning trace) keeps each batch small.
     scheme_eval_batch_size: int = 3
     scheme_eval_max_parallel_batches: int = 8
     scheme_retrieval_rank_top_k: int = 10

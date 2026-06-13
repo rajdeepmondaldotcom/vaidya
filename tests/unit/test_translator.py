@@ -145,7 +145,7 @@ class TestTermPreservation:
     async def test_domain_terms_survive_translation(self) -> None:
         """PM-JAY and Aadhaar should be present in the translated output."""
         translator, client = _make_translator(
-            translate_return="__TERM0__ ke zariye __TERM1__ se verification"
+            translate_return="[[0]] ke zariye [[1]] se verification"
         )
         result = await translator.translate_if_needed(
             "Get PM-JAY via Aadhaar verification",
@@ -158,7 +158,7 @@ class TestTermPreservation:
     @pytest.mark.asyncio
     async def test_case_insensitive_term_matching(self) -> None:
         """Terms should be matched case-insensitively."""
-        translator, client = _make_translator(translate_return="Visit __TERM0__ for __TERM1__")
+        translator, client = _make_translator(translate_return="Visit [[0]] for [[1]]")
         result = await translator.translate_if_needed(
             "Visit csc for pmjay",
             source_lang="en-IN",
@@ -186,10 +186,10 @@ class TestTermPreservation:
         registry: dict[str, str] = {}
         t1 = Translator._protect_term("PM-JAY", registry)
         t2 = Translator._protect_term("Aadhaar", registry)
-        assert t1 == "__TERM0__"
-        assert t2 == "__TERM1__"
-        assert registry["__TERM0__"] == "PM-JAY"
-        assert registry["__TERM1__"] == "Aadhaar"
+        assert t1 == "[[0]]"
+        assert t2 == "[[1]]"
+        assert registry["[[0]]"] == "PM-JAY"
+        assert registry["[[1]]"] == "Aadhaar"
 
     @pytest.mark.asyncio
     async def test_terms_not_protected_on_same_language(self) -> None:
@@ -231,7 +231,7 @@ class TestTranslationCache:
     async def test_cache_stores_final_term_preserved_output(self) -> None:
         """Cached value is the post-term-preservation result, not the raw client output."""
         translator, client = _make_translator(
-            translate_return="__TERM0__ ke zariye __TERM1__ se verification"
+            translate_return="[[0]] ke zariye [[1]] se verification"
         )
 
         first = await translator.translate_if_needed(
@@ -250,7 +250,7 @@ class TestTranslationCache:
         for result in (first, second):
             assert "PM-JAY" in result
             assert "Aadhaar" in result
-            assert "__TERM0__" not in result
+            assert "[[0]]" not in result
         client.translate.assert_awaited_once()
 
     @pytest.mark.asyncio
