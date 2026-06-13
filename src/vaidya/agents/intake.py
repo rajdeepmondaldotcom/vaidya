@@ -262,6 +262,12 @@ class IntakeAgent(BaseAgent):
     def __init__(self, client: SarvamClient, model: str, reasoning_effort: str = "low") -> None:
         super().__init__(client=client, model=model, agent_name="intake")
         self._reasoning_effort = reasoning_effort
+        # LLM-first by default. The deterministic heuristic fast path (skip the
+        # LLM for clear answers) is an opt-in scale/cost optimization set from
+        # config in app.py — off by default so intake showcases sarvam-30b's
+        # native multilingual extraction and never depends on brittle keyword
+        # matching for correctness.
+        self._fast_path_enabled = False
 
     async def process(
         self,
@@ -386,6 +392,8 @@ class IntakeAgent(BaseAgent):
         mis-read here is caught by the end-of-intake confirmation step, which
         recaps the profile and lets the caller correct it.
         """
+        if not self._fast_path_enabled:
+            return None
         required = _QUESTION_REQUIRED_FIELDS.get(q_index)
         if not required or q_index not in (1, 2, 3, 4):
             return None

@@ -58,6 +58,13 @@ class Settings(BaseSettings):
     # the 45s eligibility tail. Eligibility/reviewer keep llm_timeout_seconds.
     conversational_llm_timeout_seconds: float = 30.0
 
+    # Intake fast path (opt-in). When True, short unambiguous answers are
+    # extracted by deterministic heuristics and skip the LLM — lower latency and
+    # cost at high volume. Default False: intake runs LLM-first (sarvam-30b) for
+    # robustness across phrasings/languages and to showcase native multilingual
+    # extraction. Enable with INTAKE_FAST_PATH_ENABLED=true.
+    intake_fast_path_enabled: bool = False
+
     # Advanced LLM. sarvam-30b/105b are ALWAYS-ON reasoning models: the API
     # only accepts reasoning_effort in {low, medium, high} (omitting it ->
     # verbose default), and the free tier caps max_tokens at 4096. Reasoning
