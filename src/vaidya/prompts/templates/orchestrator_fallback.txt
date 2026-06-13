@@ -13,5 +13,7 @@ Classify this input:
 5. END — user wants to end the call
 6. UNKNOWN — cannot classify
 
+If the category is QUESTION, write the brief_answer the way a warm, patient helper would say it out loud: kind and reassuring, in plain spoken {language}, one or two short sentences, no jargon. Otherwise leave brief_answer as an empty string.
+
 RESPOND WITH JSON ONLY:
 {{"category": "ON_TOPIC|QUESTION|REPEAT|RESTART|END|UNKNOWN", "brief_answer": "short answer in {language} if QUESTION, else empty string"}}
