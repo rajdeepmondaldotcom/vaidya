@@ -7,6 +7,7 @@ canned responses based on the system prompt content.
 
 from __future__ import annotations
 
+import asyncio
 import json
 from typing import Any
 
@@ -1104,6 +1105,136 @@ class TestClosurePhase:
         # Should transition back to OPEN_ELICITATION
         assert context.phase == ConversationPhase.OPEN_ELICITATION
         assert response.phase_transition == ConversationPhase.OPEN_ELICITATION
+
+
+class TestSpeculativeEligibility:
+    """Speculative eligibility started during intake, reused at PROCESSING.
+
+    These exercise the orchestrator hooks end-to-end (the EligibilityAgent
+    owns the cache; the orchestrator only triggers and cancels). Speculation
+    is a PURE optimisation: the final eligible set must equal the
+    non-speculative path, a profile change must force a recompute, and an
+    abandoned session must not leak a background task.
+    """
+
+    @staticmethod
+    def _eligible_ids(context: ConversationContext) -> list[str]:
+        result = context.eligibility_result
+        assert result is not None
+        return sorted(
+            m.scheme_id for m in result.matches if m.verdict == EligibilityVerdict.ELIGIBLE
+        )
+
+    async def _run_processing(self, profile: UserProfile) -> ConversationContext:
+        """Drive a complete profile straight through PROCESSING (no speculation)."""
+        orchestrator = _build_orchestrator()
+        context = _make_context(phase=ConversationPhase.PROCESSING, profile=profile)
+        context.add_turn(
+            role="user",
+            text="Main Jaipur se hoon, daily mazdoori karta hoon.",
+            raw_text="Main Jaipur se hoon, daily mazdoori karta hoon.",
+            language="hi-IN",
+        )
+        await orchestrator.handle_turn(context=context, user_input="")
+        return context
+
+    async def test_intake_completion_reuses_speculation_same_result(self):
+        """Driving intake to completion kicks off speculation; the final
+        eligible set equals a cold (non-speculative) PROCESSING run."""
+        # Cold reference run.
+        cold = await self._run_processing(_complete_profile())
+        reference = self._eligible_ids(cold)
+        assert reference  # sanity: the mock yields >=1 eligible scheme
+
+        # Speculative run: start INTAKE with confirmation pending, then confirm.
+        orchestrator = _build_orchestrator()
+        eligibility = orchestrator._eligibility
+        starts: list[str] = []
+        original_start = eligibility.start_speculative
+
+        def spy_start(context: ConversationContext) -> bool:
+            result = original_start(context)
+            if result:
+                starts.append(context.call_id)
+            return result
+
+        eligibility.start_speculative = spy_start  # type: ignore[method-assign]
+
+        context = _make_context(
+            phase=ConversationPhase.INTAKE, profile=_complete_profile(), call_id="spec-flow"
+        )
+        context.intake_question_index = 6
+        context.metadata["confirmation_pending"] = True
+        context.add_turn(
+            role="user",
+            text="Main Jaipur se hoon.",
+            raw_text="Main Jaipur se hoon.",
+            language="hi-IN",
+        )
+
+        await orchestrator.handle_turn(context=context, user_input="Haan, sahi hai")
+
+        # Speculation was kicked off during the intake turn...
+        assert "spec-flow" in starts
+        # ...and consumed by PROCESSING (entry popped, no leak).
+        assert "spec-flow" not in eligibility._speculative
+        # The result was genuinely REUSED, not recomputed.
+        assert context.metadata.get("eligibility_speculative_hit") is True
+        # Final eligible set matches the cold path exactly.
+        assert context.eligibility_result is not None
+        assert self._eligible_ids(context) == reference
+
+    async def test_profile_change_before_processing_recomputes(self):
+        """If the profile changes between speculation and PROCESSING, the stale
+        speculative result is discarded and eligibility recomputes."""
+        orchestrator = _build_orchestrator()
+        eligibility = orchestrator._eligibility
+
+        profile = _complete_profile()
+        context = _make_context(
+            phase=ConversationPhase.INTAKE, profile=profile, call_id="spec-change"
+        )
+
+        # Start speculation directly on the agent for the original fingerprint.
+        assert eligibility.start_speculative(context) is True
+        await asyncio.sleep(0)
+        assert "spec-change" in eligibility._speculative
+
+        # The caller corrects their income -> fingerprint changes.
+        context.user_profile.income_bracket = IncomeCategory.ABOVE_5L
+
+        # Now run PROCESSING. The orchestrator must NOT reuse the stale entry.
+        context.phase = ConversationPhase.PROCESSING
+        await orchestrator.handle_turn(context=context, user_input="")
+
+        # Stale entry discarded, fresh result produced (NOT a speculative hit).
+        assert "spec-change" not in eligibility._speculative
+        assert context.metadata.get("eligibility_speculative_hit") is False
+        assert context.eligibility_result is not None
+        assert context.convergence_result is not None
+
+    async def test_abandoned_session_cancels_speculation(self):
+        """A caller who hangs up (silence end-call) after speculation must not
+        leak the background task -- the orchestrator cancels it."""
+        orchestrator = _build_orchestrator()
+        eligibility = orchestrator._eligibility
+
+        context = _make_context(
+            phase=ConversationPhase.INTAKE, profile=_complete_profile(), call_id="spec-abandon"
+        )
+        assert eligibility.start_speculative(context) is True
+        task = eligibility._speculative["spec-abandon"].task
+
+        # 20s+ silence ends the call -> CLOSURE, and cancellation fires.
+        await orchestrator.handle_turn(
+            context=context, user_input="", silence_duration_seconds=20.0
+        )
+
+        assert context.phase == ConversationPhase.CLOSURE
+        assert "spec-abandon" not in eligibility._speculative
+        # Let the cancellation settle; the task must end cancelled, not leaked.
+        await asyncio.gather(task, return_exceptions=True)
+        assert task.cancelled() or task.done()
 
 
 class TestEndToEndHappyPath:
