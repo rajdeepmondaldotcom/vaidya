@@ -28,6 +28,7 @@ from vaidya.models.api import AgentResponse
 from vaidya.models.conversation import ConversationContext
 from vaidya.models.scheme import (
     EligibilityResult,
+    EligibilityVerdict,
     SchemeMatch,
     SchemeRecord,
 )
@@ -41,6 +42,19 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 _DEFAULT_FALLBACK_MODEL = SARVAM_30B
+
+# Deterministic floor for PM-JAY, the flagship national scheme. The eligibility
+# LLM intermittently DROPS PM-JAY for clearly-qualifying low-income informal
+# workers (it treats the SECC 2011 D-code as a hard requirement the caller can
+# never recite), so the same Rajasthan daily-wage family hears about PM-JAY on
+# one call and not the next. These are the OBJECTIVE inclusion criteria from the
+# scheme record; when the structured profile clearly meets them we PROPOSE
+# PM-JAY eligible and let the Reviewer veto on any passing exclusion.
+_PMJAY_CENTRAL_ID_PREFIX = "PMJAY-2024"  # the central flagship, not state variants
+# Occupations unambiguously inside PM-JAY's occupation_included list:
+_PMJAY_FLOOR_OCCUPATIONS = frozenset({"daily_wage", "farmer"})
+_PMJAY_FLOOR_INCOMES = frozenset({"below_1l", "1l_to_2.5l"})  # below the Rs 2.5L SECC ceiling
+_PMJAY_BLOCKING_COVERAGE = frozenset({"employer", "private"})  # hard PM-JAY exclusion
 
 # Placeholder substituted into the rendered system prompt once per call so the
 # invariant prompt body (instructions + user profile) is rendered a single time
@@ -526,6 +540,7 @@ class EligibilityAgent(BaseAgent):
             for scheme in candidate_schemes
             if scheme.scheme_id in matches_by_id
         ]
+        matches = self._apply_flagship_floor(matches, candidate_schemes, context.user_profile)
 
         return EligibilityResult(
             matches=matches,
@@ -533,6 +548,65 @@ class EligibilityAgent(BaseAgent):
             model_used=model,
             schemes_evaluated=len(candidate_schemes),
         )
+
+    def _apply_flagship_floor(
+        self,
+        matches: list[SchemeMatch],
+        candidate_schemes: list[SchemeRecord],
+        profile: Any,
+    ) -> list[SchemeMatch]:
+        """Ensure PM-JAY is PROPOSED eligible when the profile objectively meets
+        its criteria, so the flagship is never flakily dropped by the LLM.
+
+        This only proposes -- it never overrides a hard exclusion (the criteria
+        themselves exclude govt employees, employer-insured, and WB/DL), and the
+        Reviewer Agent still reads the full transcript and can veto on an
+        exclusion mentioned in passing. So the dual-check safety is preserved;
+        we just stop the LLM's intermittent recall misses on a clear-cut case.
+        """
+        pmjay = next(
+            (s for s in candidate_schemes if s.scheme_id.startswith(_PMJAY_CENTRAL_ID_PREFIX)),
+            None,
+        )
+        if pmjay is None or not self._pmjay_floor_eligible(profile, pmjay):
+            return matches
+
+        floored = SchemeMatch(
+            scheme_id=pmjay.scheme_id,
+            scheme_name=pmjay.canonical_name,
+            verdict=EligibilityVerdict.ELIGIBLE,
+            confidence=0.8,
+            reasoning_trace="",
+            matched_criteria=["state", "income_bracket", "occupation_type"],
+            failed_criteria=[],
+            coverage_summary="Rs 5 lakh family cover per year",
+        )
+        for index, match in enumerate(matches):
+            if match.scheme_id == pmjay.scheme_id:
+                if match.verdict != EligibilityVerdict.ELIGIBLE:
+                    logger.info(
+                        "Flagship floor: upgrading PM-JAY to eligible (objective criteria met)",
+                        extra={"prior_verdict": match.verdict.value},
+                    )
+                    matches[index] = floored
+                return matches
+        matches.append(floored)
+        return matches
+
+    @staticmethod
+    def _pmjay_floor_eligible(profile: Any, record: SchemeRecord) -> bool:
+        """True when the structured profile unambiguously satisfies PM-JAY's
+        objective inclusion criteria (state, income, occupation, coverage)."""
+        from vaidya.utils.states import state_name_to_code
+
+        state_code = state_name_to_code(profile.state) if profile.state else None
+        if not state_code or state_code in (record.geographic_restrictions or []):
+            return False  # state unknown, or a PM-JAY opt-out state (WB/DL)
+        if profile.income_bracket.value not in _PMJAY_FLOOR_INCOMES:
+            return False
+        if profile.occupation_type.value not in _PMJAY_FLOOR_OCCUPATIONS:
+            return False
+        return profile.existing_coverage.value not in _PMJAY_BLOCKING_COVERAGE
 
     def _render_system_template(self, context: ConversationContext) -> str:
         """Render the invariant system prompt once, leaving a schemes placeholder.

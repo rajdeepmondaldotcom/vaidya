@@ -17,6 +17,7 @@ from vaidya.models.scheme import (
     FamilyCriteria,
     Jurisdiction,
     SchemeCoverageType,
+    SchemeMatch,
     SchemeRecord,
 )
 from vaidya.models.user_profile import (
@@ -1142,3 +1143,85 @@ class TestSpeculativeEligibility:
         await asyncio.gather(
             *(t.task for t in (tasks or []) if t is not None), return_exceptions=True
         )
+
+
+# ---------------------------------------------------------------------------
+# Flagship floor (PM-JAY deterministic recall safety net)
+# ---------------------------------------------------------------------------
+
+
+class TestFlagshipFloor:
+    """PM-JAY must be proposed eligible whenever the structured profile
+    objectively meets its criteria, so the LLM's intermittent recall misses
+    never drop the flagship for a clearly-qualifying poor family. The floor
+    never overrides a hard exclusion (govt employee, employer cover, WB/DL)."""
+
+    def _agent(self) -> EligibilityAgent:
+        return EligibilityAgent(client=_mock_client(), model="sarvam-105b", schemes=[])
+
+    def _pmjay(self) -> SchemeRecord:
+        return _make_scheme(
+            scheme_id="PMJAY-2024-v3",
+            name="Ayushman Bharat PM-JAY",
+            geo_restrictions=["WB", "DL"],
+        )
+
+    def _profile(self, **kw: Any) -> UserProfile:
+        base: dict[str, Any] = dict(
+            state="Rajasthan",
+            income_bracket=IncomeCategory.BELOW_1L,
+            occupation_type=OccupationType.DAILY_WAGE,
+            existing_coverage=CoverageType.NONE,
+        )
+        base.update(kw)
+        return UserProfile(**base)
+
+    def test_adds_pmjay_when_missing_and_criteria_met(self):
+        agent = self._agent()
+        out = agent._apply_flagship_floor([], [self._pmjay()], self._profile())
+        pmjay = next((m for m in out if m.scheme_id == "PMJAY-2024-v3"), None)
+        assert pmjay is not None
+        assert pmjay.verdict == EligibilityVerdict.ELIGIBLE
+
+    def test_upgrades_flaky_ineligible_pmjay_without_duplicating(self):
+        agent = self._agent()
+        miss = SchemeMatch(
+            scheme_id="PMJAY-2024-v3",
+            scheme_name="PM-JAY",
+            verdict=EligibilityVerdict.INELIGIBLE,
+            confidence=0.6,
+            reasoning_trace="",
+            matched_criteria=[],
+            failed_criteria=["secc_category"],
+            coverage_summary="",
+        )
+        out = agent._apply_flagship_floor([miss], [self._pmjay()], self._profile())
+        pmjays = [m for m in out if m.scheme_id == "PMJAY-2024-v3"]
+        assert len(pmjays) == 1
+        assert pmjays[0].verdict == EligibilityVerdict.ELIGIBLE
+
+    def test_does_not_fire_for_government_employee(self):
+        agent = self._agent()
+        out = agent._apply_flagship_floor(
+            [], [self._pmjay()], self._profile(occupation_type=OccupationType.SALARIED_GOVT)
+        )
+        assert "PMJAY-2024-v3" not in [m.scheme_id for m in out]
+
+    def test_does_not_fire_in_opt_out_state(self):
+        agent = self._agent()
+        out = agent._apply_flagship_floor([], [self._pmjay()], self._profile(state="West Bengal"))
+        assert "PMJAY-2024-v3" not in [m.scheme_id for m in out]
+
+    def test_respects_employer_coverage_hard_exclusion(self):
+        agent = self._agent()
+        out = agent._apply_flagship_floor(
+            [], [self._pmjay()], self._profile(existing_coverage=CoverageType.EMPLOYER)
+        )
+        assert "PMJAY-2024-v3" not in [m.scheme_id for m in out]
+
+    def test_does_not_fire_above_income_ceiling(self):
+        agent = self._agent()
+        out = agent._apply_flagship_floor(
+            [], [self._pmjay()], self._profile(income_bracket=IncomeCategory.ABOVE_5L)
+        )
+        assert "PMJAY-2024-v3" not in [m.scheme_id for m in out]

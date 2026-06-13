@@ -37,6 +37,9 @@ PM-JAY OPT-OUT STATES:
 - West Bengal (WB): Opted OUT of PM-JAY entirely. WB residents get Swasthya Sathi instead (SS-WB). Do NOT mark PM-JAY eligible for WB residents.
 - Delhi (DL): Opted OUT of PM-JAY. Delhi has its own schemes: Delhi Arogya Kosh (DAK-DL, income <3L) and Delhi Arogya Nidhi (DAN-DL, NFSA card + 3yr residence). Do NOT mark PM-JAY eligible for DL residents.
 
+PM-JAY INCLUSION PATH (do NOT demand an SECC D1-D7 code or a stated BPL card — callers never know these):
+PM-JAY automatically covers families in an occupational deprivation category, and occupation_included IS that list (daily_wage labourer, construction worker, rickshaw puller, farmer / share-cropper, street vendor, domestic worker, waste picker, etc.). So a caller in a PM-JAY state (anywhere EXCEPT WB/DL) whose occupation is in occupation_included AND whose household income is below Rs 2.5 lakh/year is ELIGIBLE — mark "eligible", not "uncertain". The occupational category alone is the automatic-inclusion path; do NOT require them to also recite an SECC code or produce a BPL card. Only a HARD exclusion blocks them: employer/ESIC insurance, a government employee in the family, an income-tax payer, or a WB/DL opt-out. PM-JAY is the FLAGSHIP national scheme — if someone clearly qualifies on income + occupation, do NOT flakily miss it. (This INCLUSION rule never overrides the hard exclusions above.)
+
 STATE-SPECIFIC SCHEME RULES:
 - Rajasthan (RJ): Chiranjeevi/MAAY (CHIR-RJ) is INDEPENDENT of PM-JAY, not a variant. Income <8L free, others Rs 850/yr. Rs 25L coverage (highest among state schemes after Jharkhand).
 - Tamil Nadu (TN): CMCHIS (CMCHIS-TN) is INDEPENDENT of PM-JAY. Income <1.2L, ration card required. Both PM-JAY and CMCHIS can apply simultaneously.
