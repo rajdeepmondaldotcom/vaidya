@@ -244,6 +244,7 @@ class Orchestrator:
 
         if self._silence_handler.should_end_call(silence_duration_seconds):
             context.phase = ConversationPhase.CLOSURE
+            self._cancel_speculative_eligibility(context)
             return AgentResponse(
                 text=get_msg("orchestrator", "closure", context.language),
                 phase_transition=ConversationPhase.CLOSURE,
@@ -461,6 +462,14 @@ class Orchestrator:
         if response.updated_profile:
             context.user_profile = response.updated_profile
 
+        # Speculatively start eligibility the moment the profile is complete
+        # enough to evaluate (by the last intake question / confirmation step),
+        # so results are usually ready the instant intake ends. This is a pure
+        # latency optimisation: it does NOT block this turn and its result is
+        # only ever reused if the profile fingerprint is unchanged at PROCESSING
+        # (see EligibilityAgent.start_speculative / _consume_speculative).
+        self._maybe_start_speculative_eligibility(context)
+
         if response.metadata.get("intake_complete"):
             return await self._transition_to_processing(context)
 
@@ -470,6 +479,38 @@ class Orchestrator:
             return await self._fast_track_distress(context)
 
         return response
+
+    def _maybe_start_speculative_eligibility(self, context: ConversationContext) -> None:
+        """Kick off a background eligibility pass if the profile is evaluable.
+
+        Best-effort and fully non-blocking. The EligibilityAgent owns the
+        guards (profile completeness, fingerprint idempotency, event loop
+        availability) and swallows its own failures, so a missing or failed
+        speculation is invisible to correctness -- PROCESSING just recomputes.
+        """
+        try:
+            self._eligibility.start_speculative(context)
+        except Exception:
+            logger.debug(
+                "Speculative eligibility kickoff skipped",
+                extra={"call_id": context.call_id},
+                exc_info=True,
+            )
+
+    def _cancel_speculative_eligibility(self, context: ConversationContext) -> None:
+        """Cancel any in-flight speculative pass so background tasks never leak.
+
+        Called when the conversation reaches a terminal state (closure / end /
+        silence hang-up). Idempotent and safe when nothing is in flight.
+        """
+        try:
+            self._eligibility.cancel_speculative(context.call_id)
+        except Exception:
+            logger.debug(
+                "Speculative eligibility cancel skipped",
+                extra={"call_id": context.call_id},
+                exc_info=True,
+            )
 
     async def _fast_track_distress(self, context: ConversationContext) -> AgentResponse:
         logger.info(
@@ -780,6 +821,9 @@ class Orchestrator:
                 phase_transition=ConversationPhase.OPEN_ELICITATION,
             )
 
+        # Terminal farewell: ensure no speculative task lingers (e.g. caller
+        # abandoned before PROCESSING consumed it).
+        self._cancel_speculative_eligibility(context)
         return AgentResponse(text=get_msg("orchestrator", "closure", context.language))
 
     async def _llm_fallback(
@@ -918,6 +962,7 @@ class Orchestrator:
 
     def _handle_end(self, context: ConversationContext) -> AgentResponse:
         context.phase = ConversationPhase.CLOSURE
+        self._cancel_speculative_eligibility(context)
         return AgentResponse(
             text=get_msg("orchestrator", "closure", context.language),
             phase_transition=ConversationPhase.CLOSURE,
