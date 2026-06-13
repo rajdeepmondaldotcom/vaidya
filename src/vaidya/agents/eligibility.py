@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 import time
 from typing import TYPE_CHECKING, Any
@@ -41,18 +42,75 @@ logger = logging.getLogger(__name__)
 
 _DEFAULT_FALLBACK_MODEL = SARVAM_30B
 
+# Placeholder substituted into the rendered system prompt once per call so the
+# invariant prompt body (instructions + user profile) is rendered a single time
+# and each batch only swaps in its own serialized scheme payload.
+_SCHEMES_PLACEHOLDER = "\x00__VAIDYA_SCHEMES_PAYLOAD__\x00"
+
+# Keys used to cache the RAG retrieval ordering across turns of one session.
+_RAG_CACHE_FINGERPRINT_KEY = "eligibility_rag_fingerprint"
+_RAG_CACHE_ORDER_KEY = "eligibility_rag_scheme_id_order"
+
+
+# Hard cap on the number of in-flight/finished speculative entries retained on
+# the (app-singleton) agent. Sessions that start speculation but never reach a
+# consume/cancel path (Redis TTL expiry, mid-intake hang-up) would otherwise
+# leak entries forever; mirrors ConversationManager's _turn_locks pruning.
+_MAX_SPECULATIVE_ENTRIES = 1000
+
+
+class _SpeculativeEntry:
+    """A speculative eligibility computation kicked off during intake.
+
+    Holds the *full-profile* eligibility-input fingerprint the speculation was
+    started under plus the in-flight :class:`asyncio.Task`. The fingerprint is
+    the safety gate: a speculative result is reused ONLY when the *current*
+    fingerprint still matches ``fingerprint``. Any mismatch (the profile changed
+    after speculation began) means the result is stale and MUST be discarded in
+    favour of a fresh synchronous computation.
+
+    The fingerprint MUST cover every profile field the eligibility evaluation
+    depends on -- i.e. the entire serialised profile fed to the prompt -- NOT
+    just the narrow RAG-retrieval fingerprint, otherwise a change to a field the
+    LLM uses (coverage, age, BPL/ration/SECC, district) but the RAG fingerprint
+    omits would silently reuse a stale verdict. See
+    :meth:`EligibilityAgent._eligibility_input_fingerprint`.
+
+    Task handles and results live on the agent instance (keyed by ``call_id``),
+    never on ``ConversationContext.metadata`` -- the context is JSON-serialised
+    into Redis between turns and an ``asyncio.Task`` is not serialisable. Because
+    speculation is a pure latency optimisation, a missing entry (e.g. a turn
+    served by a different worker process) simply falls back to computing fresh.
+    """
+
+    __slots__ = ("fingerprint", "task")
+
+    def __init__(
+        self,
+        fingerprint: str,
+        task: asyncio.Task[EligibilityResult],
+    ) -> None:
+        self.fingerprint = fingerprint
+        self.task = task
+
 
 class EligibilityAgent(BaseAgent):
     """Determines scheme eligibility using structured LLM evaluation.
 
     When a :class:`KnowledgeStore` is provided, the agent uses vector
-    retrieval only to rank the applicable candidate set. It never allows
-    retrieval to exclude an applicable scheme. Large candidate sets are
-    evaluated in bounded LLM batches.
+    retrieval to rank and prune the applicable candidate set to the
+    most-relevant top-k. This keeps the LLM workload (and latency) flat as the
+    corpus grows. The retrieval ranking is cached per session against a profile
+    fingerprint, so unchanged profiles reuse the prior ordering without
+    re-querying the store. When NO store is available, the full applicable set
+    is evaluated -- retrieval-based pruning is the only mechanism that may drop
+    a state-applicable scheme, never a hard cap.
 
     For each candidate scheme, the LLM performs field-by-field matching
     against the user profile, checking income thresholds, occupation,
-    geographic restrictions, exclusion rules, and family criteria.
+    geographic restrictions, exclusion rules, and family criteria. Large
+    candidate sets are evaluated in bounded, concurrent LLM batches that all
+    share a single rendered system prompt.
     """
 
     def __init__(
@@ -75,38 +133,32 @@ class EligibilityAgent(BaseAgent):
         self._batch_size = max(1, batch_size)
         self._max_parallel_batches = max(1, max_parallel_batches)
         self._retrieval_rank_top_k = max(1, retrieval_rank_top_k)
+        # Speculative eligibility passes kicked off during intake, keyed by
+        # call_id. Lives on the (long-lived, app-singleton) agent instance --
+        # NOT on the serialised ConversationContext -- because it holds live
+        # asyncio.Task objects. See _SpeculativeEntry.
+        self._speculative: dict[str, _SpeculativeEntry] = {}
 
     async def process(
         self,
         context: ConversationContext,
         user_input: str,
     ) -> AgentResponse:
-        """Run eligibility evaluation against the scheme corpus."""
-        start_ms = time.perf_counter()
-        model_used = self._model
+        """Run eligibility evaluation against the scheme corpus.
 
-        try:
-            result = await self._evaluate(context, model_used)
-        except Exception as primary_exc:
-            logger.warning(
-                "Primary model failed, falling back",
-                extra={
-                    "primary_model": model_used,
-                    "fallback_model": self._fallback_model,
-                    "error": str(primary_exc),
-                    "call_id": context.call_id,
-                },
-            )
-            model_used = self._fallback_model
-            try:
-                result = await self._evaluate(context, model_used)
-            except Exception as fallback_exc:
-                logger.error(
-                    "Eligibility evaluation failed on both models",
-                    extra={"error": str(fallback_exc), "call_id": context.call_id},
-                    exc_info=True,
-                )
-                return self._fallback_response(context.language)
+        If a speculative pass was kicked off during intake (see
+        :meth:`start_speculative`) and its fingerprint still matches the
+        current profile, its result is reused instead of recomputing -- this is
+        the latency win, with byte-identical output to a fresh pass. On any
+        fingerprint mismatch, speculative failure, or absent entry we fall
+        through to a fresh synchronous computation. Correctness is therefore
+        identical to never having speculated.
+        """
+        start_ms = time.perf_counter()
+
+        result, model_used = await self._resolve_result(context)
+        if result is None:
+            return self._fallback_response(context.language)
 
         elapsed_ms = (time.perf_counter() - start_ms) * 1000
         result.processing_time_ms = round(elapsed_ms, 1)
@@ -124,14 +176,289 @@ class EligibilityAgent(BaseAgent):
                     "eligibility_missing_scheme_ids",
                     [],
                 ),
+                "eligibility_speculative_hit": context.metadata.get(
+                    "eligibility_speculative_hit",
+                    False,
+                ),
             },
         )
+
+    async def _resolve_result(
+        self,
+        context: ConversationContext,
+    ) -> tuple[EligibilityResult | None, str]:
+        """Return (result, model_used), reusing a valid speculation if present.
+
+        Returns ``(None, model)`` only when both the primary and fallback
+        models fail a fresh computation -- the caller then emits the spoken
+        fallback. The speculative path can never produce ``None``: a failed or
+        mismatched speculation is discarded and we recompute synchronously.
+        """
+        speculative = await self._consume_speculative(context)
+        if speculative is not None:
+            context.metadata["eligibility_speculative_hit"] = True
+            logger.info(
+                "Reusing speculative eligibility result (%d matches); fingerprint unchanged",
+                len(speculative.matches),
+                extra={"call_id": context.call_id},
+            )
+            return speculative, speculative.model_used
+
+        context.metadata["eligibility_speculative_hit"] = False
+        return await self._compute_with_fallback(context)
+
+    async def _compute_with_fallback(
+        self,
+        context: ConversationContext,
+    ) -> tuple[EligibilityResult | None, str]:
+        """Evaluate with the primary model, falling back to the secondary once."""
+        model_used = self._model
+        try:
+            return await self._evaluate(context, model_used), model_used
+        except Exception as primary_exc:
+            logger.warning(
+                "Primary model failed, falling back",
+                extra={
+                    "primary_model": model_used,
+                    "fallback_model": self._fallback_model,
+                    "error": str(primary_exc),
+                    "call_id": context.call_id,
+                },
+            )
+            model_used = self._fallback_model
+            try:
+                return await self._evaluate(context, model_used), model_used
+            except Exception as fallback_exc:
+                logger.error(
+                    "Eligibility evaluation failed on both models",
+                    extra={"error": str(fallback_exc), "call_id": context.call_id},
+                    exc_info=True,
+                )
+                return None, model_used
+
+    # ------------------------------------------------------------------
+    # Speculative execution (started during intake, consumed at PROCESSING)
+    # ------------------------------------------------------------------
+
+    def start_speculative(self, context: ConversationContext) -> bool:
+        """Kick off a non-blocking eligibility pass for the current profile.
+
+        Intended to be called once enough of the profile is known to evaluate
+        (by the last intake question). Spawns a background :class:`asyncio.Task`
+        that computes the full eligibility result and stashes it on the agent
+        instance keyed by ``call_id``. The conversation turn is NOT blocked.
+
+        Returns ``True`` when a (new or already-running) speculation covers the
+        current fingerprint, ``False`` when nothing was started (no event loop,
+        profile not yet evaluable, or an unexpected error). A ``False`` return
+        is harmless -- PROCESSING just computes synchronously.
+
+        Idempotent per fingerprint: a second call with an unchanged profile
+        reuses the in-flight task; a call after the profile changed cancels the
+        now-stale task and starts a fresh one.
+        """
+        try:
+            if not self._profile_is_evaluable(context):
+                return False
+
+            # Gate on the FULL eligibility-input fingerprint, not the narrow RAG
+            # one: the reused result must be invalidated by a change to ANY
+            # profile field the LLM evaluation reads.
+            fingerprint = self._eligibility_input_fingerprint(context)
+            existing = self._speculative.get(context.call_id)
+            if existing is not None and existing.fingerprint == fingerprint:
+                # Same profile already being (or done being) speculated -- keep it.
+                return True
+
+            # Profile changed (or first time): drop any stale in-flight task.
+            if existing is not None:
+                self._cancel_entry(existing)
+
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                # No running loop (e.g. called from sync context) -- skip.
+                return False
+
+            self._prune_speculative()
+
+            # Operate on a deep copy so the background task NEVER mutates the
+            # live context (which is being serialised to Redis at the end of
+            # this turn and reloaded fresh on the next). This snapshots the
+            # exact profile the fingerprint was taken over and gives the task
+            # its own metadata scratch space -- no races, no cross-turn bleed.
+            snapshot = context.model_copy(deep=True)
+            task: asyncio.Task[EligibilityResult] = loop.create_task(
+                self._speculative_evaluate(snapshot),
+                name=f"speculative-eligibility-{context.call_id}",
+            )
+            # Swallow speculative-path exceptions so a failed background task can
+            # never surface as an unhandled-exception warning; correctness falls
+            # back to the synchronous path. The done-callback also clears a
+            # finished task that nobody consumed.
+            task.add_done_callback(self._on_speculative_done)
+            self._speculative[context.call_id] = _SpeculativeEntry(fingerprint, task)
+            logger.info(
+                "Started speculative eligibility pass during intake",
+                extra={"call_id": context.call_id},
+            )
+            return True
+        except Exception:
+            logger.warning(
+                "Failed to start speculative eligibility; will compute synchronously",
+                extra={"call_id": context.call_id},
+                exc_info=True,
+            )
+            return False
+
+    async def _consume_speculative(
+        self,
+        context: ConversationContext,
+    ) -> EligibilityResult | None:
+        """Return a speculative result IFF its fingerprint matches the profile.
+
+        Pops the entry regardless of outcome (it is single-use). A fingerprint
+        mismatch, a cancelled task, or a task that raised all yield ``None`` so
+        the caller recomputes synchronously. The reviewer + convergence path is
+        unaffected -- this only swaps in an identical eligibility result.
+        """
+        entry = self._speculative.pop(context.call_id, None)
+        if entry is None:
+            return None
+
+        # SAFETY GATE: every eligibility-relevant profile field must be
+        # byte-for-byte the same as when the speculation started, else the
+        # speculative result is stale. Uses the FULL profile fingerprint.
+        current_fingerprint = self._eligibility_input_fingerprint(context)
+        if entry.fingerprint != current_fingerprint:
+            logger.info(
+                "Discarding speculative eligibility: profile fingerprint changed",
+                extra={"call_id": context.call_id},
+            )
+            self._cancel_entry(entry)
+            return None
+
+        try:
+            result = await entry.task
+        except asyncio.CancelledError:
+            return None
+        except Exception:
+            logger.warning(
+                "Speculative eligibility task raised; computing synchronously",
+                extra={"call_id": context.call_id},
+                exc_info=True,
+            )
+            return None
+
+        if not isinstance(result, EligibilityResult):
+            return None
+        return result
+
+    def cancel_speculative(self, call_id: str) -> None:
+        """Cancel and drop any in-flight speculation for a session.
+
+        Called on session end / abandonment so background tasks never leak.
+        Safe to call when nothing is in flight.
+        """
+        entry = self._speculative.pop(call_id, None)
+        if entry is not None:
+            self._cancel_entry(entry)
+
+    async def _speculative_evaluate(
+        self,
+        context: ConversationContext,
+    ) -> EligibilityResult:
+        """Background body of a speculative pass: full evaluation with fallback.
+
+        Mirrors the synchronous compute path (primary model, then fallback) and
+        stamps timing/model onto the result so a reuse hit is indistinguishable
+        from a fresh pass. Exceptions propagate to the awaiting consumer, which
+        then recomputes synchronously.
+        """
+        start_ms = time.perf_counter()
+        result, model_used = await self._compute_with_fallback(context)
+        if result is None:
+            # Both models failed during speculation. Raise so the consumer's
+            # await sees it and falls back to a fresh synchronous attempt.
+            raise RuntimeError("speculative eligibility evaluation failed on both models")
+        result.processing_time_ms = round((time.perf_counter() - start_ms) * 1000, 1)
+        result.model_used = model_used
+        return result
+
+    def _profile_is_evaluable(self, context: ConversationContext) -> bool:
+        """True when the profile has the fields eligibility needs to run.
+
+        Mirrors :pyattr:`UserProfile.required_fields_complete` (state, family
+        size, income, occupation, coverage all known) -- i.e. everything the
+        five intake questions collect. Below this bar a speculative pass would
+        run against an incomplete profile and its fingerprint would not match
+        the post-intake profile anyway, so we simply do not start one.
+        """
+        return context.user_profile.required_fields_complete
+
+    @staticmethod
+    def _eligibility_input_fingerprint(context: ConversationContext) -> str:
+        """Stable hash of the ENTIRE profile the eligibility evaluation reads.
+
+        Unlike :meth:`_profile_fingerprint` (scoped to the RAG query / candidate
+        set), this must change whenever ANY field that can affect a verdict
+        changes, because the full profile is serialised into the eligibility
+        prompt (coverage, age, BPL/ration/SECC, district all feed the LLM's
+        criteria). It is the safety gate for reusing a cached *result*: identical
+        fingerprint => identical eligibility input => identical verdict.
+
+        We hash the same canonical JSON that :meth:`_render_system_template`
+        feeds the prompt, so the gate tracks the prompt input exactly.
+        """
+        profile_dict = context.user_profile.model_dump(mode="json", exclude_none=True)
+        raw = json_compact(profile_dict)
+        return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+    def _prune_speculative(self) -> None:
+        """Bound the speculative map so abandoned sessions can't leak forever.
+
+        Entries are normally removed on consume (PROCESSING) or cancel (session
+        end). A session that starts speculation but never reaches either path
+        (Redis TTL expiry, silent hang-up) would otherwise retain its entry for
+        the lifetime of this app-singleton agent. Called just before inserting a
+        new entry: evicts the oldest entries (insertion-ordered dict) so that
+        after the imminent insert the map holds at most ``_MAX_SPECULATIVE_ENTRIES``.
+        """
+        # Leave room for the one entry about to be inserted by the caller.
+        overflow = len(self._speculative) - (_MAX_SPECULATIVE_ENTRIES - 1)
+        if overflow <= 0:
+            return
+        for call_id in list(self._speculative.keys())[:overflow]:
+            entry = self._speculative.pop(call_id, None)
+            if entry is not None:
+                self._cancel_entry(entry)
+
+    @staticmethod
+    def _cancel_entry(entry: _SpeculativeEntry) -> None:
+        if not entry.task.done():
+            entry.task.cancel()
+
+    @staticmethod
+    def _on_speculative_done(task: asyncio.Task[EligibilityResult]) -> None:
+        """Consume any exception/cancellation so it is never 'never retrieved'."""
+        if task.cancelled():
+            return
+        exc = task.exception()
+        if exc is not None:
+            logger.debug("Speculative eligibility task ended with error: %s", exc)
 
     def _get_candidate_schemes(
         self,
         context: ConversationContext,
     ) -> list[SchemeRecord]:
-        """Get every applicable scheme, optionally ranked by RAG retrieval."""
+        """Get candidate schemes for evaluation.
+
+        With a knowledge store, returns the RAG-ranked top-k of the
+        state-applicable set (pruned, so the batched LLM workload stays flat as
+        the corpus grows). Without a store -- or if retrieval yields no usable
+        hits or errors -- returns the FULL applicable set so a weak/empty
+        retrieval can never silently drop a genuinely applicable scheme.
+        """
         applicable = self._filter_schemes(context.user_profile.state)
         if not applicable:
             return []
@@ -183,7 +510,12 @@ class EligibilityAgent(BaseAgent):
                 schemes_evaluated=0,
             )
 
-        batch_results = await self._evaluate_batches(context, model, batches)
+        # Render the invariant prompt body (instructions + user profile) ONCE
+        # per call. The schemes payload is the only per-batch variable, so we
+        # leave a placeholder here and each batch substitutes its own payload.
+        system_template = self._render_system_template(context)
+
+        batch_results = await self._evaluate_batches(context, model, batches, system_template)
         matches_by_id: dict[str, SchemeMatch] = {}
         for result in batch_results:
             for match in result.matches:
@@ -202,18 +534,37 @@ class EligibilityAgent(BaseAgent):
             schemes_evaluated=len(candidate_schemes),
         )
 
+    def _render_system_template(self, context: ConversationContext) -> str:
+        """Render the invariant system prompt once, leaving a schemes placeholder.
+
+        The eligibility prompt embeds two variables: the user profile (constant
+        across every batch of a single call) and the per-batch schemes payload.
+        We render the profile here and keep ``{schemes}`` as a sentinel so each
+        batch only has to splice in its own serialized schemes -- avoiding a
+        full template re-render per batch.
+        """
+        profile_dict = context.user_profile.model_dump(mode="json", exclude_none=True)
+        return prompts.render(
+            "eligibility_system",
+            user_profile=json_compact(profile_dict),
+            schemes=_SCHEMES_PLACEHOLDER,
+        )
+
     async def _evaluate_batches(
         self,
         context: ConversationContext,
         model: str,
         batches: list[list[SchemeRecord]],
+        system_template: str,
     ) -> list[EligibilityResult]:
         """Evaluate scheme batches with bounded concurrency."""
         semaphore = asyncio.Semaphore(self._max_parallel_batches)
 
         async def _run(batch: list[SchemeRecord], batch_index: int) -> EligibilityResult:
             async with semaphore:
-                return await self._evaluate_batch(context, model, batch, batch_index)
+                return await self._evaluate_batch(
+                    context, model, batch, batch_index, system_template
+                )
 
         return await asyncio.gather(*[_run(batch, idx) for idx, batch in enumerate(batches)])
 
@@ -223,9 +574,10 @@ class EligibilityAgent(BaseAgent):
         model: str,
         batch: list[SchemeRecord],
         batch_index: int,
+        system_template: str,
     ) -> EligibilityResult:
         """Evaluate one batch and retry once if the LLM omits scheme IDs."""
-        result = await self._evaluate_batch_once(context, model, batch)
+        result = await self._evaluate_batch_once(context, model, batch, system_template)
         result = self._normalize_batch_result(result, batch)
         missing = missing_candidate_ids(result.matches, batch)
 
@@ -238,7 +590,7 @@ class EligibilityAgent(BaseAgent):
                     "call_id": context.call_id,
                 },
             )
-            retry = await self._evaluate_batch_once(context, model, batch)
+            retry = await self._evaluate_batch_once(context, model, batch, system_template)
             retry = self._normalize_batch_result(retry, batch)
             result = self._merge_batch_retry(result, retry, batch)
             missing = missing_candidate_ids(result.matches, batch)
@@ -258,16 +610,11 @@ class EligibilityAgent(BaseAgent):
         context: ConversationContext,
         model: str,
         candidate_schemes: list[SchemeRecord],
+        system_template: str,
     ) -> EligibilityResult:
-        """Build one prompt, call the LLM, and parse the batch result."""
-        profile_dict = context.user_profile.model_dump(mode="json", exclude_none=True)
+        """Splice this batch's schemes into the pre-rendered prompt and call the LLM."""
         schemes_payload = self._serialize_schemes(candidate_schemes)
-
-        system = prompts.render(
-            "eligibility_system",
-            user_profile=json_compact(profile_dict),
-            schemes=json_compact(schemes_payload),
-        )
+        system = system_template.replace(_SCHEMES_PLACEHOLDER, json_compact(schemes_payload))
 
         raw = await self._call_llm_json(
             system,
@@ -312,8 +659,26 @@ class EligibilityAgent(BaseAgent):
         context: ConversationContext,
         applicable: list[SchemeRecord],
     ) -> list[SchemeRecord]:
-        """Rank applicable schemes by vector hits, appending non-hits afterward."""
+        """Rank applicable schemes by RAG retrieval, pruned to the top-k hits.
+
+        The retrieval-ranked top-k drives the LLM workload, so it stays flat as
+        the corpus grows. Within one session the ranking is cached against a
+        profile fingerprint, so repeated eligibility turns on an unchanged
+        profile do not re-hit the vector store.
+        """
         from vaidya.utils.states import state_name_to_code
+
+        applicable_ids = {s.scheme_id for s in applicable}
+        fingerprint = self._profile_fingerprint(context)
+
+        cached = self._cached_retrieval_order(context, fingerprint, applicable)
+        if cached is not None:
+            logger.info(
+                "Reusing cached RAG ranking (%d schemes); fingerprint unchanged",
+                len(cached),
+                extra={"call_id": context.call_id},
+            )
+            return cached
 
         retrieval_start = time.perf_counter()
         query = self._build_retrieval_query(context)
@@ -326,12 +691,15 @@ class EligibilityAgent(BaseAgent):
             state_code=state_code,
         )
         registry_map = {s.scheme_id: s for s in self._schemes}
-        applicable_ids = {s.scheme_id for s in applicable}
 
+        # Prune to the retrieval-ranked applicable hits (top-k), de-duplicated.
+        # Schemes the user's state does not qualify for are never surfaced.
+        seen: set[str] = set()
         ranked_hits: list[SchemeRecord] = []
         for stub in hits:
             resolved = registry_map.get(stub.scheme_id, stub)
-            if resolved.scheme_id in applicable_ids:
+            if resolved.scheme_id in applicable_ids and resolved.scheme_id not in seen:
+                seen.add(resolved.scheme_id)
                 ranked_hits.append(resolved)
 
         retrieval_ms = (time.perf_counter() - retrieval_start) * 1000
@@ -342,19 +710,69 @@ class EligibilityAgent(BaseAgent):
                 "state_code": state_code,
                 "vector_hits": len(hits),
                 "applicable_total": len(applicable),
+                "ranked_hits": len(ranked_hits),
                 "retrieval_ms": round(retrieval_ms, 1),
                 "call_id": context.call_id,
             },
         )
 
-        # Preserve retrieval order for hits, then original registry order for the rest.
-        seen: set[str] = set()
-        ranked: list[SchemeRecord] = []
-        for scheme in ranked_hits + applicable:
-            if scheme.scheme_id not in seen:
-                seen.add(scheme.scheme_id)
-                ranked.append(scheme)
-        return ranked
+        # Only cache a usable ordering; an empty result must not pin the cache,
+        # so the caller can safely fall back to the full applicable set and a
+        # later turn can retry retrieval.
+        if ranked_hits:
+            context.metadata[_RAG_CACHE_FINGERPRINT_KEY] = fingerprint
+            context.metadata[_RAG_CACHE_ORDER_KEY] = [s.scheme_id for s in ranked_hits]
+        return ranked_hits
+
+    def _cached_retrieval_order(
+        self,
+        context: ConversationContext,
+        fingerprint: str,
+        applicable: list[SchemeRecord],
+    ) -> list[SchemeRecord] | None:
+        """Return the cached RAG ordering when the fingerprint is unchanged.
+
+        The cached ordering is re-resolved against the *current* applicable set
+        so any scheme that is no longer applicable (e.g. state changed) is
+        dropped. Returns ``None`` when there is no valid cache hit, forcing a
+        fresh retrieval.
+        """
+        if context.metadata.get(_RAG_CACHE_FINGERPRINT_KEY) != fingerprint:
+            return None
+        cached_order = context.metadata.get(_RAG_CACHE_ORDER_KEY)
+        if not isinstance(cached_order, list) or not cached_order:
+            return None
+
+        applicable_by_id = {s.scheme_id: s for s in applicable}
+        resolved = [
+            applicable_by_id[scheme_id]
+            for scheme_id in cached_order
+            if scheme_id in applicable_by_id
+        ]
+        return resolved or None
+
+    @staticmethod
+    def _profile_fingerprint(context: ConversationContext) -> str:
+        """Stable hash of the eligibility-relevant profile fields.
+
+        Covers every field that drives the retrieval query or candidate set
+        (``state``, ``occupation_type``, ``income_bracket``, ``health_need``),
+        plus ``family_size`` and ``health_need_en`` as additional intake
+        signals. Including the extra fields only makes the cache invalidate more
+        eagerly when intake progresses -- never less -- so it cannot serve a
+        stale ranking, while a turn that changes none of them reuses the cache.
+        """
+        profile = context.user_profile
+        parts = [
+            profile.state or "",
+            profile.occupation_type.value,
+            profile.income_bracket.value,
+            str(profile.family_size) if profile.family_size is not None else "",
+            profile.health_need or "",
+            profile.health_need_en or "",
+        ]
+        raw = "|".join(parts)
+        return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
     @staticmethod
     def _build_retrieval_query(context: ConversationContext) -> str:

@@ -22,7 +22,11 @@ Requires ``pipecat-ai`` -- guarded import so the rest of the app works without i
 from __future__ import annotations
 
 import asyncio
+import base64
+import binascii
+import io
 import logging
+import wave
 from collections.abc import Coroutine
 from typing import TYPE_CHECKING, Any, cast
 
@@ -52,6 +56,7 @@ try:
         LLMFullResponseStartFrame,
         TextFrame,
         TranscriptionFrame,
+        TTSSpeakFrame,
         TTSUpdateSettingsFrame,
         UserStartedSpeakingFrame,
     )
@@ -61,6 +66,28 @@ try:
     PIPECAT_AVAILABLE = True
 except ImportError:
     PIPECAT_AVAILABLE = False
+
+# Audio-output frames are imported separately: emitting pre-rendered cached
+# audio (instead of pushing text to the downstream TTS service) requires these
+# frame types, and their availability/signature is more version-sensitive than
+# the core frames above. If they can't be imported, the cache still renders
+# bytes but emission falls back to the proven TextFrame path.
+try:
+    from pipecat.frames.frames import (  # type: ignore[attr-defined]
+        TTSAudioRawFrame,
+        TTSStartedFrame,
+        TTSStoppedFrame,
+    )
+
+    TTS_AUDIO_FRAMES_AVAILABLE = True
+except ImportError:
+    TTS_AUDIO_FRAMES_AVAILABLE = False
+    # Defensive Any-typed placeholders so the cached-audio path fails safe to
+    # the text path (via the TTS_AUDIO_FRAMES_AVAILABLE guard) rather than
+    # NameError if the flag and these names ever diverge.
+    TTSAudioRawFrame: Any = None
+    TTSStartedFrame: Any = None
+    TTSStoppedFrame: Any = None
 
     # Stubs so the module can be imported without pipecat.
     class FrameProcessor:  # type: ignore[no-redef]
@@ -87,6 +114,10 @@ except ImportError:
         pass
 
     class TextFrame(Frame):  # type: ignore[no-redef]
+        def __init__(self, text: str = "") -> None:
+            self.text = text
+
+    class TTSSpeakFrame(Frame):  # type: ignore[no-redef]
         def __init__(self, text: str = "") -> None:
             self.text = text
 
@@ -149,11 +180,159 @@ UTTERANCE_DEBOUNCE_SECONDS = 2.0
 
 _DEDUPE_STRIP_CHARS = ".,!?।|॥'\"-—:; \t\n"
 
+# Telephony audio target: 8 kHz, mono, 16-bit PCM. Cached prompts whose decoded
+# WAV matches this exactly can be emitted as raw audio frames; anything else
+# falls back to the text path so we never push a mismatched waveform to Twilio.
+_TELEPHONY_SAMPLE_RATE = 8000
+_TELEPHONY_CHANNELS = 1
+_TELEPHONY_SAMPLE_WIDTH = 2
+_TTS_CACHE_MODEL = "bulbul:v3"
+
+# Sentence-ending punctuation across the 11 voice scripts (Latin + Indic),
+# matching pipecat's own SENTENCE_ENDING_PUNCTUATION for the languages we
+# support. A fragment that ends on one of these is a complete utterance the
+# TTS can synthesize and speak on its own.
+_SENTENCE_ENDERS = frozenset(".?!;…।॥।。？！；．")
+# Clause separators: weaker boundaries used to break an over-long leading
+# sentence so the FIRST spoken fragment stays short (fast time-to-first-audio)
+# without ever splitting mid-word. Comma, colon, semicolon, dashes, and the
+# full-width / Indic / Arabic comma variants.
+_CLAUSE_SEPARATORS = frozenset(",:;—–-،，、；：")
+# Lower bound (chars / code points) for the leading fragment. Large enough
+# that the head is a natural clause (~6+ words) rather than a clipped two-word
+# sliver, yet small enough to catch common Indic clause boundaries (e.g. a
+# Hindi/Tamil "..., " around 30 chars) so audio starts almost immediately.
+# Only applies once the whole reply is already past _STREAM_MIN_SPLIT_LENGTH,
+# so the remaining tail is always substantial too.
+_STREAM_HEAD_MIN_CHARS = 28
+# If the leading sentence/clause is longer than this we still speak it as the
+# head (better to start a slightly longer fragment now than buffer everything);
+# this only bounds how far we scan for the first boundary.
+_STREAM_HEAD_MAX_CHARS = 140
+# Below this total length there is nothing to gain from splitting a head off:
+# the whole reply is short enough that the end-frame flush is already prompt.
+_STREAM_MIN_SPLIT_LENGTH = 60
+
+
+def _split_leading_fragment(text: str) -> tuple[str, str]:
+    """Split *text* into a short, speakable leading fragment and the remainder.
+
+    Returns ``(head, tail)``. The ``head`` is meant to be spoken IMMEDIATELY
+    (via a TTS speak frame) so the caller hears audio without waiting for the
+    whole reply to synthesize; ``tail`` is everything after it and flows
+    through the normal sentence-aggregating TTS envelope.
+
+    Boundary selection (longest-first preference for a natural unit):
+
+    1. Prefer the first **sentence** boundary (``. ? ! । ॥`` …) at or past
+       :data:`_STREAM_HEAD_MIN_CHARS`.
+    2. Otherwise fall back to the first **clause** boundary (comma/colon/dash,
+       incl. Indic/Arabic/full-width variants) at or past the minimum.
+
+    Robustness guarantees:
+
+    - Boundaries are only taken at whitespace-delimited word ends, so a run of
+      non-whitespace characters — and therefore any multi-byte grapheme in
+      Devanagari, Tamil, Bengali, Odia, etc. — is never cut in half.
+    - Boundary punctuation stays attached to the ``head`` so prosody is intact.
+    - Concatenating ``head`` and ``tail`` with a single space reproduces the
+      input (already single-space normalized by :func:`format_for_tts`), so the
+      total synthesized audio is unchanged.
+
+    When there is no clean early boundary (or the reply is short), returns
+    ``("", text)`` so the caller keeps today's single-envelope behaviour with
+    no regression.
+    """
+    text = text.strip()
+    # Short replies: the end-frame flush already starts them promptly.
+    if len(text) < _STREAM_MIN_SPLIT_LENGTH:
+        return "", text
+
+    words = text.split()
+    sentence_split: int | None = None
+    clause_split: int | None = None
+    length = 0
+    for idx, word in enumerate(words):
+        length += len(word) + (1 if length else 0)
+        if length < _STREAM_HEAD_MIN_CHARS:
+            continue
+        last = word[-1]
+        if sentence_split is None and last in _SENTENCE_ENDERS:
+            sentence_split = idx + 1
+            break  # a sentence boundary is the best head; stop scanning
+        if clause_split is None and last in _CLAUSE_SEPARATORS:
+            clause_split = idx + 1
+        if length >= _STREAM_HEAD_MAX_CHARS:
+            break  # don't scan unboundedly for a head
+
+    # Prefer a sentence boundary, but only if it leaves a real remainder to
+    # stream behind it. If the only sentence end is the final word, fall back
+    # to the clause boundary we found earlier (also requiring a remainder).
+    # A split at the very last word yields no streaming win, so we skip it.
+    last_index = len(words)
+    for split_at in (sentence_split, clause_split):
+        if split_at is not None and split_at < last_index:
+            return " ".join(words[:split_at]), " ".join(words[split_at:])
+    return "", text
+
 
 def _normalize_for_dedupe(text: str) -> str:
     """Normalize an utterance for duplicate detection across STT retries."""
     cleaned = "".join(ch for ch in text.lower() if ch not in _DEDUPE_STRIP_CHARS)
     return cleaned
+
+
+def _pcm_from_tts_bytes(audio: bytes | None) -> bytes | None:
+    """Decode Sarvam REST TTS output into raw 8 kHz mono 16-bit PCM, or None.
+
+    ``SarvamClient.tts`` returns the SDK's ``audios[0]`` — a base64-encoded WAV
+    string. To emit it through the telephony transport (which is configured
+    with ``add_wav_header=False``) we must base64-decode, strip the WAV
+    container, and confirm the format matches telephony exactly. Any deviation
+    (wrong rate/channels/width, non-WAV, undecodable) returns None so the caller
+    falls back to the text path rather than playing a mismatched waveform.
+    """
+    if not audio:
+        return None
+
+    raw: bytes
+    if isinstance(audio, (bytes, bytearray)):
+        raw = bytes(audio)
+    else:
+        return None
+
+    # The SDK hands back base64 text (as bytes or str). Decode it to the WAV
+    # container; if it's already raw WAV bytes, the decode will fail and we
+    # treat the original bytes as the container.
+    wav_bytes: bytes
+    try:
+        wav_bytes = base64.b64decode(raw, validate=True)
+    except (binascii.Error, ValueError):
+        wav_bytes = raw
+
+    try:
+        with wave.open(io.BytesIO(wav_bytes), "rb") as wav_file:
+            if (
+                wav_file.getframerate() != _TELEPHONY_SAMPLE_RATE
+                or wav_file.getnchannels() != _TELEPHONY_CHANNELS
+                or wav_file.getsampwidth() != _TELEPHONY_SAMPLE_WIDTH
+            ):
+                return None
+            return wav_file.readframes(wav_file.getnframes())
+    except (EOFError, wave.Error, OSError):
+        return None
+
+
+def _resolve_tts_cache(conversation_manager: object) -> Any:
+    """Find the shared TTS cache the app lifespan attached to the Sarvam client.
+
+    The pipeline constructs :class:`VaidyaAgentProcessor` without a ``tts_cache``
+    kwarg, so the single process-wide cache is reached through the conversation
+    manager's Sarvam client (``app.state`` wiring puts it there). Returns the
+    cache or ``None`` if it isn't wired (e.g. text-only deployments / tests).
+    """
+    client = getattr(conversation_manager, "_sarvam_client", None)
+    return getattr(client, "tts_cache", None)
 
 
 class VaidyaAgentProcessor(FrameProcessor):
@@ -169,6 +348,9 @@ class VaidyaAgentProcessor(FrameProcessor):
         call_id: str,
         language: str,
         playback_marks_enabled: bool = True,
+        tts_cache: Any = None,
+        tts_pace: float = 0.94,
+        tts_speaker: str | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -191,6 +373,17 @@ class VaidyaAgentProcessor(FrameProcessor):
         self._pending_language: object | None = None
         self._pending_confidence: float = 1.0
         self._debounce_task: asyncio.Task[None] | None = None
+        # TTS audio cache for fixed/templated prompts. The pipeline builds this
+        # processor without the kwarg today, so fall back to the shared cache
+        # attached to the conversation manager's Sarvam client (wired in the app
+        # lifespan). The cache key must use the SAME pace the downstream Sarvam
+        # TTS service was built with, or cached audio would differ from a live
+        # render — that is the call's tts_pace, NOT a per-utterance profile.
+        self._tts_cache = (
+            tts_cache if tts_cache is not None else _resolve_tts_cache(conversation_manager)
+        )
+        self._tts_pace = tts_pace
+        self._tts_speaker = tts_speaker
 
     async def process_frame(self, frame: Frame, direction: FrameDirection) -> None:
         """Route frames: handle silence signals, auto-switch language, route transcriptions."""
@@ -460,6 +653,7 @@ class VaidyaAgentProcessor(FrameProcessor):
         text: str,
         profile: str = "default",
         send_mark: bool = True,
+        stream: bool = True,
     ) -> None:
         """Push text to TTS and, for Twilio, request a playback-complete mark.
 
@@ -473,13 +667,113 @@ class VaidyaAgentProcessor(FrameProcessor):
 
         ``send_mark=False`` is for keepalive interjections ("one moment")
         that must not restart the idle watcher when their playback acks.
+
+        Fixed/templated prompts (greeting, intake questions, processing filler,
+        silence nudges, closure) are byte-identical every call, so we try the
+        TTS cache first: on a hit (or first-call render) the audio plays from
+        memory instead of round-tripping to Sarvam's TTS service. Any
+        uncertainty — no cache, cache miss returning None, unavailable audio
+        frames, or a decoded waveform that doesn't match telephony format —
+        falls back to the proven TextFrame path below, so emission is never
+        worse than today.
+
+        Time-to-first-audio: for a long reply we split off a short leading
+        fragment and speak it FIRST via a ``TTSSpeakFrame``, which the
+        downstream Sarvam service synthesizes immediately instead of buffering
+        the whole paragraph behind its sentence-aggregation / ``min_buffer_size``
+        gate. The remainder still flows through the ``LLMFullResponseStart`` /
+        ``LLMFullResponseEnd`` envelope so its final sentence is flushed by the
+        end frame. Short replies (and the cached fast-path) are unchanged.
+
+        ``stream=False`` forces the whole reply through a single audio context
+        (no leading-fragment split). The terminal closure uses it: it pushes
+        an ``EndTaskFrame`` immediately after, and a single uninterrupted
+        context is least likely to be truncated by the teardown than two
+        contexts with a gap between them.
         """
         spoken = format_for_tts(text, profile=profile)
+
+        if await self._try_emit_cached_audio(spoken, send_mark=send_mark):
+            return
+
+        # Only stream a leading fragment for real replies (send_mark=True) that
+        # are not about to be torn down (stream=True). Keepalive interjections
+        # ("one moment") pass send_mark=False precisely so their playback must
+        # NOT touch the idle watcher; speaking a head fragment would surface an
+        # extra BotStoppedSpeaking with no pending mark to suppress it. They are
+        # also already short, so there is nothing to gain. Keep their exact
+        # single-envelope behaviour.
+        head, tail = _split_leading_fragment(spoken) if (send_mark and stream) else ("", spoken)
+        if head:
+            # Speak the leading fragment right away. TTSSpeakFrame bypasses the
+            # downstream sentence aggregator and synthesizes its own context
+            # immediately, so the caller hears audio while `tail` is still being
+            # synthesized. The output transport derives Bot{Started,Stopped}-
+            # SpeakingFrame from the audio it plays, so we do not push those
+            # ourselves (mirrors the cached-audio path). The pending playback
+            # mark (set below) suppresses the head's BotStoppedSpeaking from
+            # starting the idle watch before the tail has played.
+            await self.push_frame(TTSSpeakFrame(text=head))
+
+        # Remainder (or the whole reply when there was no clean early split)
+        # goes through the proven envelope: the end frame forces the TTS to
+        # flush its sentence aggregation AND Sarvam's server-side buffer, so the
+        # last sentence is never left stuck.
         await self.push_frame(LLMFullResponseStartFrame())
-        await self.push_frame(TextFrame(text=spoken))
+        await self.push_frame(TextFrame(text=tail))
         await self.push_frame(LLMFullResponseEndFrame())
         if send_mark and self._playback_marks_enabled:
             await self._send_playback_mark()
+
+    async def _try_emit_cached_audio(self, spoken: str, *, send_mark: bool) -> bool:
+        """Emit pre-rendered cached audio for *spoken*; return False to fall back.
+
+        Returns ``True`` only when cached audio was successfully pushed as raw
+        telephony PCM frames. Returns ``False`` (so :meth:`_emit_bot_text` uses
+        the TextFrame path) when the cache is absent, audio frames are
+        unavailable, the render fails/returns None, or the decoded waveform
+        doesn't match the telephony format.
+        """
+        if self._tts_cache is None or not TTS_AUDIO_FRAMES_AVAILABLE or not spoken:
+            return False
+
+        speaker = self._tts_speaker or _speaker_for_language(self._language)
+        try:
+            audio = await self._tts_cache.get_or_render(
+                spoken,
+                self._language,
+                pace=self._tts_pace,
+                speaker=speaker,
+                model=_TTS_CACHE_MODEL,
+                sample_rate=_TELEPHONY_SAMPLE_RATE,
+            )
+        except Exception as exc:  # noqa: BLE001 - cache failure must fall back, not crash
+            logger.warning(
+                "TTS cache render failed; using text path",
+                extra={"call_id": self._call_id, "error": str(exc)[:200]},
+            )
+            return False
+
+        pcm = _pcm_from_tts_bytes(audio)
+        if not pcm:
+            return False
+
+        # Emit only the TTS envelope around the audio. The output transport
+        # derives Bot{Started,Stopped}SpeakingFrame from the audio it plays, so
+        # pushing those ourselves would double-signal and race the idle watcher
+        # / interruption gate (the normal TextFrame path never pushes them).
+        await self.push_frame(TTSStartedFrame())
+        await self.push_frame(
+            TTSAudioRawFrame(
+                audio=pcm,
+                sample_rate=_TELEPHONY_SAMPLE_RATE,
+                num_channels=_TELEPHONY_CHANNELS,
+            )
+        )
+        await self.push_frame(TTSStoppedFrame())
+        if send_mark and self._playback_marks_enabled:
+            await self._send_playback_mark()
+        return True
 
     async def _send_playback_mark(self) -> None:
         self._mark_counter += 1
@@ -561,9 +855,14 @@ class VaidyaAgentProcessor(FrameProcessor):
             if not spoken:
                 continue
 
-            await self._emit_bot_text(spoken, profile="repair")
+            ending = is_terminal or terminal
+            # The terminal closure is followed immediately by EndTaskFrame, so
+            # speak it as a single uninterrupted audio context (stream=False):
+            # a leading-fragment split would add a second context the teardown
+            # could truncate. Non-terminal nudges stream normally.
+            await self._emit_bot_text(spoken, profile="repair", stream=not ending)
 
-            if is_terminal or terminal:
+            if ending:
                 # Give the TTS a moment to flush, then end the task.
                 await self.push_frame(EndTaskFrame(), FrameDirection.UPSTREAM)
                 return

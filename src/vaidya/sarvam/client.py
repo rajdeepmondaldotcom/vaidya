@@ -12,12 +12,34 @@ import time
 import wave
 from typing import Any, cast
 
+import httpx
 from sarvamai import SarvamAI
 
 from vaidya.sarvam.models import TTS_MAX_CHARS_V3
 from vaidya.sarvam.resilience import CircuitOpenError, ServiceCircuitBreakers
 
 logger = logging.getLogger(__name__)
+
+# Connection-pool tuning for the shared httpx client backing the SDK.
+#
+# Pooling already works out of the box: one SarvamAI instance owns exactly
+# one httpx.Client, and the SDK reuses it for every REST call (chat, tts,
+# stt, translate, ...). So we do NOT create a client per call. The only
+# remaining cold-start cost is the FIRST request's DNS + TLS handshake.
+#
+# httpx's default keepalive_expiry is 5s — shorter than the natural gaps
+# between turns on a phone call. After a pause, the warmed TLS connection is
+# evicted and the next turn pays a fresh handshake. We extend the idle
+# lifetime so a warmed connection survives across turns. Pool size limits
+# stay at httpx defaults (conservative); we only lengthen keepalive.
+_KEEPALIVE_EXPIRY_SECONDS = 90.0
+_MAX_KEEPALIVE_CONNECTIONS = 20
+_MAX_CONNECTIONS = 100
+
+# Default per-request timeout the SDK applies when no explicit timeout is
+# passed (mirrors the SDK's own 60s fallback). Used to build the tuned
+# httpx client so behaviour matches the un-tuned default except for pooling.
+_DEFAULT_HTTPX_TIMEOUT_SECONDS = 60.0
 
 # Trailing commas before } or ] — frequent LLM JSON malformation.
 _TRAILING_COMMA_RE = re.compile(r",\s*([}\]])")
@@ -235,16 +257,128 @@ class SarvamClient:
         timeout: float = 30.0,
     ) -> None:
         self._api_key = api_key
-        self._client = SarvamAI(api_subscription_key=api_key)
+        # Pass a tuned httpx.Client so pooled connections keep their TLS
+        # session alive across the gaps between conversation turns. The SDK
+        # already reuses one client across calls; we only lengthen keepalive.
+        self._client = SarvamAI(
+            api_subscription_key=api_key,
+            httpx_client=self._build_httpx_client(timeout),
+        )
         self._active_call_id: str = ""
         self._retry_max_attempts = retry_max_attempts
         self._retry_base_delay = retry_base_delay
         self._timeout = timeout
         self._circuit_breakers = ServiceCircuitBreakers()
 
+        # prewarm() bookkeeping: an asyncio.Lock guards against concurrent
+        # prewarms and a flag makes repeat calls cheap no-ops (idempotent).
+        # Created lazily inside prewarm() so __init__ stays loop-agnostic.
+        self._prewarm_lock: asyncio.Lock | None = None
+        self._prewarmed = False
+
         from vaidya.sarvam.cost import CostTracker
 
         self.costs = CostTracker()
+
+    @staticmethod
+    def _build_httpx_client(timeout: float) -> httpx.Client:
+        """Build the pooled httpx client used for all REST calls.
+
+        Keeps httpx's default pool sizes but extends ``keepalive_expiry`` so a
+        warmed TLS connection survives the multi-second gaps between turns on a
+        phone call. We mirror the SDK's own behaviour otherwise: ``follow_
+        redirects=True`` and a read timeout matching the configured timeout
+        (falling back to the SDK's 60s default for missing/invalid values).
+        """
+        # Coerce defensively: a non-numeric or non-positive timeout falls back
+        # to the SDK's own 60s default rather than crashing client construction.
+        try:
+            read_timeout = float(timeout)
+        except (TypeError, ValueError):
+            read_timeout = _DEFAULT_HTTPX_TIMEOUT_SECONDS
+        if read_timeout <= 0:
+            read_timeout = _DEFAULT_HTTPX_TIMEOUT_SECONDS
+        limits = httpx.Limits(
+            max_connections=_MAX_CONNECTIONS,
+            max_keepalive_connections=_MAX_KEEPALIVE_CONNECTIONS,
+            keepalive_expiry=_KEEPALIVE_EXPIRY_SECONDS,
+        )
+        return httpx.Client(
+            timeout=httpx.Timeout(read_timeout),
+            limits=limits,
+            follow_redirects=True,
+        )
+
+    def _base_url(self) -> str:
+        """Return the Sarvam REST base URL the SDK is configured against."""
+        try:
+            return str(self._client._client_wrapper.get_environment().base)
+        except Exception:  # pragma: no cover - defensive; SDK internals
+            return "https://api.sarvam.ai"
+
+    def _pooled_httpx_client(self) -> httpx.Client | None:
+        """Return the SDK's shared httpx.Client, or None if internals shifted.
+
+        Reaching through the SDK's private wrapper lets prewarm warm the *exact*
+        connection pool real requests draw from. Guarded so an upstream layout
+        change degrades to a no-op prewarm rather than raising.
+        """
+        try:
+            client = self._client._client_wrapper.httpx_client.httpx_client
+        except Exception:  # pragma: no cover - defensive; SDK internals
+            return None
+        return client if isinstance(client, httpx.Client) else None
+
+    async def prewarm(self) -> bool:
+        """Establish the TLS connection up front so the first call isn't cold.
+
+        Opens (and pools) a connection to the Sarvam host with a cheap HTTP
+        round-trip, moving the DNS + TLS handshake off the caller's first real
+        STT/LLM/TTS request. Idempotent: concurrent and repeat calls collapse
+        into a single warm-up, and once warmed it returns immediately.
+
+        NEVER raises — any failure (offline, DNS, TLS, timeout) is swallowed
+        and logged so this is always safe to call from app startup. Returns
+        ``True`` when a connection was established, ``False`` otherwise.
+
+        Note: this does NOT touch the circuit breakers or cost tracker — it is
+        a pure connection warm-up, not a billable API call, so a cold-start
+        blip can never trip a breaker or distort cost accounting.
+        """
+        if self._prewarmed:
+            return True
+        if self._prewarm_lock is None:
+            self._prewarm_lock = asyncio.Lock()
+        async with self._prewarm_lock:
+            if self._prewarmed:  # re-check: another waiter may have warmed it
+                return True
+            client = self._pooled_httpx_client()
+            if client is None:
+                logger.warning("Sarvam prewarm skipped: pooled httpx client unavailable")
+                return False
+            base_url = self._base_url()
+            try:
+                # A HEAD to the base host is enough to force DNS + TCP + TLS
+                # and seat a connection in the pool. We deliberately reuse the
+                # SDK's own pooled httpx client so the warmed connection is the
+                # exact one later requests draw from. A short timeout keeps a
+                # slow network from stalling startup; the result/status is
+                # irrelevant — any response means the handshake completed.
+                await asyncio.wait_for(
+                    asyncio.to_thread(client.head, base_url),
+                    timeout=min(self._timeout, 10.0),
+                )
+                self._prewarmed = True
+                logger.info("Sarvam connection prewarmed", extra={"base_url": base_url})
+                return True
+            except Exception as exc:
+                # Swallow everything: prewarm is best-effort and must never
+                # crash startup. The first real call will pay the cold cost.
+                logger.warning(
+                    "Sarvam connection prewarm failed (non-fatal)",
+                    extra={"error": str(exc), "base_url": base_url},
+                )
+                return False
 
     @property
     def _retries(self) -> int:

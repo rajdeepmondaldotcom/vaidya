@@ -244,6 +244,7 @@ class Orchestrator:
 
         if self._silence_handler.should_end_call(silence_duration_seconds):
             context.phase = ConversationPhase.CLOSURE
+            self._cancel_speculative_eligibility(context)
             return AgentResponse(
                 text=get_msg("orchestrator", "closure", context.language),
                 phase_transition=ConversationPhase.CLOSURE,
@@ -461,6 +462,14 @@ class Orchestrator:
         if response.updated_profile:
             context.user_profile = response.updated_profile
 
+        # Speculatively start eligibility the moment the profile is complete
+        # enough to evaluate (by the last intake question / confirmation step),
+        # so results are usually ready the instant intake ends. This is a pure
+        # latency optimisation: it does NOT block this turn and its result is
+        # only ever reused if the profile fingerprint is unchanged at PROCESSING
+        # (see EligibilityAgent.start_speculative / _consume_speculative).
+        self._maybe_start_speculative_eligibility(context)
+
         if response.metadata.get("intake_complete"):
             return await self._transition_to_processing(context)
 
@@ -470,6 +479,38 @@ class Orchestrator:
             return await self._fast_track_distress(context)
 
         return response
+
+    def _maybe_start_speculative_eligibility(self, context: ConversationContext) -> None:
+        """Kick off a background eligibility pass if the profile is evaluable.
+
+        Best-effort and fully non-blocking. The EligibilityAgent owns the
+        guards (profile completeness, fingerprint idempotency, event loop
+        availability) and swallows its own failures, so a missing or failed
+        speculation is invisible to correctness -- PROCESSING just recomputes.
+        """
+        try:
+            self._eligibility.start_speculative(context)
+        except Exception:
+            logger.debug(
+                "Speculative eligibility kickoff skipped",
+                extra={"call_id": context.call_id},
+                exc_info=True,
+            )
+
+    def _cancel_speculative_eligibility(self, context: ConversationContext) -> None:
+        """Cancel any in-flight speculative pass so background tasks never leak.
+
+        Called when the conversation reaches a terminal state (closure / end /
+        silence hang-up). Idempotent and safe when nothing is in flight.
+        """
+        try:
+            self._eligibility.cancel_speculative(context.call_id)
+        except Exception:
+            logger.debug(
+                "Speculative eligibility cancel skipped",
+                extra={"call_id": context.call_id},
+                exc_info=True,
+            )
 
     async def _fast_track_distress(self, context: ConversationContext) -> AgentResponse:
         logger.info(
@@ -506,7 +547,7 @@ class Orchestrator:
         """
         if context.convergence_result is not None:
             context.phase = ConversationPhase.RESULTS
-            return await self._guidance.safe_process(context, "")
+            return await self._handle_results(context, "")
         return await self._run_eligibility_and_review(context)
 
     async def _run_eligibility_and_review(
@@ -715,7 +756,7 @@ class Orchestrator:
         self,
         context: ConversationContext,
     ) -> AgentResponse:
-        """Transition to results phase and deliver the first scheme."""
+        """Transition to results phase and deliver ALL eligible schemes in one turn."""
         context.phase = ConversationPhase.RESULTS
         try:
             return await self._handle_results(context, "")
@@ -735,55 +776,19 @@ class Orchestrator:
         context: ConversationContext,
         user_input: str,
     ) -> AgentResponse:
-        """Phase 5: Results delivery -- one scheme at a time."""
-        if "scheme_delivery_index" not in context.metadata:
-            context.metadata["scheme_delivery_index"] = 0
+        """Phase 5: Results delivery -- ALL eligible schemes in ONE turn.
 
-        eligible = context.convergence_result.all_eligible if context.convergence_result else []
-        current_idx = int(context.metadata.get("scheme_delivery_index", 0))
-        if not eligible:
-            context.phase = ConversationPhase.GUIDANCE
-            return await self._guidance.safe_process(context, user_input)
-
-        if current_idx >= len(eligible):
-            context.phase = ConversationPhase.GUIDANCE
-            return await self._handle_guidance(context, user_input)
-
-        if self._user_declines(user_input, context.language):
-            context.phase = ConversationPhase.GUIDANCE
-            return await self._guidance.safe_process(context, user_input)
-
-        return await self._deliver_next_scheme(context, user_input)
-
-    def _user_declines(self, user_input: str, language: str) -> bool:
-        neg_words = get_msg("orchestrator", "negative_words", language).split(",")
-        return any(w in user_input.lower() for w in neg_words)
-
-    async def _deliver_next_scheme(
-        self,
-        context: ConversationContext,
-        user_input: str,
-    ) -> AgentResponse:
-        eligible = context.convergence_result.all_eligible if context.convergence_result else []
-        current_idx = int(context.metadata["scheme_delivery_index"])
-
-        if current_idx >= len(eligible):
-            context.phase = ConversationPhase.GUIDANCE
-            return await self._guidance.safe_process(context, user_input)
-
-        context.metadata["scheme_delivery_index"] = current_idx + 1
-        scheme_response = await self._guidance.safe_process(
-            context,
-            f"__deliver_scheme_index:{current_idx}",
-        )
-
-        if current_idx + 1 < len(eligible):
-            more_prompt = get_msg("orchestrator", "more_schemes", context.language)
-            scheme_response.text = f"{scheme_response.text}\n\n{more_prompt}"
-        else:
-            context.phase = ConversationPhase.GUIDANCE
-            scheme_response.phase_transition = ConversationPhase.GUIDANCE
-
+        We no longer drip-feed one scheme per turn behind a "want to hear the
+        next one?" gate. The guidance agent receives the full eligible list and
+        produces a single spoken message that names every scheme (one concise
+        advisory line each), then offers fuller detail on any one plus an SMS of
+        the full list. After delivering, we move straight to GUIDANCE so the
+        caller's follow-up (a detail request, a question, or a goodbye) is
+        handled there.
+        """
+        scheme_response = await self._guidance.safe_process(context, user_input)
+        context.phase = ConversationPhase.GUIDANCE
+        scheme_response.phase_transition = ConversationPhase.GUIDANCE
         scheme_response.metadata.setdefault("tts_profile", "results")
         return scheme_response
 
@@ -816,6 +821,9 @@ class Orchestrator:
                 phase_transition=ConversationPhase.OPEN_ELICITATION,
             )
 
+        # Terminal farewell: ensure no speculative task lingers (e.g. caller
+        # abandoned before PROCESSING consumed it).
+        self._cancel_speculative_eligibility(context)
         return AgentResponse(text=get_msg("orchestrator", "closure", context.language))
 
     async def _llm_fallback(
@@ -954,6 +962,7 @@ class Orchestrator:
 
     def _handle_end(self, context: ConversationContext) -> AgentResponse:
         context.phase = ConversationPhase.CLOSURE
+        self._cancel_speculative_eligibility(context)
         return AgentResponse(
             text=get_msg("orchestrator", "closure", context.language),
             phase_transition=ConversationPhase.CLOSURE,
