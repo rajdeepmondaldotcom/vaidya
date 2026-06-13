@@ -38,6 +38,45 @@
     "od-IN": "Bhala khabara. Apanankari {scheme_name} mili paariba.",
     "en-IN": "Good news. You may be eligible for {scheme_name}."
   },
+  "results_intro": {
+    "hi-IN": "Achi khabar hai. Aapko {count} yojanaayein mil sakti hain. Sun lijiye.",
+    "ta-IN": "Nalla seidhi. Ungalukku {count} thittangal kidaikkalaam. Kettukkollunga.",
+    "bn-IN": "Bhalo khobar. Apni {count} ti yojana pete paren. Shune nin.",
+    "te-IN": "Manchhi vaartha. Meeku {count} paddhathulu dorakavachu. Vinandi.",
+    "gu-IN": "Saaraa samaachaar. Tamaane {count} yojana mali shake chhe. Saambhalo.",
+    "kn-IN": "Olle sudi. Nimge {count} yojanegalu sigabahudu. Keli.",
+    "ml-IN": "Nalla vaarttha. Ningalkku {count} padhathikal labhikkam. Kelkkoo.",
+    "mr-IN": "Changali baatmi. Tumhala {count} yojana miluu shaktaat. Aika.",
+    "pa-IN": "Changee khabar. Tuhaanu {count} yojanavaan mil sakdiyan ne. Sun lao.",
+    "od-IN": "Bhala khabara. Apanankari {count} yojana mili paaribe. Shunantu.",
+    "en-IN": "Good news. You may be eligible for {count} schemes. Here they are."
+  },
+  "results_scheme_line": {
+    "hi-IN": "{scheme_name} — isme {benefit}.",
+    "ta-IN": "{scheme_name} — idhil {benefit}.",
+    "bn-IN": "{scheme_name} — ete {benefit}.",
+    "te-IN": "{scheme_name} — indulo {benefit}.",
+    "gu-IN": "{scheme_name} — emaa {benefit}.",
+    "kn-IN": "{scheme_name} — idaralli {benefit}.",
+    "ml-IN": "{scheme_name} — ithil {benefit}.",
+    "mr-IN": "{scheme_name} — yaat {benefit}.",
+    "pa-IN": "{scheme_name} — isvich {benefit}.",
+    "od-IN": "{scheme_name} — ethire {benefit}.",
+    "en-IN": "{scheme_name} — {benefit}."
+  },
+  "results_offer_detail": {
+    "hi-IN": "Kisi ek yojana ke baare mein zyada jaanna ho to naam batayein. Main poori list SMS bhi bhej sakta hoon.",
+    "ta-IN": "Edhaavadhu oru thittam patri adhigam therinjukolla, per sollunga. Muzhu list-ai SMS-il anuppalaam.",
+    "bn-IN": "Kono ekti yojana niye aaro jante chaile naam bolun. Puro list SMS-eo pathate pari.",
+    "te-IN": "Edaina oka paddhathi gurinchi ekkuva telusukovaalante peru cheppandi. Mottam list SMS lo kooda pampagalanu.",
+    "gu-IN": "Koi ek yojana vishe vadhu jaanvu hoy to naam kaho. Aakhi list SMS maa pan mokli shaku.",
+    "kn-IN": "Yaavude ondu yojane bagge heccu tiliyabekaadre hesaru heli. Poorti list annu SMS nalloo kaluhisabahudu.",
+    "ml-IN": "Etenkilum oru padhathiye kurichu kooduthal ariyaanenkil per parayoo. Muzhuvan list SMS aayum ayakkam.",
+    "mr-IN": "Konteahi ek yojana baddal adhik jaanun ghyaayche asel tar naav saanga. Puri yaadi SMS nehi pathavu shakto.",
+    "pa-IN": "Kise ik yojana baare hor jaanna hove taan naam dasso. Puri list SMS vich vi bhej sakda haan.",
+    "od-IN": "Kounasi gotie yojana bishayare adhika jaanibaku chahile naam kahantu. Sampurna list SMS re madhya paathai paaribi.",
+    "en-IN": "To hear more about any one scheme, just say its name. I can also send the full list by SMS."
+  },
   "fallback_action": {
     "hi-IN": "Apne najdeeki Jan Seva Kendra mein jaayein.",
     "ta-IN": "Ungal arugil ulla Jan Seva Kendra-kku sellunga.",

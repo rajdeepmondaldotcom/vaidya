@@ -43,14 +43,15 @@ class GuidanceAgent(BaseAgent):
     """Generates TTS-ready spoken guidance from converged eligibility results.
 
     The guidance agent takes the ``convergence_result`` attached to the
-    conversation context and produces a three-part spoken output:
+    conversation context and produces ONE combined spoken results message
+    that names EVERY eligible scheme in a single turn:
 
-    1. **Headline** -- one punchy sentence announcing the good news.
-    2. **Benefit**  -- what the scheme gives in plain rupee terms.
-    3. **Action**   -- documents to collect, where to go, timeline.
+    1. **Intro**   -- "You may qualify for N schemes:".
+    2. **Schemes** -- one concise advisory line per scheme (name + benefit).
+    3. **Offer**   -- offer fuller detail on any one + an SMS of the full list.
 
-    For multiple schemes it uses the *"ek aur suno"* pattern: deliver one
-    scheme at a time, then offer to read out the next.
+    There is no longer a one-scheme-at-a-time "ek aur suno" gate -- the caller
+    hears all their schemes at once and can then ask for detail on any of them.
     """
 
     def __init__(
@@ -67,10 +68,10 @@ class GuidanceAgent(BaseAgent):
         context: ConversationContext,
         user_input: str,
     ) -> AgentResponse:
-        """Produce spoken guidance from the convergence result on *context*.
+        """Produce ONE combined spoken results message for ALL eligible schemes.
 
-        When *user_input* starts with ``__deliver_scheme_index:N`` the agent
-        generates guidance for only the Nth scheme (0-based) instead of all.
+        Every eligible scheme on ``context.convergence_result`` is named in a
+        single turn -- there is no per-scheme drip-feed.
         """
         start = time.perf_counter()
 
@@ -85,14 +86,6 @@ class GuidanceAgent(BaseAgent):
         eligible = convergence.all_eligible or []
         if not eligible:
             return self._no_match_response(context.language)
-
-        if user_input.startswith("__deliver_scheme_index:"):
-            try:
-                idx = int(user_input.split(":")[1])
-                if 0 <= idx < len(eligible):
-                    eligible = [eligible[idx]]
-            except (ValueError, IndexError):
-                pass
 
         guidance_output = await self._generate_guidance(
             eligible=eligible,
@@ -249,25 +242,50 @@ class GuidanceAgent(BaseAgent):
         eligible: list[SchemeMatch],
         language: str = "hi-IN",
     ) -> list[SpokenPart]:
-        """Deterministic spoken parts when LLM output is unparseable."""
-        scheme = eligible[0]
-        headline = get_msg_template(
-            "guidance",
-            "fallback_headline",
-            language,
-            scheme_name=scheme.scheme_name,
+        """Deterministic combined spoken parts naming EVERY eligible scheme.
+
+        Produces a single results turn:
+        1. an intro announcing the count of schemes,
+        2. one concise advisory line per scheme (name + one-line benefit),
+        3. a closing offer of fuller detail on any one + an SMS of the list.
+
+        Used both as the LLM fallback and whenever the LLM returns no usable
+        spoken parts, so the caller always hears all their schemes at once.
+        """
+        count = len(eligible)
+        if count == 1:
+            intro = get_msg_template(
+                "guidance",
+                "fallback_headline",
+                language,
+                scheme_name=eligible[0].scheme_name,
+            )
+        else:
+            intro = get_msg_template("guidance", "results_intro", language, count=count)
+
+        parts: list[SpokenPart] = [SpokenPart(type="intro", text=intro)]
+        for scheme in eligible:
+            line = get_msg_template(
+                "guidance",
+                "results_scheme_line",
+                language,
+                scheme_name=scheme.scheme_name,
+                benefit=scheme.coverage_summary,
+            )
+            parts.append(SpokenPart(type="scheme", text=line))
+
+        parts.append(
+            SpokenPart(type="offer", text=get_msg("guidance", "results_offer_detail", language))
         )
-        return [
-            SpokenPart(type="headline", text=headline),
-            SpokenPart(type="benefit", text=scheme.coverage_summary),
-            SpokenPart(type="action", text=get_msg("guidance", "fallback_action", language)),
-        ]
+        return parts
 
     def _build_fallback_sms(self, eligible: list[SchemeMatch], language: str = "hi-IN") -> str:
-        """Deterministic SMS when LLM output is unusable."""
-        names = ", ".join(s.scheme_name for s in eligible[:2])
+        """Deterministic SMS listing every eligible scheme (truncated to 160 chars)."""
+        names = ", ".join(s.scheme_name for s in eligible)
         sms = get_msg_template("guidance", "fallback_sms", language, names=names)
-        return sms[:_SMS_MAX_LENGTH]
+        if len(sms) > _SMS_MAX_LENGTH:
+            sms = sms[: _SMS_MAX_LENGTH - 3] + "..."
+        return sms
 
     def _no_match_response(self, language: str) -> AgentResponse:
         """Return an empathetic no-match message in the user's language."""
