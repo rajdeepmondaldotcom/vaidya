@@ -161,14 +161,15 @@ if TYPE_CHECKING:
 
 
 # Turn-processing keepalive: speak a short ack only if a turn is taking
-# longer than a normal intake turn (now ~3-5s: one fast LLM call + two
-# translations), then a progress note on an interval. The ack delay is set
-# ABOVE the intake-turn time so quick turns just answer (no "one second"
-# filler); only the multi-call eligibility crunch (~15-25s) trips it.
-# Held just above a normal intake turn (~3-5s with the faster intake path) so
-# quick turns still answer silently, while a slow eligibility crunch reassures
-# the caller ~2s sooner than the old 7.0s floor.
-PROCESSING_ACK_DELAY_SECONDS = 4.0
+# longer than a normal intake turn, then a progress note on an interval. The
+# ack delay is set just ABOVE a normal intake turn so quick turns just answer
+# (no "one second" filler); only slow turns trip it. With the lean extraction
+# prompt an intake question now resolves in ~5-8s, so 8.0s keeps EVERY intake
+# turn silent (snappier -- no repetitive "one moment" before each answer) while
+# the multi-call eligibility crunch (~20-30s) still reassures. The crunch also
+# has its own "finding the right plans for you" filler, so the slightly later
+# keepalive there is invisible.
+PROCESSING_ACK_DELAY_SECONDS = 8.0
 PROCESSING_PROGRESS_INTERVAL_SECONDS = 15.0
 # A few unobtrusive reassurances over the eligibility crunch — NOT a stream.
 # At 12 every long turn buried the actual reply under a wall of "still working"

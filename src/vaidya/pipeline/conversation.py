@@ -484,12 +484,23 @@ class ConversationManager:
         phrase = get_msg("orchestrator", key, language)
         spoken = phrase
         if key == "silence_reprompt_prefix" and context is not None:
-            last_question = next(
-                (t.text for t in reversed(context.transcript) if t.role == "assistant"),
-                "",
-            )
-            if last_question:
-                spoken = f"{phrase}{last_question}"
+            if context.metadata.get("confirmation_pending"):
+                # At the confirmation step the last assistant turn is the full
+                # profile read-back (~15s). Replaying it on every silence nudge
+                # is robotic and long -- a short "is this correct?" is enough.
+                spoken = f"{phrase}{get_msg('intake', 'confirm_suffix', language)}"
+            elif context.phase in (ConversationPhase.RESULTS, ConversationPhase.GUIDANCE):
+                # Results already delivered. The last assistant turn is the full
+                # scheme list (~50s) -- NEVER replay it. Offer the follow-up
+                # (say a scheme's name, or get the list by SMS) instead.
+                spoken = get_msg("guidance", "results_offer_detail", language)
+            else:
+                last_question = next(
+                    (t.text for t in reversed(context.transcript) if t.role == "assistant"),
+                    "",
+                )
+                if last_question:
+                    spoken = f"{phrase}{last_question}"
         if terminal and context is not None:
             context.phase = ConversationPhase.CLOSURE
             await self._session.update(context)

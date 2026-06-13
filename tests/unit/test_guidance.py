@@ -385,7 +385,7 @@ class TestProcessDeliversAllSchemes:
         out = ctx.guidance_output
         assert out is not None
         scheme_lines = [p for p in out.spoken_parts if p.type == "scheme"]
-        assert len(scheme_lines) == 5  # capped to _MAX_SPOKEN_SCHEMES
+        assert len(scheme_lines) == 3  # capped to _MAX_SPOKEN_SCHEMES (voice stays ~20s)
         assert out.has_more_schemes is True
 
     @pytest.mark.asyncio
@@ -404,6 +404,38 @@ class TestProcessDeliversAllSchemes:
         resp = await agent.process(ctx, "__deliver_scheme_index:1")
 
         assert resp.metadata["schemes_delivered"] == 2
+
+    @pytest.mark.asyncio
+    async def test_followup_after_results_gives_next_steps_not_redump(self):
+        """A post-results follow-up (phase GUIDANCE, results already delivered)
+        must NOT re-read the whole scheme list -- that produced the duplicate
+        multi-minute monologue. A bare ack yields the next-step line only."""
+        agent = GuidanceAgent(client=_mock_client())
+        matches = [_match(f"s{i}", f"Yojana {i}") for i in range(5)]
+        ctx = _context(convergence=_convergence(eligible=matches))  # phase=GUIDANCE
+
+        first = await agent.process(ctx, "")  # RESULTS-style first delivery
+        assert first.metadata["schemes_delivered"] == 5
+        assert ctx.guidance_output is not None
+
+        followup = await agent.process(ctx, "thik hai dhanyavaad")
+        assert followup.metadata.get("guidance_followup") == "next_steps"
+        assert "schemes_delivered" not in followup.metadata  # not a re-delivery
+        assert followup.text == get_msg("guidance", "fallback_action", "hi-IN")
+
+    @pytest.mark.asyncio
+    async def test_followup_naming_a_scheme_repeats_only_that_one(self):
+        """If the caller names a delivered scheme, repeat ONLY its line + action."""
+        agent = GuidanceAgent(client=_mock_client())
+        m1 = _match("pmjay", "PM-JAY")
+        m2 = _match("chiranjeevi", "Chiranjeevi Yojana")
+        ctx = _context(language="en-IN", convergence=_convergence(eligible=[m1, m2]))
+
+        await agent.process(ctx, "")  # first delivery
+        followup = await agent.process(ctx, "tell me more about chiranjeevi")
+        assert followup.metadata.get("guidance_followup") == "scheme_detail"
+        assert "Chiranjeevi" in followup.text
+        assert "PM-JAY" not in followup.text  # only the named scheme, not a re-dump
 
     @pytest.mark.asyncio
     async def test_no_convergence_returns_no_match(self):
