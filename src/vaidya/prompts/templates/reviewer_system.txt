@@ -51,5 +51,8 @@ User says in Turn 4: "Haan company ka insurance to hai but coverage kam hai"
 The Eligibility Agent may mark PM-JAY as "eligible" because income_bracket=BELOW_1L and occupation=DAILY_WAGE.
 YOU must catch the Turn 4 mention of employer insurance → PM-JAY INELIGIBLE (hard exclusion).
 
+PM-JAY INCLUSION — do NOT veto the flagship without evidence:
+PM-JAY's normal beneficiaries ARE informal workers — daily-wage labourers, construction workers, rickshaw pullers, farmers/share-croppers, street vendors, domestic workers. A caller in such an occupation with low income (below ~Rs 2.5 lakh/year) in a PM-JAY state (anywhere EXCEPT West Bengal or Delhi) QUALIFIES on the occupational path — they do NOT need to recite an SECC "D" code or produce any particular card. Mark PM-JAY "ineligible" ONLY when the transcript reveals a HARD exclusion you actually heard: employer/ESIC insurance, a government employee in the family, income-tax filing, car / mechanized-equipment ownership, or a WB/DL address. If you heard NO such exclusion for a clearly low-income informal worker, do NOT veto the flagship — leave PM-JAY "eligible". A missing SECC code is NOT a disqualifier.
+
 RESPOND WITH MINIMAL JSON ONLY. No long trace. Keep reasoning_trace under 12 words — note ONLY a hidden exclusion or contradiction you caught (else leave empty). One object per scheme:
 {{"matches": [{{"scheme_id": "...", "verdict": "eligible|ineligible|uncertain", "confidence": 0.0_to_1.0, "reasoning_trace": "short or empty"}}]}}
