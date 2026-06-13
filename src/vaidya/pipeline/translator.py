@@ -1,17 +1,29 @@
 """Translation wrapper for the Vaidya conversation pipeline.
 
 Provides a single :meth:`translate_if_needed` method that short-circuits
-when source and target languages match, avoiding unnecessary API calls.
+when source and target languages match, avoiding unnecessary API calls, and
+memoizes identical translations in a bounded per-instance LRU cache so that
+repeated round-trips of the same string skip the network entirely.
 """
 
 from __future__ import annotations
 
 import logging
+from collections import OrderedDict
 
 from vaidya.pipeline.translation_terms import PRESERVE_RE
 from vaidya.sarvam.client import SarvamClient
 
 logger = logging.getLogger(__name__)
+
+# Cache key: (text, source_lang, target_lang, speaker_gender, output_script).
+# All five inputs can change the final translated string, so all are keyed.
+_CacheKey = tuple[str, str, str, str, str]
+
+# Bound on the per-instance translation cache. Identical per-turn round-trips
+# (e.g. repeated prompts / responses) are served from memory instead of
+# re-hitting the Sarvam API.
+DEFAULT_CACHE_MAXSIZE = 512
 
 
 class Translator:
@@ -20,10 +32,18 @@ class Translator:
     The wrapper exists so the pipeline can inject translation as a
     composable step without coupling to the Sarvam client's full
     interface.
+
+    A bounded in-process LRU cache memoizes identical translations so that
+    repeated round-trips of the same string skip the network call. The cache
+    is per-instance and keyed by every input that affects the final output.
     """
 
-    def __init__(self, client: SarvamClient) -> None:
+    def __init__(self, client: SarvamClient, cache_maxsize: int = DEFAULT_CACHE_MAXSIZE) -> None:
         self._client = client
+        # OrderedDict acts as an LRU: most-recently-used entries move to the
+        # end, and we evict from the front once we exceed ``cache_maxsize``.
+        self._cache: OrderedDict[_CacheKey, str] = OrderedDict()
+        self._cache_maxsize = max(0, cache_maxsize)
 
     async def translate_if_needed(
         self,
@@ -38,6 +58,11 @@ class Translator:
         Returns *text* unchanged when the two languages match.  On
         translation failure, returns the original text and logs the error
         (degrading gracefully rather than failing the turn).
+
+        Identical successful translations are served from a bounded
+        per-instance LRU cache keyed by ``(text, source_lang, target_lang,
+        speaker_gender, output_script)``; empty or failed results are never
+        cached.
 
         Parameters
         ----------
@@ -62,6 +87,15 @@ class Translator:
 
         if source_lang == target_lang:
             return text
+
+        cache_key: _CacheKey = (text, source_lang, target_lang, speaker_gender, output_script)
+        cached = self._cache_get(cache_key)
+        if cached is not None:
+            logger.debug(
+                "Translation cache hit",
+                extra={"source_lang": source_lang, "target_lang": target_lang},
+            )
+            return cached
 
         try:
             # Preserve domain terms through the translation round-trip
@@ -90,6 +124,12 @@ class Translator:
                     "terms_preserved": len(preserved),
                 },
             )
+
+            # Only memoize non-empty successful results; failed/empty
+            # translations are never cached so they can be retried.
+            if translated and translated.strip():
+                self._cache_set(cache_key, translated)
+
             return translated
         except Exception as exc:
             logger.error(
@@ -108,3 +148,24 @@ class Translator:
         token = f"__TERM{len(registry)}__"
         registry[token] = term
         return token
+
+    def _cache_get(self, key: _CacheKey) -> str | None:
+        """Return the cached translation for *key*, marking it most-recent.
+
+        Returns ``None`` on a miss (or when caching is disabled).
+        """
+        if self._cache_maxsize <= 0:
+            return None
+        value = self._cache.get(key)
+        if value is not None:
+            self._cache.move_to_end(key)
+        return value
+
+    def _cache_set(self, key: _CacheKey, value: str) -> None:
+        """Store *value* for *key*, evicting the least-recently-used entry."""
+        if self._cache_maxsize <= 0:
+            return
+        self._cache[key] = value
+        self._cache.move_to_end(key)
+        while len(self._cache) > self._cache_maxsize:
+            self._cache.popitem(last=False)
