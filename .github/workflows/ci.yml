@@ -21,10 +21,10 @@ jobs:
         run: pip install ruff
 
       - name: Lint
-        run: ruff check src/ tests/ eval/
+        run: ruff check src/ tests/ eval/ scripts/
 
       - name: Format check
-        run: ruff format --check src/ tests/ eval/
+        run: ruff format --check src/ tests/ eval/ scripts/
 
   test:
     runs-on: ubuntu-latest
@@ -38,9 +38,12 @@ jobs:
           cache: pip
 
       - name: Install dependencies
+        # The [telephony] extra pulls torch via silero and is not needed for the
+        # gate: mypy excludes the telephony surface and the telephony tests skip
+        # cleanly when pipecat is absent. Keeping it out keeps CI fast.
         run: |
           pip install --upgrade pip
-          pip install -e ".[dev,telephony]"
+          pip install -e ".[dev]"
 
       - name: Type check
         run: mypy src/vaidya/

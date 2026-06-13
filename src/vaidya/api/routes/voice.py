@@ -122,7 +122,7 @@ def _validate_twilio_http_request(
 ) -> str:
     """Validate a Twilio webhook request using the official helper."""
     try:
-        from twilio.request_validator import RequestValidator  # type: ignore[import-untyped]
+        from twilio.request_validator import RequestValidator
     except ImportError:
         logger.error("Twilio auth token configured but twilio package is unavailable")
         return _TWILIO_UNAVAILABLE

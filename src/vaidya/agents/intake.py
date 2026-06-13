@@ -24,14 +24,6 @@ from vaidya.utils.states import state_code_to_name, state_name_to_code
 
 logger = logging.getLogger(__name__)
 
-_QUESTION_FIELDS: dict[int, str] = {
-    1: "state_district",
-    2: "family_composition",
-    3: "income_livelihood",
-    4: "existing_coverage",
-    5: "health_need",
-}
-
 _INCOME_MAP: dict[str, IncomeCategory] = {
     "below_1l": IncomeCategory.BELOW_1L,
     "1l_to_2.5l": IncomeCategory.L1_TO_2_5L,
@@ -88,7 +80,6 @@ _CONFIRMATION_WORDS = frozenset(
     {"haan", "ha", "ji", "sahi", "theek", "yes", "correct", "aama", "hya"}
 )
 
-_LOW_FIELD_CONFIDENCE = 0.55
 _MAX_REPAIRS_PER_QUESTION = 2
 
 # Fast path: a short, unambiguous answer the deterministic heuristics fully cover
@@ -1109,13 +1100,6 @@ class IntakeAgent(BaseAgent):
         values = self._metadata_ints(context, key)
         values.add(value)
         context.metadata[key] = sorted(values)
-
-    @staticmethod
-    def _as_confidence(value: Any) -> float:
-        try:
-            return float(value)
-        except (TypeError, ValueError):
-            return 0.0
 
     @staticmethod
     def _get_question_text(question_number: int, language: str, fallback: bool = False) -> str:

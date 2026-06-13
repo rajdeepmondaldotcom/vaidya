@@ -21,7 +21,6 @@ async def _check_dependency(
     check_fn: Callable[[], Any | Awaitable[Any]],
     *,
     is_async: bool = False,
-    not_init_detail: str = "",
 ) -> dict[str, object]:
     """Run a single dependency health check and return its status dict.
 
@@ -33,8 +32,6 @@ async def _check_dependency(
         A callable that returns a truthy value on success.
     is_async:
         Whether *check_fn* is a coroutine function.
-    not_init_detail:
-        If provided, this string is used when the dependency is ``None``.
     """
     try:
         result = (await check_fn()) if is_async else check_fn()
