@@ -25,6 +25,19 @@
     "od-IN": "Namaste! I am Vaidya, here to help you with health schemes. First, which language feels most comfortable for you — Hindi, Bengali, Tamil, English, or another?",
     "en-IN": "Namaste! I am Vaidya, here to help you with health schemes. First, which language feels most comfortable for you — Hindi, Bengali, Tamil, English, or another?"
   },
+  "greeting_voice": {
+    "hi-IN": "Namaste! Main Vaidya hoon, aapka health scheme sahayak.",
+    "ta-IN": "Vanakkam! Naan Vaidya, ungal health scheme udhaviyaalar.",
+    "bn-IN": "Namaskar! Ami Vaidya, apnar health scheme sahayak.",
+    "te-IN": "Namaste! Nenu Vaidya, mee health scheme sahayakudu.",
+    "gu-IN": "Namaste! Hu Vaidya, tamaro health scheme sahayak.",
+    "kn-IN": "Namaskara! Naanu Vaidya, nimma health scheme sahayaka.",
+    "ml-IN": "Namaskaram! Njan Vaidya, ningalude health scheme sahayi.",
+    "mr-IN": "Namaskar! Mi Vaidya, tumcha health scheme sahayak.",
+    "pa-IN": "Sat Sri Akal! Main Vaidya, tuhada health scheme sahayak.",
+    "od-IN": "Namaskar! Mun Vaidya, apananka health scheme sahayak.",
+    "en-IN": "Hello! I'm Vaidya, your health scheme helper."
+  },
   "welcome_text": {
     "hi-IN": "Namaste / வணக்கம் / নমস্কার / నమస్కారం / નમસ્તે / ನಮಸ್ಕಾರ / നമസ്കാരം / नमस्कार / ਸਤ ਸ੍ਰੀ ਅਕਾਲ / ନମସ୍କାର / Hello.\n\nI am Vaidya, here to help you find the government healthcare schemes that fit your family. Which language feels most comfortable for you?\n\n1. हिन्दी (Hindi)\n2. தமிழ் (Tamil)\n3. বাংলা (Bengali)\n4. తెలుగు (Telugu)\n5. ગુજરાતી (Gujarati)\n6. ಕನ್ನಡ (Kannada)\n7. മലയാളം (Malayalam)\n8. मराठी (Marathi)\n9. ਪੰਜਾਬੀ (Punjabi)\n10. ଓଡ଼ିଆ (Odia)\n11. English\n\nJust reply with the number or the language name.",
     "ta-IN": "Namaste / வணக்கம் / নমস্কার / నమస్కారం / નમસ્તે / ನಮಸ್ಕಾರ / നമസ്കാരം / नमस्कार / ਸਤ ਸ੍ਰੀ ਅਕਾਲ / ନମସ୍କାର / Hello.\n\nI am Vaidya, here to help you find the government healthcare schemes that fit your family. Which language feels most comfortable for you?\n\n1. हिन्दी (Hindi)\n2. தமிழ் (Tamil)\n3. বাংলা (Bengali)\n4. తెలుగు (Telugu)\n5. ગુજરાતી (Gujarati)\n6. ಕನ್ನಡ (Kannada)\n7. മലയാളം (Malayalam)\n8. मराठी (Marathi)\n9. ਪੰਜਾਬੀ (Punjabi)\n10. ଓଡ଼ିଆ (Odia)\n11. English\n\nJust reply with the number or the language name.",
