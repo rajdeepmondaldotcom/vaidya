@@ -23,15 +23,7 @@
   "state_variant_of": null,
   "jurisdiction": "central",
   "state_code": null,
-  "income_thresholds": [
-    {
-      "max_income_inr": 0,
-      "unit": "per_annum",
-      "applies_to": "family",
-      "description": "Eligibility is determined by Below Poverty Line (BPL) status as identified in the state BPL list, not by a specific income figure. Unorganized-sector workers registered under notified welfare boards (building/construction, beedi, MGNREGA workers with 15+ days work, domestic workers, street vendors, etc.) are also covered irrespective of BPL listing.",
-      "source": "RSBY Guidelines, Ministry of Labour & Employment / Ministry of Health & Family Welfare"
-    }
-  ],
+  "income_thresholds": [],
   "secc_categories": ["BPL"],
   "occupation_included": [
     "daily_wage",
