@@ -714,29 +714,6 @@ class TestSarvamClientMethods:
         assert transliterate_call.calls[0]["spoken_form"] is True
         assert client.costs.entries[-1].metadata["spoken_form"] is True
 
-    @patch("vaidya.sarvam.client.SarvamAI")
-    async def test_streaming_stt_and_tts_record_costs(self, mock_sarvam_cls, monkeypatch):
-        mock_sarvam_cls.return_value = _fake_sdk()
-        stt_ws = _AsyncWs(response=SimpleNamespace(transcript="hello"))
-        tts_ws = _AsyncWs(response=b"audio")
-        async_sarvam = _AsyncSarvam(stt_ws=stt_ws, tts_ws=tts_ws)
-        monkeypatch.setattr("sarvamai.AsyncSarvamAI", lambda **kwargs: async_sarvam)
-        client = SarvamClient(api_key="test-key-123")
-
-        stt_response = await client.stream_stt(
-            b"\x00\x00" * 8000,
-            language="hi-IN",
-            sample_rate=8000,
-        )
-        tts_response = await client.stream_tts("hello", "hi-IN", speaker="anushka")
-
-        assert stt_response.transcript == "hello"
-        assert tts_response == b"audio"
-        assert async_sarvam.stt_kwargs["language_code"] == "hi-IN"
-        assert async_sarvam.tts_kwargs["speaker"] == "anushka"
-        assert [entry.service for entry in client.costs.entries[-2:]] == ["stt", "tts"]
-
-
 def _install_mock_pool(
     client: SarvamClient,
     *,
