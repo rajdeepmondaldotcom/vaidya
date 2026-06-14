@@ -7,6 +7,7 @@ here rather than hard-coding BCP-47 tags.
 from __future__ import annotations
 
 import logging
+import re
 from enum import StrEnum
 
 logger = logging.getLogger(__name__)
@@ -397,6 +398,104 @@ def detect_language_from_text(text: str) -> Language | None:
     if len(hits) == 1:
         return next(iter(hits))
     return None
+
+
+# Unicode script blocks -> spoken language. Saaras returns regional scripts
+# reliably even when its language TAG is wrong, so the script the transcript is
+# WRITTEN IN is a stronger language signal than the tag for Indic speech.
+_SCRIPT_RANGES: tuple[tuple[int, int, Language], ...] = (
+    (0x0980, 0x09FF, Language.BENGALI),  # Bengali (also Assamese)
+    (0x0900, 0x097F, Language.HINDI),  # Devanagari (Hindi/Marathi -> Hindi)
+    (0x0B80, 0x0BFF, Language.TAMIL),
+    (0x0C00, 0x0C7F, Language.TELUGU),
+    (0x0A80, 0x0AFF, Language.GUJARATI),
+    (0x0C80, 0x0CFF, Language.KANNADA),
+    (0x0D00, 0x0D7F, Language.MALAYALAM),
+    (0x0A00, 0x0A7F, Language.PUNJABI),  # Gurmukhi
+    (0x0B00, 0x0B7F, Language.ODIA),
+)
+
+
+def detect_script_language(text: str) -> Language | None:
+    """Detect a caller's language from the dominant Indic script in *text*.
+
+    Saaras STT mis-tags short, proper-noun-heavy regional utterances (e.g. a
+    Bengali "<place>-e thaki, <place>") as ``en-IN`` while still transcribing
+    the words in the correct native script, so the script is a more reliable
+    language signal than the STT language tag. Returns ``None`` for empty /
+    Latin-only / no-Indic-script input, where the caller falls back to the tag.
+    Devanagari maps to Hindi (it is also Marathi's script, but script alone
+    cannot disambiguate and Hindi is the safe default for this service).
+    """
+    if not text:
+        return None
+    counts: dict[Language, int] = {}
+    for ch in text:
+        cp = ord(ch)
+        for lo, hi, lang in _SCRIPT_RANGES:
+            if lo <= cp <= hi:
+                counts[lang] = counts.get(lang, 0) + 1
+                break
+    if not counts:
+        return None
+    return max(counts, key=lambda lang: counts[lang])
+
+
+# Unambiguous English content words. Deliberately EXCLUDES tokens that also
+# occur in romanized Hindi/Bengali ("me", "to", "a", "in", "hai", "ho") so a
+# romanized regional answer is NOT misread as English.
+_ENGLISH_MARKERS: frozenset[str] = frozenset(
+    {
+        "the",
+        "is",
+        "are",
+        "was",
+        "have",
+        "what",
+        "want",
+        "need",
+        "know",
+        "yes",
+        "help",
+        "from",
+        "there",
+        "people",
+        "live",
+        "house",
+        "family",
+        "insurance",
+        "money",
+        "month",
+        "year",
+        "scheme",
+        "schemes",
+        "treatment",
+        "hospital",
+        "nothing",
+        "everything",
+        "please",
+        "thanks",
+        "thank",
+        "anyone",
+        "anything",
+        "just",
+        "about",
+    }
+)
+
+
+def looks_like_english(text: str) -> bool:
+    """True when *text* is plausibly an English sentence (not romanized Indic).
+
+    Requires at least two unambiguous English marker words so a romanized
+    regional answer ("Ami Paschim Banga thaki Howrah") is NOT misread as
+    English. Used to gate switching the call TO English on a bare ``en-IN`` STT
+    tag, which Saaras emits for many regional utterances it fails to script.
+    """
+    tokens = re.findall(r"[a-zA-Z]+", text.lower())
+    if len(tokens) < 2:
+        return False
+    return sum(1 for t in tokens if t in _ENGLISH_MARKERS) >= 2
 
 
 async def detect_language(client: object, text: str) -> Language:
