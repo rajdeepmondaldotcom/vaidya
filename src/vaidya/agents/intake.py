@@ -80,7 +80,12 @@ _CONFIRMATION_WORDS = frozenset(
     {"haan", "ha", "ji", "sahi", "theek", "yes", "correct", "aama", "hya"}
 )
 
-_MAX_REPAIRS_PER_QUESTION = 2
+# One gentle clarification at most, then ALWAYS proceed. A second re-ask of the
+# same question reads as broken and, when the caller has mentally moved on,
+# desyncs the linear 5-question flow (their next answer lands on the re-asked
+# question). The end-of-intake confirmation + conservative results handle any
+# field we couldn't pin down, so completing the call beats perfect extraction.
+_MAX_REPAIRS_PER_QUESTION = 1
 
 # Fast path: a short, unambiguous answer the deterministic heuristics fully cover
 # skips the LLM extraction entirely (an instant turn). Long or ambiguous answers

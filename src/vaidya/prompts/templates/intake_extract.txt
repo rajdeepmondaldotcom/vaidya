@@ -9,7 +9,7 @@ FIELDS (extract each ONLY if the caller clearly states it; leave the rest absent
 - "state": the Indian state, in English (e.g. "West Bengal").
 - "district": only if the caller names one.
 - "family_size": an integer count of PEOPLE in the household. CRITICAL: a phrase that describes a PLACE — "a village", "ek gaon", "one room", "a small house", "a town" — is NOT a family size. Never set family_size from such a phrase; it requires an explicit count of people.
-- "occupation_type": one of daily_wage, salaried_govt, salaried_pvt, self_employed, farmer. (rickshaw puller / labourer / construction = daily_wage; owns a shop or small business = self_employed; tills own land = farmer.)
+- "occupation_type": one of daily_wage, salaried_govt, salaried_pvt, self_employed, farmer. (rickshaw puller / labourer / construction = daily_wage; owns a shop or small business = self_employed; tills own land = farmer; a plain "job" / "naukri" / "service" / "company job" with NO "government"/"sarkari" = salaried_pvt; a "government job" / "sarkari naukri" = salaried_govt.) Do NOT leave this null just because the caller didn't state income — capture the occupation from what they said.
 - "income_bracket": one of below_1l, 1l_to_2.5l, 2.5l_to_5l, above_5l. Convert the stated income to ANNUAL rupees first: Rs 5-6 thousand/month = ~70k/year = below_1l; Rs 10,000/month = Rs 1.2 lakh/year = 1l_to_2.5l; "2 lakh a year" = 1l_to_2.5l.
 - "existing_coverage": one of none, employer, govt_scheme, private. A ration card, BPL card, or Aadhaar is NOT health coverage -> none. "no insurance" / "nothing" -> none.
 - "health_need": the condition or medical need in free text, or null if none mentioned.

@@ -400,15 +400,20 @@ class EligibilityAgent(BaseAgent):
         return result
 
     def _profile_is_evaluable(self, context: ConversationContext) -> bool:
-        """True when the profile has the fields eligibility needs to run.
+        """True when the profile has enough to run a USEFUL speculative pass.
 
-        Mirrors :pyattr:`UserProfile.required_fields_complete` (state, family
-        size, income, occupation, coverage all known) -- i.e. everything the
-        five intake questions collect. Below this bar a speculative pass would
-        run against an incomplete profile and its fingerprint would not match
-        the post-intake profile anyway, so we simply do not start one.
+        Uses the looser :pyattr:`UserProfile.evaluable_for_speculation` (state +
+        occupation + coverage) rather than full completeness, so the heavy crunch
+        (eligibility + the transcript-based reviewer + convergence) runs DURING
+        intake + confirmation even when the caller never states an income amount.
+        The previous all-fields bar left such a caller on the slow SYNCHRONOUS
+        path -- the eligibility ran only after "yes" and, on a real call, took
+        longer than the caller would wait, so they heard the questions and a
+        goodbye but never their schemes. The fingerprint gate still discards a
+        stale result if a later turn changes any field, so this only ever buys
+        latency, never correctness.
         """
-        return context.user_profile.required_fields_complete
+        return context.user_profile.evaluable_for_speculation
 
     @staticmethod
     def _eligibility_input_fingerprint(context: ConversationContext) -> str:
@@ -690,13 +695,19 @@ class EligibilityAgent(BaseAgent):
         schemes_payload = self._serialize_schemes(candidate_schemes)
         system = system_template.replace(_SCHEMES_PLACEHOLDER, json_compact(schemes_payload))
 
+        # wiki_grounding=False: this is a CLOSED-BOOK matching task -- every
+        # scheme's rules are already supplied in the prompt, so external wiki
+        # retrieval adds nothing but latency (it was making each batch take
+        # 19-36s instead of ~6-13s, which on a real call pushed results past the
+        # point the caller waits) and risks the model overriding our curated
+        # scheme data with stale public text.
         raw = await self._call_llm_json(
             system,
             "Evaluate eligibility now.",
             model=model,
             reasoning_effort=self._reasoning_effort,
             max_tokens=4096,
-            wiki_grounding=True,
+            wiki_grounding=False,
         )
         return self._parse_result(raw, model, len(candidate_schemes))
 
