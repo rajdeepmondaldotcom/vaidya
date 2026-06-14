@@ -1027,9 +1027,15 @@ class TestOneTurnSchemeListing:
 
         response = await orchestrator.handle_turn(context=context, user_input="")
 
-        # Every eligible scheme name appears in this ONE turn.
-        for name in expected_names:
-            assert name in response.text, f"{name!r} missing from single results turn"
+        # Every eligible scheme appears in this ONE turn, by the short spoken
+        # name the results actually use (the curated alias, e.g. "Ayushman
+        # Bharat", not the long canonical "PM-JAY (Ayushman Bharat)"). The full
+        # canonical names are still checked in the SMS summary below.
+        from vaidya.agents.guidance import _speakable_name
+
+        for match in context.convergence_result.all_eligible:
+            spoken = _speakable_name(match)
+            assert spoken in response.text, f"{spoken!r} missing from single results turn"
 
         # No "want to hear the next?" / "ek aur" continuation gate anywhere.
         text_lower = response.text.lower()
@@ -1038,10 +1044,11 @@ class TestOneTurnSchemeListing:
         assert "another scheme" not in text_lower
         assert "hear about it" not in text_lower
 
-        # The full SMS summary also covers every scheme.
+        # The SMS summary also covers every scheme, by the same short names.
         sms = response.metadata.get("sms_summary", "")
-        for name in expected_names:
-            assert name in sms, f"{name!r} missing from SMS summary"
+        for match in context.convergence_result.all_eligible:
+            spoken = _speakable_name(match)
+            assert spoken in sms, f"{spoken!r} missing from SMS summary"
 
         # No per-scheme drip-feed bookkeeping remains.
         assert "scheme_delivery_index" not in context.metadata
