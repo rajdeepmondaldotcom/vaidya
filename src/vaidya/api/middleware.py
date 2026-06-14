@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import time
 import uuid
 from collections import defaultdict, deque
@@ -87,12 +88,30 @@ def _match_rule(path: str, client_ip: str) -> tuple[str, int, int] | None:
     return None
 
 
+def _rate_limiting_enabled() -> bool:
+    """Rate limiting is on by default; set RATE_LIMIT_ENABLED=false to disable.
+
+    Production keeps the protective per-route limits. Local benchmarking against
+    the text-simulation endpoint (the eval suite fires far more than the 5/min
+    /simulate limit) sets this false so a measurement run isn't throttled.
+    """
+    return os.environ.get("RATE_LIMIT_ENABLED", "true").strip().lower() not in (
+        "false",
+        "0",
+        "no",
+    )
+
+
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """Apply per-route rate limits and return HTTP 429 when exceeded."""
 
+    def __init__(self, app: object) -> None:
+        super().__init__(app)  # type: ignore[arg-type]
+        self._enabled = _rate_limiting_enabled()
+
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
-        # Only rate-limit POST endpoints
-        if request.method != "POST":
+        # Only rate-limit POST endpoints (when enabled)
+        if not self._enabled or request.method != "POST":
             return await call_next(request)
 
         client_ip = request.client.host if request.client else "unknown"
