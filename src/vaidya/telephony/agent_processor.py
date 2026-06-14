@@ -39,8 +39,10 @@ from vaidya.telephony.twilio_serializer import (
 from vaidya.voice.language import (
     TTS_SPEAKERS,
     detect_language_from_text,
+    detect_script_language,
     is_filler_utterance,
     is_voice_language,
+    looks_like_english,
     normalize_language,
 )
 from vaidya.voice.prosody import format_for_tts
@@ -649,24 +651,42 @@ class VaidyaAgentProcessor(FrameProcessor):
             return None
 
     async def _language_signal_for_turn(self, user_text: str, stt_language: object) -> str | None:
-        """Prefer explicit language-name utterances over STT language tags.
+        """Decide the caller's language for this turn, robust to STT mis-tags.
 
-        During the opening prompt, callers often say a language name in a
-        different language ("Tamil", "English", "Hindi"). The STT language
-        tag for that word can be English or Hindi, but the user's intent is
-        the named language. Lexical detection must therefore win over STT,
-        but only while the session is actually waiting for a language.
+        Order of trust:
+
+        1. **Script of the transcript.** Saaras returns regional scripts
+           reliably even when its language TAG is wrong -- it mis-tags short,
+           proper-noun-heavy answers ("<place>-e thaki, <place>") as ``en-IN``.
+           A Bengali / Devanagari / Tamil / ... transcript IS that language, so
+           the script wins outright (this is what stops a Bengali caller being
+           dropped into an English bot).
+        2. **An explicit language NAME** ("Bengali", "2") while the welcome is
+           still waiting for one -- callers name a language in another language.
+        3. **The STT language tag**, as a last resort -- but a bare ``en-IN`` on
+           Latin text is almost always romanized regional speech Saaras failed
+           to render in script, so English is only honoured when the words
+           actually look English. Otherwise return ``None``: stay in the current
+           (regional) language, UNLOCKED, so the next clean native-script turn
+           picks the right one rather than locking the call into English.
         """
+        script_lang = detect_script_language(user_text)
+        if script_lang is not None:
+            return script_lang.value
+
         context = await self._get_context()
         metadata = getattr(context, "metadata", {}) if context is not None else {}
         if context is None or metadata.get("awaiting_language"):
             detected = detect_language_from_text(user_text)
             if detected is not None:
                 return detected.value
+
         if stt_language is None:
             return None
-        value = getattr(stt_language, "value", stt_language)
-        return str(value)
+        value = str(getattr(stt_language, "value", stt_language))
+        if value.lower().startswith("en") and not looks_like_english(user_text):
+            return None
+        return value
 
     async def _sync_language_from_context(self) -> None:
         """Reflect orchestrator-side language changes into the downstream TTS."""
