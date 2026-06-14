@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import logging
+import re
 import time
+from functools import lru_cache
 from typing import Any
 
 from vaidya.agents.base import BaseAgent
@@ -15,16 +17,129 @@ from vaidya.models.scheme import (
     ConvergenceResult,
     EligibilityVerdict,
     GuidanceOutput,
+    Jurisdiction,
     SchemeMatch,
+    SchemeRecord,
     SpokenPart,
 )
 from vaidya.prompts import registry as prompts
 from vaidya.sarvam.client import SarvamClient
 from vaidya.sarvam.models import SARVAM_30B
+from vaidya.schemes.registry import get_schemes
+from vaidya.utils.states import state_name_to_code
 
 logger = logging.getLogger(__name__)
 
 _SMS_MAX_LENGTH = 160
+# Schemes spoken aloud on a call. Reading every eligible scheme (often 14-18,
+# many of them universal national programmes) is a multi-minute monologue; speak
+# the most relevant FEW and SMS the complete list. Three keeps the results turn
+# to ~20s even with the longest scheme names -- five ran past 50s on air.
+_MAX_SPOKEN_SCHEMES = 3
+
+
+@lru_cache(maxsize=1)
+def _short_name_map() -> dict[str, str]:
+    """scheme_id -> a short, speakable name (first curated alias).
+
+    The canonical names are long ("National Programme for Control of Blindness
+    and Visual Impairment (NPCBVI)") and turn the spoken results into a minutes-
+    long monologue. The first alias is the curated common short name
+    ("Ayushman Bharat", "Chiranjeevi Yojana", "BSKY"), which is what a caller
+    would actually recognise and repeat. Falls back to the canonical name.
+    """
+    return {s.scheme_id: (s.aliases[0] if s.aliases else s.canonical_name) for s in get_schemes()}
+
+
+def _speakable_name(match: SchemeMatch) -> str:
+    """The short spoken name for a scheme match (alias if known, else its name)."""
+    return _short_name_map().get(match.scheme_id, match.scheme_name)
+
+
+# Maps a caller's stated condition to the words that identify the scheme(s) which
+# directly address it (in scheme names / covered procedures), so a TB patient
+# hears NTEP, an eye patient hears the blindness-control programme, a heart/BP/
+# diabetes patient hears the NCD programme, etc. Keys are matched as substrings
+# of the (lower-cased) health need, including common transliterations.
+_CONDITION_KEYWORDS: dict[str, tuple[str, ...]] = {
+    "tb": ("tuberculosis",),
+    "tuberculosis": ("tuberculosis",),
+    "kshay": ("tuberculosis",),
+    "jokkha": ("tuberculosis",),
+    "cataract": ("cataract", "blindness", "visual"),
+    "eye": ("cataract", "blindness", "visual", "ophthal"),
+    "aankh": ("cataract", "blindness", "visual"),
+    "kannu": ("cataract", "blindness", "visual"),
+    "blind": ("blindness", "visual"),
+    "vision": ("blindness", "visual"),
+    "heart": ("cardio", "cardiac", "non-communicable", "hypertension"),
+    "cardiac": ("cardio", "cardiac"),
+    "dil": ("cardio", "cardiac", "non-communicable", "hypertension"),
+    "bp": ("hypertension", "non-communicable"),
+    "hypertension": ("hypertension", "non-communicable"),
+    "diabet": ("diabetes", "non-communicable"),
+    "sugar": ("diabetes", "non-communicable"),
+    "cancer": ("cancer", "oncology"),
+    "tumour": ("cancer", "oncology"),
+    "mental": ("mental",),
+    "depress": ("mental",),
+    "kidney": ("dialysis", "renal", "nephro"),
+    "dialysis": ("dialysis", "renal"),
+    "pregnan": ("maternal", "matru", "janani", "pregnan"),
+    "matern": ("maternal", "matru", "janani"),
+    "baby": ("child", "shishu", "bal swasthya", "newborn"),
+    "child": ("child", "shishu", "bal swasthya", "newborn"),
+    "accident": ("accident", "suraksha"),
+}
+
+
+def _scheme_matches_need(record: SchemeRecord | None, health_need: str) -> bool:
+    """True when *record* directly addresses the caller's stated *health_need*.
+
+    Matches the need (and its transliteration/synonym expansions) against the
+    scheme's name, aliases, and covered procedures. Best-effort: a miss simply
+    means the scheme isn't condition-boosted, never a wrong answer.
+    """
+    if record is None or not health_need:
+        return False
+    need = health_need.lower()
+    targets: set[str] = set()
+    for key, expansions in _CONDITION_KEYWORDS.items():
+        if key in need:
+            targets.update(expansions)
+    # Also try the caller's own words (already-English needs like "tuberculosis").
+    targets.update(tok for tok in need.split() if len(tok) > 3)
+    if not targets:
+        return False
+    haystack = " ".join(
+        [record.canonical_name, *record.aliases, *record.covered_procedures]
+    ).lower()
+    return any(t in haystack for t in targets)
+
+
+def _relevance_score(match: SchemeMatch, record: SchemeRecord | None, profile: object) -> float:
+    """Rank schemes for the SPOKEN top-N: the scheme the caller actually enrols in
+    (their state scheme) first, then PM-JAY, then ones addressing their condition,
+    then by financial cover — so the handful spoken aloud is the most useful, not
+    the universal low-value programmes that merely happen to score high confidence.
+    """
+    score = float(getattr(match, "confidence", 0.0))  # 0..1 base / tiebreaker
+    if record is None:
+        return score
+    state = getattr(profile, "state", None)
+    state_code = state_name_to_code(state) if state else None
+    if (
+        record.jurisdiction == Jurisdiction.STATE
+        and state_code
+        and record.state_code == state_code
+    ):
+        score += 100.0  # the caller's own state scheme — their enrolment vehicle
+    if "PMJAY" in match.scheme_id.upper():
+        score += 80.0  # national flagship cover
+    if _scheme_matches_need(record, getattr(profile, "health_need", "") or ""):
+        score += 60.0  # directly addresses the stated condition
+    score += min(record.coverage_amount_inr, 2_500_000) / 100_000.0  # financial cover, up to ~25
+    return score
 
 
 def _extract_spoken_parts(raw: dict[str, Any]) -> list[SpokenPart]:
@@ -87,10 +202,37 @@ class GuidanceAgent(BaseAgent):
         if not eligible:
             return self._no_match_response(context.language)
 
-        guidance_output = await self._generate_guidance(
-            eligible=eligible,
-            convergence=convergence,
-            context=context,
+        # Phase 6 (GUIDANCE): the full list was ALREADY spoken in the RESULTS
+        # turn. A follow-up turn here must NOT re-read every scheme again -- that
+        # produced a duplicate multi-minute monologue (and replayed everything on
+        # a bare "okay"/"thanks"). Answer the follow-up instead: repeat one named
+        # scheme if the caller asked, else give the next step (documents + CSC).
+        if context.phase == ConversationPhase.GUIDANCE and context.guidance_output is not None:
+            return self._followup_response(context, user_input, eligible)
+
+        # Speak only the most relevant handful; the SMS carries the full list.
+        # The free-form LLM path read every eligible scheme (sometimes twice) and
+        # risked the wrong TTS voice. Deterministic template parts are capped,
+        # never duplicated, and render in the caller's voice via the TTS cache.
+        # Rank by RELEVANCE (state scheme -> PM-JAY -> condition match -> cover),
+        # not raw confidence, so the spoken few are the schemes that actually
+        # matter to this caller rather than the universal low-value programmes.
+        by_id = {s.scheme_id: s for s in get_schemes()}
+        profile = context.user_profile
+        ranked = sorted(
+            eligible,
+            key=lambda m: _relevance_score(m, by_id.get(m.scheme_id), profile),
+            reverse=True,
+        )
+        spoken_schemes = ranked[:_MAX_SPOKEN_SCHEMES]
+        guidance_output = GuidanceOutput(
+            spoken_parts=self._build_fallback_parts(
+                spoken_schemes, context.language, total_count=len(eligible)
+            ),
+            sms_summary=self._build_fallback_sms(eligible, context.language),
+            has_more_schemes=len(eligible) > len(spoken_schemes),
+            caveat_needed=len(convergence.disagreements) > 0,
+            processing_time_ms=0.0,
         )
         elapsed = (time.perf_counter() - start) * 1000
         guidance_output.processing_time_ms = round(elapsed, 1)
@@ -106,6 +248,48 @@ class GuidanceAgent(BaseAgent):
                 "schemes_delivered": len(eligible),
                 "sms_summary": guidance_output.sms_summary,
             },
+        )
+
+    def _followup_response(
+        self,
+        context: ConversationContext,
+        user_input: str,
+        eligible: list[SchemeMatch],
+    ) -> AgentResponse:
+        """Handle a post-results follow-up turn WITHOUT re-reading the whole list.
+
+        The RESULTS turn already named every relevant scheme and offered "say a
+        scheme's name to hear more". So here we either (a) repeat the single line
+        for a scheme the caller named, or (b) give the concrete next step
+        (documents + nearest Jan Seva Kendra). Both are short, deterministic, and
+        cacheable -- never the duplicate firehose the old code produced.
+        """
+        language = context.language
+        lowered = user_input.lower()
+        action = get_msg("guidance", "fallback_action", language)
+
+        # Did the caller name one of the schemes they just heard? Repeat ONLY it.
+        for match in eligible[:_MAX_SPOKEN_SCHEMES]:
+            name = _speakable_name(match)
+            tokens = [t for t in re.split(r"[\s\-/]+", name.lower()) if len(t) > 4]
+            if any(token in lowered for token in tokens):
+                line = get_msg_template(
+                    "guidance",
+                    "results_scheme_line",
+                    language,
+                    scheme_name=name,
+                    benefit=match.coverage_summary,
+                )
+                return AgentResponse(
+                    text=f"{line} {action}".strip(),
+                    metadata={"guidance_followup": "scheme_detail"},
+                )
+
+        # Otherwise: the concrete next step. The full list is already on its way
+        # by SMS, so we just point the caller to where they enrol.
+        return AgentResponse(
+            text=action,
+            metadata={"guidance_followup": "next_steps"},
         )
 
     async def _generate_guidance(
@@ -241,6 +425,7 @@ class GuidanceAgent(BaseAgent):
         self,
         eligible: list[SchemeMatch],
         language: str = "hi-IN",
+        total_count: int | None = None,
     ) -> list[SpokenPart]:
         """Deterministic combined spoken parts naming EVERY eligible scheme.
 
@@ -252,7 +437,10 @@ class GuidanceAgent(BaseAgent):
         Used both as the LLM fallback and whenever the LLM returns no usable
         spoken parts, so the caller always hears all their schemes at once.
         """
-        count = len(eligible)
+        # ``total_count`` is the full eligible count even when only the top few
+        # SchemeMatch objects are passed in to be spoken; the intro announces the
+        # real total and the closing offer points to the SMS for the rest.
+        count = total_count if total_count is not None else len(eligible)
         if count == 1:
             intro = get_msg_template(
                 "guidance",
@@ -269,7 +457,7 @@ class GuidanceAgent(BaseAgent):
                 "guidance",
                 "results_scheme_line",
                 language,
-                scheme_name=scheme.scheme_name,
+                scheme_name=_speakable_name(scheme),
                 benefit=scheme.coverage_summary,
             )
             parts.append(SpokenPart(type="scheme", text=line))
@@ -281,7 +469,7 @@ class GuidanceAgent(BaseAgent):
 
     def _build_fallback_sms(self, eligible: list[SchemeMatch], language: str = "hi-IN") -> str:
         """Deterministic SMS listing every eligible scheme (truncated to 160 chars)."""
-        names = ", ".join(s.scheme_name for s in eligible)
+        names = ", ".join(_speakable_name(s) for s in eligible)
         sms = get_msg_template("guidance", "fallback_sms", language, names=names)
         if len(sms) > _SMS_MAX_LENGTH:
             sms = sms[: _SMS_MAX_LENGTH - 3] + "..."

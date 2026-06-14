@@ -80,7 +80,12 @@ _CONFIRMATION_WORDS = frozenset(
     {"haan", "ha", "ji", "sahi", "theek", "yes", "correct", "aama", "hya"}
 )
 
-_MAX_REPAIRS_PER_QUESTION = 2
+# One gentle clarification at most, then ALWAYS proceed. A second re-ask of the
+# same question reads as broken and, when the caller has mentally moved on,
+# desyncs the linear 5-question flow (their next answer lands on the re-asked
+# question). The end-of-intake confirmation + conservative results handle any
+# field we couldn't pin down, so completing the call beats perfect extraction.
+_MAX_REPAIRS_PER_QUESTION = 1
 
 # Fast path: a short, unambiguous answer the deterministic heuristics fully cover
 # skips the LLM extraction entirely (an instant turn). Long or ambiguous answers
@@ -210,7 +215,11 @@ def _collect_confirmation_parts(profile: UserProfile, language: str) -> list[str
                 need=profile.health_need,
             )
         )
-    return parts
+    # Speak back only the first few identity-defining facts (state, household,
+    # livelihood) so the confirmation is one short line on a voice call rather
+    # than a ~15s read-back of every field. All fields are still captured and
+    # used for eligibility; the caller can correct anything at any point.
+    return parts[:3]
 
 
 def _format_occupation_label(occupation: OccupationType, language: str) -> str:
@@ -426,10 +435,12 @@ class IntakeAgent(BaseAgent):
         if extracted is None:
             extracted = await self._extract_answer(user_input, q_index, profile, language)
             if extracted.get("distress_detected"):
-                return self._handle_distress_response(context, profile, extracted, language)
+                return self._handle_distress_response(
+                    context, profile, extracted, language, q_index
+                )
             extracted = self._merge_heuristic_fields(extracted, user_input, q_index)
 
-        profile = self._apply_extracted(profile, extracted)
+        profile = self._apply_extracted(profile, extracted, current_question=q_index)
 
         if self._needs_repair(context, profile, extracted, q_index):
             repair_response = self._repair_or_skip_question(
@@ -450,20 +461,23 @@ class IntakeAgent(BaseAgent):
         profile: UserProfile,
         extracted: dict[str, Any],
         language: str,
+        q_index: int | None = None,
     ) -> AgentResponse:
-        """Fast-track to confirmation when emotional distress is detected."""
+        """Fast-track to confirmation when emotional distress is detected.
+
+        Note the distress flag (downstream warmth / analytics) and enter the
+        confirmation pass the SAME deterministic way as a normal intake
+        completion. We used to prepend the LLM's free-form ``spoken_text``
+        empathy here, but that text is unique on every call, so it missed the
+        TTS cache and rendered in the wrong voice -- a garbled ~15s confirmation.
+        The fixed-string ack keeps the turn cacheable and snappy; the empathy a
+        distressed caller needs is carried by tone, not a bespoke paragraph.
+        """
         context.emotional_distress_detected = True
-        profile = self._apply_extracted(profile, extracted)
-        context.intake_question_index = MAX_INTAKE_QUESTIONS + 1
-        empathy = extracted.get("spoken_text", "")
-        confirmation = self._build_confirmation(profile, language)
-        context.metadata["confirmation_pending"] = True
-        spoken = f"{empathy} {confirmation}".strip() if empathy else confirmation
-        return AgentResponse(
-            text=spoken,
-            updated_profile=profile,
-            metadata={"intake_distress_detected": True, "confirmation_pending": True},
-        )
+        profile = self._apply_extracted(profile, extracted, current_question=q_index)
+        response = self._enter_confirmation(context, profile, extracted, language)
+        response.metadata["intake_distress_detected"] = True
+        return response
 
     def _advance_to_next_question(
         self,
@@ -669,13 +683,25 @@ class IntakeAgent(BaseAgent):
 
         profile_summary = self._summarize_profile(profile)
 
+        # Lean extraction prompt (intake_extract): fields + flags only, NO
+        # spoken_text. The verbose intake_system prompt made the model compose a
+        # warm reply in the caller's language on every turn -- 14-17s of latency
+        # for prose we then DISCARD (the ack is deterministic i18n, follow-ups are
+        # the canonical i18n question, distress empathy is i18n). Dropping it cuts
+        # the per-question wait to ~5-6s with no loss of extraction accuracy.
         system = prompts.render(
-            "intake_system",
+            "intake_extract",
             question_number=str(question_number),
             current_question=current_question,
             profile_summary=profile_summary,
             language=language,
-            expected_fields_json=_FIELD_EXAMPLES.get(question_number, _FIELD_EXAMPLES[1]),
+            # All-field output schema (not just this question's) so a caller who
+            # volunteers their job while naming their family is captured -- a
+            # per-question schema silently DROPS that, then the occupation
+            # question can never be satisfied and the bot re-asks in a loop. The
+            # prompt's anti-hallucination rules stop the reverse failure (a place
+            # like "a village" leaking in as family_size).
+            expected_fields_json=_FIELD_EXAMPLES[0],
         )
         try:
             return await self._call_llm_json(
@@ -701,8 +727,15 @@ class IntakeAgent(BaseAgent):
         self,
         profile: UserProfile,
         extracted: dict[str, Any],
+        current_question: int | None = None,
     ) -> UserProfile:
-        """Apply LLM-extracted fields to the profile with confidence tracking."""
+        """Apply LLM-extracted fields to the profile with confidence tracking.
+
+        On a numbered Q&A turn (``current_question`` set), the turn
+        authoritatively sets only ITS OWN question's fields; a field owned by a
+        different question is FILLED only if still unset, never overridden. The
+        free-form opening turn (``current_question=None``) applies everything.
+        """
         # The LLM sometimes returns these as a scalar/list instead of an
         # object (e.g. field_confidence: 0.9). Coerce to dict so the later
         # .get() calls can't crash the whole turn into an error fallback.
@@ -746,10 +779,34 @@ class IntakeAgent(BaseAgent):
             if transformed is None:
                 continue
 
+            # Field-stickiness: don't let a turn overwrite an already-set field
+            # it doesn't "own". The common Hindi STT slip "dihaadi mazdoori"
+            # (daily-wage) -> "Bihari mazdoori" otherwise flips a captured state
+            # from Rajasthan to Bihar on the occupation turn. Volunteered fields
+            # still FILL when empty; the owning question can still update its own.
+            if (
+                current_question is not None
+                and _FIELD_TO_QUESTION.get(field_name) not in (None, current_question)
+                and self._field_is_set(profile, attr_name)
+            ):
+                continue
+
             setattr(profile, attr_name, transformed)
             profile.confidence_flags[field_name] = confidence.get(field_name, 0.5)
 
         return profile
+
+    @staticmethod
+    def _field_is_set(profile: UserProfile, attr_name: str) -> bool:
+        """True when a profile field already holds a real (non-default) value."""
+        value = getattr(profile, attr_name, None)
+        if value is None:
+            return False
+        return value not in (
+            IncomeCategory.UNKNOWN,
+            OccupationType.UNKNOWN,
+            CoverageType.UNKNOWN,
+        )
 
     def _merge_heuristic_fields(
         self,
@@ -1150,6 +1207,16 @@ class IntakeAgent(BaseAgent):
         return f"{prefix} {joined}. {suffix}"
 
     @staticmethod
-    def _build_acknowledgement(extracted: dict[str, Any], _language: str) -> str:
-        """Return the LLM's spoken_text if present, else empty string."""
-        return str(extracted.get("spoken_text", ""))
+    def _build_acknowledgement(extracted: dict[str, Any], language: str) -> str:
+        """A short, deterministic acknowledgement before the next question.
+
+        Using the fixed i18n ack ("Theek hai") instead of the LLM's free-form
+        ``spoken_text`` keeps each intake turn (ack + i18n question) byte-identical
+        and therefore CACHEABLE — so the voice edge renders it in the caller's
+        language/voice via the shared TTS cache, instead of the unique LLM text
+        missing the cache and falling back to the streaming TTS, which speaks it
+        in the wrong (un-switched) voice and comes out garbled. It is also
+        snappier (no per-turn ack-generation latency) and reliably short.
+        """
+        ack = get_msg("intake", "ack", language)
+        return "" if ack == "ack" else ack
