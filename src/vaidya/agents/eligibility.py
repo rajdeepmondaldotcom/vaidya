@@ -706,7 +706,9 @@ class EligibilityAgent(BaseAgent):
             "Evaluate eligibility now.",
             model=model,
             reasoning_effort=self._reasoning_effort,
-            max_tokens=4096,
+            # 8192, not the free-tier 4096: avoids the reasoning model truncating
+            # its JSON answer (-> parse failure -> ~26s retry). Cap, not target.
+            max_tokens=8192,
             wiki_grounding=False,
         )
         return self._parse_result(raw, model, len(candidate_schemes))
