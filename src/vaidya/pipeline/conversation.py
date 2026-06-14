@@ -99,12 +99,19 @@ class ConversationManager:
             return None
 
         existing_ctx = await self._session.get(existing_call_id)
-        # WELCOME sessions hold no progress worth resuming — a fresh start
-        # is clearer for the caller than "your call got cut".
-        if existing_ctx is None or existing_ctx.phase in (
-            ConversationPhase.CLOSURE,
-            ConversationPhase.WELCOME,
-        ):
+        # Only a call interrupted MID-INTAKE is worth resuming. The other
+        # phases each make resuming wrong or broken:
+        #   - PROCESSING: the eligibility/reviewer task died with the dropped
+        #     call, so there is nothing live to rejoin -- the caller hears the
+        #     "finding your plans" line and then DEAD SILENCE forever.
+        #   - RESULTS / GUIDANCE: the caller already finished; replaying "your
+        #     call got cut, let's continue" + the old results is confusing.
+        #   - WELCOME / CLOSURE: no progress worth resuming.
+        # In all of these a FRESH greeting is the right behaviour -- and it
+        # fixes a caller who completed a call (or warmed up before a demo) and
+        # rings back from the same number being dropped into a stale, often
+        # silent session instead of a clean new one.
+        if existing_ctx is None or existing_ctx.phase is not ConversationPhase.INTAKE:
             return None
 
         logger.info(
