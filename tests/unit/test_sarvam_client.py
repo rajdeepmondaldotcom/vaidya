@@ -714,6 +714,7 @@ class TestSarvamClientMethods:
         assert transliterate_call.calls[0]["spoken_form"] is True
         assert client.costs.entries[-1].metadata["spoken_form"] is True
 
+
 def _install_mock_pool(
     client: SarvamClient,
     *,

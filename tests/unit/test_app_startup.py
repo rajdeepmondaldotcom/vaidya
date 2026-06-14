@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -13,7 +14,20 @@ def test_create_app_returns_fastapi_instance():
 
     app = create_app()
     assert app.title == "Vaidya"
-    route_paths = [r.path for r in app.routes]
+
+    # Walk routes defensively: across Starlette/FastAPI versions, app.routes can
+    # hold router/mount objects that have no `.path` of their own and nest their
+    # endpoints under `.routes`. Recurse so the smoke test works on any version.
+    def _paths(routes: Any) -> list[str]:
+        found: list[str] = []
+        for r in routes or ():
+            path = getattr(r, "path", None)
+            if path:
+                found.append(path)
+            found.extend(_paths(getattr(r, "routes", None)))
+        return found
+
+    route_paths = _paths(app.routes)
     assert "/health" in route_paths
     assert "/ready" in route_paths
     assert "/costs" in route_paths
