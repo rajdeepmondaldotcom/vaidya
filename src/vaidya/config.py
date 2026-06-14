@@ -76,7 +76,8 @@ class Settings(BaseSettings):
     reviewer_reasoning_effort: str = "low"
     intake_reasoning_effort: str = "low"
     guidance_reasoning_effort: str = "low"
-    wiki_grounding: bool = True
+    # Closed-book scheme matching: external retrieval only adds latency.
+    wiki_grounding: bool = False
 
     # Scheme evaluation. Keep batches SMALL and parallelism HIGH — this is a
     # LATENCY optimisation, not just a token-budget one. Many small 105b calls
