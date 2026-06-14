@@ -711,3 +711,37 @@ class TestDroppedCallRecovery:
 
         assert call_id == "old-call"
         assert "cut ho gayi" in welcome
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "phase",
+        [
+            ConversationPhase.PROCESSING,
+            ConversationPhase.RESULTS,
+            ConversationPhase.GUIDANCE,
+            ConversationPhase.CLOSURE,
+        ],
+    )
+    async def test_non_intake_session_is_not_resumed(self, phase):
+        """A caller who finished (RESULTS/GUIDANCE/CLOSURE) or was mid-crunch
+        (PROCESSING) and rings back from the same number gets a FRESH greeting,
+        not a resume. PROCESSING is the worst case: the eligibility task died
+        with the dropped call, so resuming leaves the caller in dead silence.
+        Regression: repeat call after a completed call must not go silent."""
+        orch, session, translator, audit, _ = _make_deps()
+        stale = _make_context(call_id="old-call", phase=phase)
+        stale.add_turn(role="assistant", text="...", raw_text="...", language="hi-IN")
+        session.find_by_phone = AsyncMock(return_value="old-call")
+        session.get = AsyncMock(return_value=stale)
+
+        mgr = ConversationManager(
+            orchestrator=orch,
+            session_manager=session,
+            translator=translator,
+            audit_trail=audit,
+        )
+        call_id, welcome = await mgr.start_conversation("hash123", "hi-IN", channel="voice")
+
+        session.create.assert_awaited()  # fresh session, not a resume
+        assert call_id != "old-call"
+        assert "cut ho gayi" not in welcome
