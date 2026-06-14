@@ -2,212 +2,131 @@
 
 [![CI](https://github.com/rajdeepmondaldotcom/vaidya/actions/workflows/ci.yml/badge.svg)](https://github.com/rajdeepmondaldotcom/vaidya/actions/workflows/ci.yml)
 
-**One phone call. Any Indian language. Find out which government healthcare schemes you qualify for.**
+**One phone call, in any Indian language, tells you which government health schemes you can get.**
 
-*Vaidya* (वैद्य) is the Sanskrit word for healer. In rural India, the vaidya was the person you went to when you didn't know what was wrong or where to go. Not a specialist. A guide. Someone who listened, understood your situation, and told you what to do next in words you understood.
+Vaidya (वैद्य) is the Sanskrit word for healer. In a village, the vaidya was who you went to when you didn't know what was wrong or where to turn. Not a specialist. A guide who listened, understood your situation, and told you what to do next in words you understood.
 
-That's what this system does. Not diagnosis. Not treatment. Discovery. Which government schemes exist for you, what documents you need, and where to go. The name is deliberate: Vaidya is a trusted first point of contact, not an authority. It says "mil sakti hai" (you may be eligible), never "you are eligible." Final verification happens at the Jan Seva Kendra. The system advises. The human decides.
+This system does that one thing. Not diagnosis, not treatment. Discovery. Which schemes exist for you, what papers to carry, and where to go. It says you *may* be eligible, never that you *are*. The final word belongs to the person at the Jan Seva Kendra. Vaidya only points the way.
 
-India has 50+ healthcare schemes. PM-JAY alone has 30+ state variants. 55 crore people are eligible. 18 crore haven't enrolled. The barrier isn't policy. It's discovery. The target population doesn't have literacy, internet access, or free time to navigate English PDFs on government websites.
+## The problem isn't policy. It's discovery.
 
-Vaidya solves this with a phone call. The user speaks in their language, answers 5 questions, and hears back which schemes they qualify for, what documents to bring, and where to go. No app. No signup. No screen.
+India runs more than fifty public health schemes. PM-JAY alone has over thirty state variants. Around 55 crore people are eligible, and roughly 18 crore have never enrolled. The people who need it most can't read an English PDF on a government portal, can't spare a smartphone, and can't lose an afternoon finding out.
+
+So Vaidya meets them on the one device they already have, used the way they already use it. They call, speak their language, answer five questions, and hear which schemes they qualify for, what to bring, and where to go. No app, no signup, no screen.
+
+## Call it
+
+It's live. Dial **+1 775 372 2354** and talk to it in Hindi or Bengali, the way you'd talk to a person — your state, who lives with you, how the household earns, whether anyone has insurance, what you need. It greets you in Hindi, switches to your language the moment you answer, and a minute later reads back your schemes.
 
 ## How it works
 
-A 5-agent system with a deterministic state machine at the center.
+Five agents, with a plain Python state machine in the middle.
 
 ```
-User speaks → Saaras v3 (STT, 23 languages) → ORCHESTRATOR (state machine, not LLM)
-                                                      │
-                          ┌───────────────────────────┼──────────────┐
-                          ▼                           ▼              ▼
-                       INTAKE                    ELIGIBILITY     REVIEWER
-                    (5 questions)               (LLM + RAG)   (full transcript)
-                          │                           │              │
-                          │                           └──────┬───────┘
-                          │                          CONVERGENCE CHECK
-                          │                       (both must agree to output)
-                          └───────────────────────────┬──────────────┘
-                                                      ▼
-                                                   GUIDANCE
-                                              (results + next steps)
-                                                      │
-                                                      ▼
-                                        Bulbul v3 (TTS, 11 languages)
-                                                      │
-                                                      ▼
-                                          User hears the answer
+User speaks → Saaras v3 (STT, 23 languages) → ORCHESTRATOR (state machine, not an LLM)
+                                                     │
+                          ┌──────────────────────────┼───────────────┐
+                          ▼                          ▼               ▼
+                       INTAKE                   ELIGIBILITY       REVIEWER
+                    (5 questions)              (LLM + RAG)    (full transcript)
+                          │                          │               │
+                          │                          └──────┬────────┘
+                          │                         CONVERGENCE CHECK
+                          │                      (both must agree to answer)
+                          └──────────────────────────┬───────────────┘
+                                                     ▼
+                                                  GUIDANCE
+                                            (schemes + next steps)
+                                                     │
+                                                     ▼
+                                          Bulbul v3 (TTS, 11 languages)
 ```
 
-The orchestrator is pure Python. No LLM in the routing loop. Match/case state machine with 7 phases. Under 10ms per routing decision.
+The orchestrator is not an LLM. It's a match/case state machine that decides the next step in under ten milliseconds. The agents do the thinking; the orchestrator directs traffic. Putting an LLM in the routing loop would make every turn slower and less predictable for no gain, because the routing here is deterministic.
 
-The agents do the thinking. The orchestrator does the traffic.
+## The decision that shaped everything
 
-## The constraint that shaped the architecture
+At 55 crore people, a two percent false-positive rate sends 1.1 crore of them to a center to be turned away. That number is why two agents check eligibility, not one.
 
-At 55 crore beneficiary scale, a 2% false-positive rate means 1.1 crore people get sent to a CSC center and turned away. That's the number that drove the reviewer pattern.
+The Eligibility Agent matches the caller's profile against each scheme's rules, field by field. The Reviewer Agent reads the whole conversation again and looks for what structured matching misses: an employer's insurance mentioned in passing, a late answer that contradicts an early one, a government job let slip while naming the family. They run in parallel. When they agree, the answer goes out. When they don't, Vaidya stays careful — you may be eligible, confirm at the Jan Seva Kendra. Every disagreement is logged with both agents' reasoning. That is the line between something you can demo and something a state can run.
 
-The **Eligibility Agent** does structured field-by-field matching against the scheme corpus. The **Reviewer Agent** independently reads the full conversation transcript and catches what the structured matching missed: an employer insurance mention in a code-mixed aside three turns ago, a contradiction between early and late answers, a government job disclosed in passing.
-
-Both agents run in parallel. When they agree, the result goes out. When they disagree, the system resolves conservatively: "mil sakti hai, lekin Jan Seva Kendra mein final confirm hoga."
-
-Every disagreement is logged with both reasoning traces. This is what makes it deployable at government scale, not demo scale.
-
-## Schemes covered
+## The schemes
 
 | Scheme | Coverage | Who qualifies |
 |--------|----------|---------------|
-| PM-JAY | ₹5L/family/year | SECC 2011 families, income below ₹2.5L |
-| PM-JAY 70+ | Additional ₹5L | Anyone aged 70+, regardless of income |
-| Chiranjeevi (Rajasthan) | ₹25L/family/year | NFSA families free, others ₹850/year |
-| Swasthya Sathi (West Bengal) | ₹5L/family | All WB residents, no income criteria |
-| MJPJAY (Maharashtra) | ₹5L/family/year | Ration card holders |
-| PMSBY | ₹2L accidental | Ages 18-70 with a bank account, ₹20/year |
+| PM-JAY | ₹5L / family / year | SECC 2011 families, income below ₹2.5L |
+| PM-JAY 70+ | Additional ₹5L | Anyone 70 or older, regardless of income |
+| Chiranjeevi (Rajasthan) | ₹25L / family / year | NFSA families free, others ₹850/year |
+| Swasthya Sathi (West Bengal) | ₹5L / family | All WB residents, no income test |
+| MJPJAY (Maharashtra) | ₹5L / family / year | Ration card holders |
+| PMSBY | ₹2L accidental | Ages 18–70 with a bank account, ₹20/year |
 | ESIC | Comprehensive | Salaried workers under ₹21K/month |
-| Arogya Karnataka | ₹5L/family/year | NFSA/BPL households |
+| Arogya Karnataka | ₹5L / family / year | NFSA / BPL households |
 
-61 schemes across central and state programs. Real eligibility rules, real exclusion logic, real enrollment steps. Each stored as a validated JSON file with field-level data. At runtime, Vaidya evaluates every applicable scheme for the caller: central schemes plus the caller's state schemes, or the full registry when the state is unknown.
+Sixty-one schemes, central and state, each a checked JSON file with real eligibility rules, exclusions, and enrollment steps. For every caller, Vaidya weighs each scheme that could apply — the central ones plus their state's, or the whole set until the state is known.
 
-## What's under the hood
+## Built on Sarvam
 
-```
-Python 3.11 / FastAPI
-Sarvam AI: sarvam-105b (eligibility/reviewer), sarvam-30b (intake/guidance)
-           saaras:v3 (STT), bulbul:v3 (TTS), mayura:v1 (translation)
-ChromaDB for state-filtered scheme retrieval
-Redis for session state (30-min TTL, dropped-call recovery)
-PII masking (Aadhaar, phone, PAN), consent tracking, immutable audit trail
-Docker + docker-compose for local dev
-```
+Saaras v3 turns speech into text across 23 languages. Bulbul v3 speaks the answer back in 11. sarvam-105b runs eligibility and review, sarvam-30b runs intake and guidance, and Mayura v1 translates between the caller's language and the engine's. ChromaDB retrieves schemes filtered by the caller's state, and Redis holds the session so a dropped call can pick up where it left off.
 
-Zero dependencies outside the Sarvam SDK and FastAPI ecosystem. No LangChain. No CrewAI. The orchestration is custom because the routing decisions are deterministic and the failure modes are specific to this domain.
+One detail is worth calling out, because it's where voice gets hard. The bot opens in Hindi and switches to the caller's language from their first answer. It decides that language from the script the words come back in, not from the speech model's language tag — a short, name-heavy first reply is exactly what gets mistagged, and a caller speaking Bengali should never be answered in English.
 
-## Documentation
+There is no LangChain and no CrewAI. The orchestration is a few hundred lines of Python, because the routing is deterministic and the failure modes belong to this problem, not a framework.
 
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — the deterministic orchestrator, the five agents, the reviewer → convergence safety pattern, Sarvam model routing, and the resilience layer.
-- [docs/EVALUATION.md](docs/EVALUATION.md) — the 81-scenario evaluation suite: what it measures, the precision/recall + latency methodology, and how to run it.
-- [docs/DEMO.md](docs/DEMO.md) — a guided walkthrough with copy-pasteable multi-language demo scripts.
+## On latency, honestly
+
+Vaidya's own routing is effectively free. The wait a caller feels is the model calls — speech in, two reasoning passes, speech out — and that time is set by the Sarvam API and how loaded it is. So eligibility runs in the background while the caller is still answering, and the line stays warm with a short spoken update during the search. The call never goes silent.
+
+## What it costs to run
+
+A three-minute voice call costs about ₹5, almost all of it speech-to-text and telephony, because the reasoning models are free on Sarvam today. At a million calls a day that is roughly ₹17 crore a month. The free LLM is what makes the math work at national scale. The `/costs` endpoint reports actual tracked usage per model and mode, following the [Sarvam pricing docs](https://docs.sarvam.ai/api-reference-docs/pricing).
 
 ## Run it
 
 ```bash
 git clone https://github.com/rajdeepmondaldotcom/vaidya.git
 cd vaidya
-
 pip install -e ".[dev]"
-cp .env.example .env        # add your SARVAM_API_KEY
+cp .env.example .env          # add your SARVAM_API_KEY
 docker compose up -d redis chromadb
 python scripts/seed_knowledge.py
 make run
 ```
 
-Then test with a simulated conversation:
+Then try a full conversation in text, no phone needed:
 
 ```bash
 curl -X POST http://localhost:8000/simulate/text \
   -H "Content-Type: application/json" \
-  -d '{
-    "language": "hi-IN",
-    "turns": [
-      "Mujhe sarkaari health scheme ke baare mein jaanna hai",
-      "Main Rajasthan mein rehta hoon",
-      "Ghar mein 5 log hain",
-      "Daily mazdoori karta hoon",
-      "Nahi, koi insurance nahi hai",
-      "Bachche ke liye ilaaj chahiye"
-    ]
-  }'
+  -d '{"language":"hi-IN","turns":[
+    "Mujhe sarkaari health scheme ke baare mein jaanna hai",
+    "Main Rajasthan mein rehta hoon",
+    "Ghar mein paanch log hain",
+    "Daily mazdoori karta hoon",
+    "Nahi, koi insurance nahi hai",
+    "Bas yeh jaanna hai ki kya kya mil sakta hai"]}'
 ```
 
-API key: sign up at [dashboard.sarvam.ai](https://dashboard.sarvam.ai). Free tier gives ₹1,000 in credits. The LLM endpoints (sarvam-105b, sarvam-30b) are free. Text simulation mode uses only the LLM. Total cost for the demo: ₹0.
+Sign up at [dashboard.sarvam.ai](https://dashboard.sarvam.ai) for an API key. The reasoning endpoints are free, so the text demo costs nothing.
 
-## API
+## How it's tested
 
-| Method | Path | What it does |
-|--------|------|-------------|
-| GET | `/health` | Liveness check |
-| POST | `/conversation/start` | Start a session |
-| POST | `/conversation/{id}/turn` | Send a user message, get a response |
-| GET | `/conversation/{id}` | Current conversation state |
-| POST | `/simulate/text` | Full multi-turn text conversation |
-| GET | `/schemes` | List all schemes |
-| GET | `/schemes/{id}` | Single scheme detail |
-| DELETE | `/compliance/data/{phone_hash}` | Delete all user data (DPDP Act) |
+`make check` runs the full gate locally: `ruff`, `mypy --strict`, and 950+ unit and integration tests with a coverage floor. The same gate runs on every push.
 
-## Testing
-
-```bash
-make test              # 950+ unit + integration tests, runs in a few seconds
-make lint              # ruff check + format
-make check             # the full CI gate locally: lint + strict mypy + coverage
-```
-
-Every push and PR runs the CI gate ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)): `ruff`, `mypy --strict`, and the full suite with a coverage floor.
-
-Beyond unit tests, an **81-scenario evaluation suite** scores end-to-end eligibility accuracy: per-scheme eligibility, exclusion rules, cross-language parity (the same profile in Hindi/Tamil/Bengali must yield identical results), adversarial inputs (prompt injection, Aadhaar probing), emotional-distress handling, and the reviewer-catches-what-eligibility-missed case. It reports precision, recall, and latency per scenario — see [docs/EVALUATION.md](docs/EVALUATION.md).
+On top of that, an 81-scenario evaluation suite scores the thing that actually matters — end-to-end eligibility. It checks per-scheme accuracy and exclusion rules, cross-language parity (the same profile in Hindi, Tamil, and Bengali must return the same schemes), adversarial inputs like prompt injection and Aadhaar probing, distress handling, and the case where the reviewer has to catch what eligibility missed.
 
 ```bash
 python -m eval --scenarios quick    # 5-scenario smoke test
-python -m eval --scenarios all      # full 81-scenario suite
+python -m eval --scenarios all      # the full 81-scenario suite
 ```
 
-## Latency budget
+More detail lives in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/EVALUATION.md](docs/EVALUATION.md), and [docs/DEMO.md](docs/DEMO.md).
 
-| Step | Target |
-|------|--------|
-| Orchestrator routing | <10ms (pure Python, no LLM) |
-| Intake/Guidance agent | ~800ms (sarvam-30b) |
-| Eligibility + Reviewer | ~1200ms (parallel via asyncio.gather) |
-| Translation | ~400ms (skipped if same language) |
-| **Total per turn** | **Under 3 seconds** |
+## What's real today
 
-These are per-turn compute budgets for Vaidya's own orchestration. End-to-end latency is dominated by Sarvam API response time, which varies with load; see [docs/EVALUATION.md](docs/EVALUATION.md) for measured numbers.
+Sixty-one schemes across every state and union territory. Twenty-three languages. Text simulation and real voice calls over Twilio. Deployed, and callable at the number above.
 
-## Cost per call
-
-The `/costs` report uses actual tracked usage: audio seconds for STT, characters for
-translation/TTS/language ID, pages for document intelligence, and call duration for
-telephony when `TELEPHONY_RATE_INR_PER_MINUTE` is configured. It also separates usage
-by model and mode, so fast-routing (`sarvam-30b`) and regular accuracy routing
-(`sarvam-105b`) are visible even though both Sarvam chat models are currently free.
-Rates below follow the [Sarvam API pricing docs](https://docs.sarvam.ai/api-reference-docs/pricing).
-
-Formula:
-
-```text
-total =
-  ceil(stt_audio_seconds) * stt_rate_per_second
-  + tts_chars * tts_rate_per_char
-  + translate_chars * translate_rate_per_char
-  + language_id_chars * language_id_rate_per_char
-  + vision_pages * vision_rate_per_page
-  + ceil(telephony_seconds / 60) * TELEPHONY_RATE_INR_PER_MINUTE
-```
-
-Example: 3-minute voice call, no diarization, 2K translated chars, 1.5K TTS chars,
-100 language-ID chars, and optional carrier cost at ₹1/min:
-
-| Component | Rate | Per Call (₹) |
-|-----------|------|-------------|
-| STT (Saaras v3, transcribe/translate/verbatim/translit/codemix) | ₹30/hour | 1.50 |
-| STT with diarization | ₹45/hour | 2.25 |
-| LLM fast/regular (`sarvam-30b`/`sarvam-105b`) | Free | 0.00 |
-| Translation (Mayura v1 / Sarvam Translate v1) | ₹20/10K chars | 0.40 |
-| TTS (Bulbul v3) | ₹30/10K chars | 0.45 |
-| Language ID | ₹3.5/10K chars | 0.04 |
-| Telephony, if configured at ₹1/min | deployment-specific | 3.00 |
-| **Total, standard STT + telephony** | | **~₹5.39** |
-| **Total, diarized STT + telephony** | | **~₹6.14** |
-
-At 10,000 calls/day, that's ~₹17.5L/month. At a million calls/day, ~₹17.5 crore/month. The LLM being free is what makes the unit economics work at scale.
-
-## What's next
-
-**Phase 1 (now):** 61 schemes across all states/UTs, 23 languages, text simulation mode, and real voice calls via Twilio.
-
-**Phase 2:** automated scheme-corpus refresh, WhatsApp via Samvaad, CSC integration, and NHA API verification.
-
-**Phase 3 (national):** Chanakya on-premises per state health department. Air-gapped. Full pipeline runs locally. Generalizes beyond healthcare to pensions, agriculture subsidies, education scholarships.
+What comes next is breadth, not a rewrite: an automated refresh of the scheme corpus, WhatsApp as a second channel, and verification against the NHA API. The same shape — call, understand, point the way — extends past health to pensions, farm subsidies, and scholarships.
 
 ## License
 
