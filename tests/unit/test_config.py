@@ -35,7 +35,7 @@ def test_scheme_evaluation_defaults():
     # Small batches + high parallelism is the latency-optimal setting
     # (large batches make one slow call that risks the 45s per-call timeout).
     assert settings.scheme_eval_batch_size == 3
-    assert settings.scheme_eval_max_parallel_batches == 8
+    assert settings.scheme_eval_max_parallel_batches == 16
     assert settings.scheme_retrieval_rank_top_k == 10
 
 

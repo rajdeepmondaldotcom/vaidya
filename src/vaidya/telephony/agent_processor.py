@@ -170,11 +170,17 @@ if TYPE_CHECKING:
 # has its own "finding the right plans for you" filler, so the slightly later
 # keepalive there is invisible.
 PROCESSING_ACK_DELAY_SECONDS = 8.0
-PROCESSING_PROGRESS_INTERVAL_SECONDS = 15.0
+# 8s, not 15s: at 15s a slow Sarvam crunch left 13-17s of dead air between
+# reassurances (observed on a real call), past the ~9s point silence starts to
+# feel like a dropped line. 8s keeps the gap under that bar. The keepalive is
+# cancelled the instant the real reply is ready, so a fast crunch still never
+# hears more than the opening "finding the right plans" filler.
+PROCESSING_PROGRESS_INTERVAL_SECONDS = 8.0
 # A few unobtrusive reassurances over the eligibility crunch — NOT a stream.
 # At 12 every long turn buried the actual reply under a wall of "still working"
-# notes; 4 at a 15s cadence covers ~1 min of waiting without the chatter.
-PROCESSING_PROGRESS_MAX_NOTES = 4
+# notes; 6 at an 8s cadence covers ~55s (the worst-case slow-Sarvam crunch)
+# without the chatter, and the reply cancels the loop early on a normal crunch.
+PROCESSING_PROGRESS_MAX_NOTES = 6
 
 # Sarvam's VAD splits natural pauses mid-sentence ("আমার পরিবারে" +
 # "5 জন আছে।" arrive as two transcripts). Launching a turn per fragment
