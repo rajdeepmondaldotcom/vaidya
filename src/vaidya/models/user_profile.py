@@ -73,6 +73,27 @@ class UserProfile(BaseModel):
             and self.existing_coverage != CoverageType.UNKNOWN
         )
 
+    @property
+    def evaluable_for_speculation(self) -> bool:
+        """Looser bar than ``required_fields_complete``: enough to run a USEFUL
+        speculative eligibility pass while the caller is still talking.
+
+        Needs the state (selects candidate schemes), occupation, and existing
+        coverage (drive matching + hard exclusions). Income, family size, and
+        health need may still be missing -- the pass just returns "uncertain"
+        on the schemes that depend on them. This lets the heavy crunch (incl.
+        the transcript-based reviewer) run DURING intake + confirmation for a
+        caller who never states an income amount, instead of stranding them on
+        the slow synchronous path that, on a real call, runs past the point the
+        caller waits. The eligibility fingerprint still discards a stale result
+        if a later turn changes any field, so correctness is unaffected.
+        """
+        return (
+            self.state is not None
+            and self.occupation_type != OccupationType.UNKNOWN
+            and self.existing_coverage != CoverageType.UNKNOWN
+        )
+
     @computed_field  # type: ignore[prop-decorator]
     @property
     def missing_fields(self) -> list[str]:

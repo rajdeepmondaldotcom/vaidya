@@ -39,8 +39,10 @@ from vaidya.telephony.twilio_serializer import (
 from vaidya.voice.language import (
     TTS_SPEAKERS,
     detect_language_from_text,
+    detect_script_language,
     is_filler_utterance,
     is_voice_language,
+    looks_like_english,
     normalize_language,
 )
 from vaidya.voice.prosody import format_for_tts
@@ -161,17 +163,26 @@ if TYPE_CHECKING:
 
 
 # Turn-processing keepalive: speak a short ack only if a turn is taking
-# longer than a normal intake turn (now ~3-5s: one fast LLM call + two
-# translations), then a progress note on an interval. The ack delay is set
-# ABOVE the intake-turn time so quick turns just answer (no "one second"
-# filler); only the multi-call eligibility crunch (~15-25s) trips it.
-# Held just above a normal intake turn (~3-5s with the faster intake path) so
-# quick turns still answer silently, while a slow eligibility crunch reassures
-# the caller ~2s sooner than the old 7.0s floor.
-PROCESSING_ACK_DELAY_SECONDS = 5.0
-PROCESSING_PROGRESS_INTERVAL_SECONDS = 14.0
-# Must cover the longest agent phase (eligibility+reviewer).
-PROCESSING_PROGRESS_MAX_NOTES = 12
+# longer than a normal intake turn, then a progress note on an interval. The
+# ack delay is set just ABOVE a normal intake turn so quick turns just answer
+# (no "one second" filler); only slow turns trip it. With the lean extraction
+# prompt an intake question now resolves in ~5-8s, so 8.0s keeps EVERY intake
+# turn silent (snappier -- no repetitive "one moment" before each answer) while
+# the multi-call eligibility crunch (~20-30s) still reassures. The crunch also
+# has its own "finding the right plans for you" filler, so the slightly later
+# keepalive there is invisible.
+PROCESSING_ACK_DELAY_SECONDS = 8.0
+# 8s, not 15s: at 15s a slow Sarvam crunch left 13-17s of dead air between
+# reassurances (observed on a real call), past the ~9s point silence starts to
+# feel like a dropped line. 8s keeps the gap under that bar. The keepalive is
+# cancelled the instant the real reply is ready, so a fast crunch still never
+# hears more than the opening "finding the right plans" filler.
+PROCESSING_PROGRESS_INTERVAL_SECONDS = 8.0
+# A few unobtrusive reassurances over the eligibility crunch — NOT a stream.
+# At 12 every long turn buried the actual reply under a wall of "still working"
+# notes; 6 at an 8s cadence covers ~55s (the worst-case slow-Sarvam crunch)
+# without the chatter, and the reply cancels the loop early on a normal crunch.
+PROCESSING_PROGRESS_MAX_NOTES = 6
 
 # Sarvam's VAD splits natural pauses mid-sentence ("আমার পরিবারে" +
 # "5 জন আছে।" arrive as two transcripts). Launching a turn per fragment
@@ -195,11 +206,18 @@ PROCESSING_PROGRESS_MAX_NOTES = 12
 #   and the big latency win: a single complete sentence starts ~1.5s sooner
 #   than the old 2.0s floor, with no risk of splitting because a fragment
 #   that already *ended* a sentence has no mid-sentence remainder to merge.
-UTTERANCE_DEBOUNCE_SECONDS = 1.3
-# Short window used when the last fragment looks like a finished sentence
-# (sentence-final punctuation + high STT confidence). Still non-zero so a
-# trailing fragment that arrives right behind a sentence end can still merge.
-UTTERANCE_FLUSH_SECONDS = 0.4
+# Measured against live Sarvam streaming STT: a single spoken answer arrives as
+# 2-4 transcript fragments spread over 2-3s, with inter-fragment gaps up to ~2.1s
+# (e.g. "Ami West Bengal-e thaki." [+2.1s] "Hooghly jelar ekta grame"). The window
+# re-arms on every fragment, so it only has to exceed the largest *inter-fragment*
+# gap to merge the whole utterance. 2.5s clears the observed gaps; below it the
+# turn launches on a partial answer and the bot re-asks / desyncs.
+UTTERANCE_DEBOUNCE_SECONDS = 2.5
+# No fast-flush shortcut: Saaras tags *fragments* with sentence-final punctuation
+# (not just the final one), so "ends on a period" is NOT a reliable end-of-turn
+# signal — it was splitting multi-fragment answers after 0.4s. Keep the flush
+# window equal to the full debounce so every utterance gets the same quiet window.
+UTTERANCE_FLUSH_SECONDS = 2.5
 # Below this STT confidence we don't trust the end-of-utterance shortcut and
 # fall back to the full quiet window (sarvam reports per-transcript confidence
 # in 0..1; mid/low-confidence fragments are often mid-thought partials). When
@@ -403,6 +421,11 @@ class VaidyaAgentProcessor(FrameProcessor):
         self._language = language
         self._wake: asyncio.Event = asyncio.Event()
         self._idle_task: asyncio.Task[None] | None = None
+        # Silence escalation passed so far (seconds). Persists across the watch
+        # restarts that each nudge's playback-mark triggers, so successive silent
+        # stretches ESCALATE (nudge -> reprompt -> graceful close) instead of
+        # re-firing the first nudge forever. Reset to 0 whenever the caller speaks.
+        self._silence_elapsed: float = 0.0
         self._language_locked: bool = False
         self._playback_marks_enabled = playback_marks_enabled
         self._pending_playback_mark: str | None = None
@@ -438,7 +461,12 @@ class VaidyaAgentProcessor(FrameProcessor):
             return
 
         if isinstance(frame, BotStoppedSpeakingFrame):
-            if not self._pending_playback_mark:
+            # Start the idle/silence watch only when a real turn is NOT being
+            # processed. Keepalive interjections ("one moment") emit without a
+            # playback mark; without this guard their BotStoppedSpeaking starts a
+            # watch mid-processing whose nudge then glues onto the reply. The real
+            # reply restarts the watch cleanly via its own playback mark.
+            if not self._pending_playback_mark and self._inflight_text is None:
                 self._start_idle_watch()
         elif isinstance(frame, UserStartedSpeakingFrame | TranscriptionFrame):
             self._cancel_idle_watch(interrupted=True)
@@ -574,7 +602,9 @@ class VaidyaAgentProcessor(FrameProcessor):
             )
             self._stop_processing_keepalive()
             fallback = get_msg("conversation", "error", self._language)
-            await self._emit_bot_text(fallback, profile="repair")
+            # Speak the short error message as one uninterrupted utterance (no
+            # leading-fragment split) so it stays intact and clear.
+            await self._emit_bot_text(fallback, profile="repair", stream=False)
         finally:
             self._inflight_text = None
             self._stop_processing_keepalive()
@@ -621,24 +651,42 @@ class VaidyaAgentProcessor(FrameProcessor):
             return None
 
     async def _language_signal_for_turn(self, user_text: str, stt_language: object) -> str | None:
-        """Prefer explicit language-name utterances over STT language tags.
+        """Decide the caller's language for this turn, robust to STT mis-tags.
 
-        During the opening prompt, callers often say a language name in a
-        different language ("Tamil", "English", "Hindi"). The STT language
-        tag for that word can be English or Hindi, but the user's intent is
-        the named language. Lexical detection must therefore win over STT,
-        but only while the session is actually waiting for a language.
+        Order of trust:
+
+        1. **Script of the transcript.** Saaras returns regional scripts
+           reliably even when its language TAG is wrong -- it mis-tags short,
+           proper-noun-heavy answers ("<place>-e thaki, <place>") as ``en-IN``.
+           A Bengali / Devanagari / Tamil / ... transcript IS that language, so
+           the script wins outright (this is what stops a Bengali caller being
+           dropped into an English bot).
+        2. **An explicit language NAME** ("Bengali", "2") while the welcome is
+           still waiting for one -- callers name a language in another language.
+        3. **The STT language tag**, as a last resort -- but a bare ``en-IN`` on
+           Latin text is almost always romanized regional speech Saaras failed
+           to render in script, so English is only honoured when the words
+           actually look English. Otherwise return ``None``: stay in the current
+           (regional) language, UNLOCKED, so the next clean native-script turn
+           picks the right one rather than locking the call into English.
         """
+        script_lang = detect_script_language(user_text)
+        if script_lang is not None:
+            return script_lang.value
+
         context = await self._get_context()
         metadata = getattr(context, "metadata", {}) if context is not None else {}
         if context is None or metadata.get("awaiting_language"):
             detected = detect_language_from_text(user_text)
             if detected is not None:
                 return detected.value
+
         if stt_language is None:
             return None
-        value = getattr(stt_language, "value", stt_language)
-        return str(value)
+        value = str(getattr(stt_language, "value", stt_language))
+        if value.lower().startswith("en") and not looks_like_english(user_text):
+            return None
+        return value
 
     async def _sync_language_from_context(self) -> None:
         """Reflect orchestrator-side language changes into the downstream TTS."""
@@ -872,6 +920,9 @@ class VaidyaAgentProcessor(FrameProcessor):
     def _cancel_idle_watch(self, *, interrupted: bool = False) -> None:
         if interrupted:
             self._pending_playback_mark = None
+            # The caller spoke (or a new turn began): reset the silence escalation
+            # so the next silent stretch starts again from a gentle nudge.
+            self._silence_elapsed = 0.0
         if self._idle_task is not None:
             self._wake.set()
             self._idle_task = None
@@ -894,16 +945,24 @@ class VaidyaAgentProcessor(FrameProcessor):
         await super().cleanup()  # type: ignore[no-untyped-call]
 
     async def _idle_loop(self) -> None:
-        """Wait through SILENCE_STEPS thresholds, escalating on each timeout."""
-        elapsed = 0.0
+        """Wait through the silence steps, ESCALATING across watch restarts.
+
+        ``self._silence_elapsed`` persists the thresholds already fired — each
+        nudge's playback mark restarts this loop — so a continuously-silent caller
+        progresses nudge -> reprompt -> graceful closure instead of re-hearing the
+        first nudge forever. It resets to 0 the instant the caller speaks
+        (``_cancel_idle_watch(interrupted=True)``).
+        """
         for threshold, _key, terminal in await self._silence_steps():
-            wait_for = threshold - elapsed
+            if threshold <= self._silence_elapsed:
+                continue  # already escalated past this step in an earlier stretch
+            wait_for = threshold - self._silence_elapsed
             try:
                 await asyncio.wait_for(self._wake.wait(), timeout=wait_for)
                 return  # user spoke -> silence broken
             except TimeoutError:
                 pass
-            elapsed = threshold
+            self._silence_elapsed = threshold
 
             if self._inflight_text is not None:
                 # The "silence" is ours, not the caller's: a turn is being
@@ -913,11 +972,11 @@ class VaidyaAgentProcessor(FrameProcessor):
                 return
 
             try:
-                spoken, is_terminal = await self._mgr.handle_silence(self._call_id, elapsed)
+                spoken, is_terminal = await self._mgr.handle_silence(self._call_id, threshold)
             except Exception:
                 logger.error(
                     "handle_silence failed",
-                    extra={"call_id": self._call_id, "elapsed": elapsed},
+                    extra={"call_id": self._call_id, "elapsed": threshold},
                     exc_info=True,
                 )
                 return

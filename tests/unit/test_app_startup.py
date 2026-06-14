@@ -13,10 +13,15 @@ def test_create_app_returns_fastapi_instance():
 
     app = create_app()
     assert app.title == "Vaidya"
-    route_paths = [r.path for r in app.routes]
-    assert "/health" in route_paths
-    assert "/ready" in route_paths
-    assert "/costs" in route_paths
+
+    # Check the OpenAPI schema, not app.routes: it's the version-stable list of
+    # registered endpoints. (Newer FastAPI in our supported range wraps
+    # include_router results in opaque route objects, so walking app.routes is
+    # brittle, but the generated schema always reflects every included router.)
+    paths = app.openapi()["paths"]
+    assert "/health" in paths
+    assert "/ready" in paths
+    assert "/costs" in paths
 
 
 def test_create_app_has_middleware():

@@ -76,7 +76,8 @@ class Settings(BaseSettings):
     reviewer_reasoning_effort: str = "low"
     intake_reasoning_effort: str = "low"
     guidance_reasoning_effort: str = "low"
-    wiki_grounding: bool = True
+    # Closed-book scheme matching: external retrieval only adds latency.
+    wiki_grounding: bool = False
 
     # Scheme evaluation. Keep batches SMALL and parallelism HIGH — this is a
     # LATENCY optimisation, not just a token-budget one. Many small 105b calls
@@ -86,7 +87,12 @@ class Settings(BaseSettings):
     # whereas batch_size=3 keeps it near real-time. The terse prompt output (no
     # per-scheme reasoning trace) keeps each batch small.
     scheme_eval_batch_size: int = 3
-    scheme_eval_max_parallel_batches: int = 8
+    # 16, not 8: the reviewer evaluates the FULL state-applicable set (~28
+    # schemes -> ~10 batches of 3) where eligibility only ranks the RAG top-10.
+    # At parallelism 8 the reviewer needed two waves and became the post-confirm
+    # long pole (~35s); 16 lets every batch run in a single wave on the paid
+    # tier, roughly halving reviewer wall-clock with no change to what's checked.
+    scheme_eval_max_parallel_batches: int = 16
     scheme_retrieval_rank_top_k: int = 10
 
     # Language & translation

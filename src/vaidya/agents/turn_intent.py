@@ -20,7 +20,12 @@ TurnAction = Literal[
 ]
 
 _TEXT_LOW_CONFIDENCE = 0.65
-_VOICE_LOW_CONFIDENCE = 0.45
+# Phone STT confidence dips on accented/8 kHz/noisy speech even for perfectly
+# usable answers, and blocking the turn with "audio cut, I'll re-ask" on every
+# such dip stalls the call. Keep voice repair for only the genuinely garbled
+# (very low confidence); the downstream intake LLM is robust to imperfect
+# transcripts and the confirmation step catches any real mis-read.
+_VOICE_LOW_CONFIDENCE = 0.30
 
 _REPEAT_PATTERNS = (
     "repeat",

@@ -15,9 +15,11 @@ from vaidya.voice.language import (
     LANGUAGE_DISPLAY_NAMES,
     TTS_SPEAKERS,
     Language,
+    detect_script_language,
     get_sarvam_code,
     is_filler_utterance,
     is_supported,
+    looks_like_english,
     normalize_language,
 )
 
@@ -239,3 +241,74 @@ class TestLanguageDisplayNames:
     def test_values_are_non_empty_strings(self) -> None:
         for lang, name in LANGUAGE_DISPLAY_NAMES.items():
             assert isinstance(name, str) and name, f"Empty display name for {lang}"
+
+
+# ---------------------------------------------------------------------------
+# detect_script_language: the caller's language from the transcript's script
+# (regression guard for the real call where Saaras tagged Bengali as en-IN and
+# the bot replied in English -- the script must override the wrong tag)
+# ---------------------------------------------------------------------------
+
+
+class TestDetectScriptLanguage:
+    def test_bengali_script(self) -> None:
+        assert detect_script_language("বাড়িতে চারজন আছি") is Language.BENGALI
+
+    def test_bengali_full_sentence(self) -> None:
+        assert detect_script_language("আমি দিন মজুরি করি") is Language.BENGALI
+
+    def test_devanagari_maps_to_hindi(self) -> None:
+        assert detect_script_language("मैं उत्तर प्रदेश में रहता हूँ") is Language.HINDI
+
+    def test_tamil_script(self) -> None:
+        assert detect_script_language("நான் தமிழ் பேசுகிறேன்") is Language.TAMIL
+
+    def test_telugu_script(self) -> None:
+        assert detect_script_language("నేను తెలుగు మాట్లాడతాను") is Language.TELUGU
+
+    def test_gujarati_script(self) -> None:
+        assert detect_script_language("હું ગુજરાતી બોલું છું") is Language.GUJARATI
+
+    def test_punjabi_gurmukhi(self) -> None:
+        assert detect_script_language("ਮੈਂ ਪੰਜਾਬੀ ਬੋਲਦਾ ਹਾਂ") is Language.PUNJABI
+
+    def test_dominant_script_wins_over_stray_latin(self) -> None:
+        # Saaras often leaves a place name in Latin inside Bengali script.
+        assert detect_script_language("আমি Howrah তে থাকি") is Language.BENGALI
+
+    def test_romanized_is_none(self) -> None:
+        # The exact first answer that broke the real call (romanized, no script).
+        assert detect_script_language("Ami Paschim Banga thaki Howrah") is None
+
+    def test_plain_english_is_none(self) -> None:
+        assert detect_script_language("I live in West Bengal") is None
+
+    def test_empty_is_none(self) -> None:
+        assert detect_script_language("") is None
+
+
+# ---------------------------------------------------------------------------
+# looks_like_english: gate for honouring a bare en-IN STT tag
+# ---------------------------------------------------------------------------
+
+
+class TestLooksLikeEnglish:
+    def test_clear_english_sentence(self) -> None:
+        assert looks_like_english("I want to know what schemes are there") is True
+
+    def test_english_about_family(self) -> None:
+        assert looks_like_english("There are five people in my family") is True
+
+    def test_romanized_bengali_is_not_english(self) -> None:
+        # The real-call first answer must NOT be read as English.
+        assert looks_like_english("Ami Paschim Banga thaki Howrah") is False
+
+    def test_romanized_hindi_is_not_english(self) -> None:
+        assert looks_like_english("main UP me rehta hoon") is False
+
+    def test_short_filler_is_not_english(self) -> None:
+        assert looks_like_english("haan") is False
+
+    def test_single_marker_is_not_enough(self) -> None:
+        # One ambiguous hit shouldn't flip a regional answer to English.
+        assert looks_like_english("Howrah live") is False

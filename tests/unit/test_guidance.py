@@ -13,9 +13,7 @@ from vaidya.models.scheme import (
     ConvergenceResult,
     DisagreementRecord,
     EligibilityVerdict,
-    GuidanceOutput,
     SchemeMatch,
-    SpokenPart,
 )
 from vaidya.models.user_profile import UserProfile
 
@@ -349,12 +347,9 @@ class TestNoMatchResponse:
 
 class TestProcessDeliversAllSchemes:
     @pytest.mark.asyncio
-    async def test_process_passes_all_schemes_to_generation(self):
-        """process() must hand the FULL eligible list to guidance generation.
-
-        The old ``__deliver_scheme_index:N`` slice is gone -- every eligible
-        scheme is delivered in a single turn.
-        """
+    async def test_process_delivers_all_schemes_one_turn(self):
+        """process() delivers results in ONE turn (no per-scheme drip-feed):
+        it speaks the relevant schemes deterministically and counts them all."""
         agent = GuidanceAgent(client=_mock_client())
 
         m1 = _match("pmjay", "PM-JAY")
@@ -363,31 +358,41 @@ class TestProcessDeliversAllSchemes:
         conv = _convergence(eligible=[m1, m2, m3])
         ctx = _context(convergence=conv)
 
-        captured_eligible: list[list[SchemeMatch]] = []
-
-        async def fake_generate(eligible, convergence, context):
-            captured_eligible.append(list(eligible))
-            return GuidanceOutput(
-                spoken_parts=[SpokenPart(type="intro", text="x")],
-                sms_summary="test",
-                has_more_schemes=False,
-                caveat_needed=False,
-                processing_time_ms=0.0,
-            )
-
-        agent._generate_guidance = fake_generate
         resp = await agent.process(ctx, "")
 
-        assert len(captured_eligible) == 1
-        # ALL three schemes reach generation in one call.
-        assert [s.scheme_id for s in captured_eligible[0]] == ["pmjay", "aaby", "chiranjeevi"]
+        # One combined turn; every eligible scheme counted.
         assert resp.metadata["schemes_delivered"] == 3
+        out = ctx.guidance_output
+        assert out is not None
+        scheme_lines = [p for p in out.spoken_parts if p.type == "scheme"]
+        assert len(scheme_lines) == 3  # all three fit under the spoken cap
+        assert out.sms_summary  # SMS carries the full list
+
+    @pytest.mark.asyncio
+    async def test_process_caps_spoken_schemes_but_counts_all(self):
+        """With many eligible schemes only the top few are spoken aloud, while
+        the SMS + count cover them all -- never a multi-minute monologue."""
+        agent = GuidanceAgent(client=_mock_client())
+
+        matches = [_match(f"s{i}", f"Scheme {i}", confidence=0.9 - i * 0.01) for i in range(9)]
+        conv = _convergence(eligible=matches)
+        ctx = _context(convergence=conv)
+
+        resp = await agent.process(ctx, "")
+
+        # All counted, but only the top few are spoken.
+        assert resp.metadata["schemes_delivered"] == 9
+        out = ctx.guidance_output
+        assert out is not None
+        scheme_lines = [p for p in out.spoken_parts if p.type == "scheme"]
+        assert len(scheme_lines) == 3  # capped to _MAX_SPOKEN_SCHEMES (voice stays ~20s)
+        assert out.has_more_schemes is True
 
     @pytest.mark.asyncio
     async def test_deliver_index_sentinel_is_not_special_cased(self):
         """A stray ``__deliver_scheme_index`` input is treated as normal input.
 
-        It must NOT slice the eligible list -- all schemes still go through.
+        It must NOT slice the eligible list -- all schemes still delivered.
         """
         agent = GuidanceAgent(client=_mock_client())
 
@@ -396,23 +401,41 @@ class TestProcessDeliversAllSchemes:
         conv = _convergence(eligible=[m1, m2])
         ctx = _context(convergence=conv)
 
-        captured: list[list[SchemeMatch]] = []
+        resp = await agent.process(ctx, "__deliver_scheme_index:1")
 
-        async def fake_generate(eligible, convergence, context):
-            captured.append(list(eligible))
-            return GuidanceOutput(
-                spoken_parts=[SpokenPart(type="intro", text="x")],
-                sms_summary="test",
-                has_more_schemes=False,
-                caveat_needed=False,
-                processing_time_ms=0.0,
-            )
+        assert resp.metadata["schemes_delivered"] == 2
 
-        agent._generate_guidance = fake_generate
-        await agent.process(ctx, "__deliver_scheme_index:1")
+    @pytest.mark.asyncio
+    async def test_followup_after_results_gives_next_steps_not_redump(self):
+        """A post-results follow-up (phase GUIDANCE, results already delivered)
+        must NOT re-read the whole scheme list -- that produced the duplicate
+        multi-minute monologue. A bare ack yields the next-step line only."""
+        agent = GuidanceAgent(client=_mock_client())
+        matches = [_match(f"s{i}", f"Yojana {i}") for i in range(5)]
+        ctx = _context(convergence=_convergence(eligible=matches))  # phase=GUIDANCE
 
-        assert len(captured) == 1
-        assert [s.scheme_id for s in captured[0]] == ["pmjay", "aaby"]
+        first = await agent.process(ctx, "")  # RESULTS-style first delivery
+        assert first.metadata["schemes_delivered"] == 5
+        assert ctx.guidance_output is not None
+
+        followup = await agent.process(ctx, "thik hai dhanyavaad")
+        assert followup.metadata.get("guidance_followup") == "next_steps"
+        assert "schemes_delivered" not in followup.metadata  # not a re-delivery
+        assert followup.text == get_msg("guidance", "fallback_action", "hi-IN")
+
+    @pytest.mark.asyncio
+    async def test_followup_naming_a_scheme_repeats_only_that_one(self):
+        """If the caller names a delivered scheme, repeat ONLY its line + action."""
+        agent = GuidanceAgent(client=_mock_client())
+        m1 = _match("pmjay", "PM-JAY")
+        m2 = _match("chiranjeevi", "Chiranjeevi Yojana")
+        ctx = _context(language="en-IN", convergence=_convergence(eligible=[m1, m2]))
+
+        await agent.process(ctx, "")  # first delivery
+        followup = await agent.process(ctx, "tell me more about chiranjeevi")
+        assert followup.metadata.get("guidance_followup") == "scheme_detail"
+        assert "Chiranjeevi" in followup.text
+        assert "PM-JAY" not in followup.text  # only the named scheme, not a re-dump
 
     @pytest.mark.asyncio
     async def test_no_convergence_returns_no_match(self):

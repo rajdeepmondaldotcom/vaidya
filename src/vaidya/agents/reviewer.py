@@ -212,7 +212,12 @@ class ReviewerAgent(BaseAgent):
             system,
             "Review the transcript now.",
             reasoning_effort=self._reasoning_effort,
-            max_tokens=4096,
+            # 8192, not the free-tier 4096: on the paid tier a 105b reasoning
+            # pass can spend the 4096 budget on its reasoning trace and truncate
+            # the JSON answer, which surfaces as "Failed to parse LLM JSON" and a
+            # full ~26s retry. The extra headroom lets the answer complete on the
+            # first attempt; max_tokens is a cap, so it never slows a short reply.
+            max_tokens=8192,
         )
         return self._parse_result(raw, candidate_schemes)
 
