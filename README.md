@@ -6,14 +6,14 @@
 
 *Vaidya* (वैद्य) is the old word for the village healer — the person you went to when you didn't know what was wrong or where to go. Not a specialist. A guide who listened, understood your situation, and told you the next step in words you understood. That's the job here. Not diagnosis. Not treatment. Discovery.
 
-## Two real calls, and a number you can dial
+## Two real calls — and how to hear it live
 
-The two recordings in [`demo/`](demo/) are real calls to a line that is live right now, trimmed for dead air and nothing else:
+The two recordings in [`demo/`](demo/) are the whole thing, end to end — real calls to the live line, trimmed only for dead air:
 
 - [`demo/hindi-vaidya-call.wav`](demo/hindi-vaidya-call.wav) — a caller answering in Hindi
 - [`demo/bengali-vaidya-call.wav`](demo/bengali-vaidya-call.wav) — a caller answering in Bengali
 
-Better yet, call it yourself: **+1 775 372 2354.** Speak in Hindi or Bengali. It greets you in Hindi, switches to your language the moment you answer, walks you through five short questions, and reads back the schemes you qualify for. You'll hear a short "trial account" message first — I explain why further down, and it's an honest part of the story.
+You can also dial it yourself, with one honest caveat. The line runs on a Twilio trial account (the why is below), and a trial line only connects calls from numbers verified on the account. So **+1 775 372 2354** won't pick up for a number I haven't verified, and verifying one takes me about two minutes. The recordings are the full experience for anyone; if you'd like to hear it live, tell me the number you'll call from and I'll open the line to it. Either way it answers in Hindi and switches to your language the moment you speak.
 
 ## The problem is discovery, not policy
 
@@ -76,7 +76,7 @@ This runs as a live phone line, not a notebook.
 
 **Twilio** carries the actual call. When someone dials, Twilio hits a webhook on the app, gets back TwiML that opens a bidirectional Media Stream, and streams the live audio to a WebSocket. From there a Pipecat pipeline wires that stream to Saaras for speech-in and Bulbul for speech-out, with the orchestrator and agents sitting in the middle of the loop. The caller just hears a conversation.
 
-**A note on the number, since you'll notice it's American.** The right way to run this in India is a local number from a provider like Exotel, or Twilio's India route. Both need a registered business and KYC I don't have as an individual, and the India path carries regulatory paperwork I can't clear on my own yet. So I did the next best thing: I built the entire telephony path on Twilio's free trial and deployed it end to end. That's why it's a US line, and why you hear a short "trial account" message before Vaidya picks up. Everything after that message — the live audio, the language switch, the reasoning, the spoken answer — is real and running in production. The phone number is the one placeholder in the whole system; a business account swaps it for an Indian line on day one, and nothing else changes.
+**A note on the number, since you'll notice it's American.** The right way to run this in India is a local number from a provider like Exotel, or Twilio's India route. Both need a registered business and KYC I don't have as an individual, and the India path carries regulatory paperwork I can't clear on my own yet. So I did the next best thing: I built the entire telephony path on Twilio's free trial and deployed it end to end. The trial leaves three fingerprints, and all three are the trial's doing, not the system's — it's a US number, it plays a short "trial account" message before Vaidya answers, and it only connects calls from numbers I've verified on the account. Everything after that message — the live audio, the language switch, the reasoning, the spoken answer — is real and running in production. A paid account clears all three at once: an Indian number, no preamble, open to any caller. Nothing else in the system changes.
 
 ## The schemes
 
