@@ -45,5 +45,5 @@ Thumbs.db
 # Docker
 docker-compose.override.yml
 
-# Local Claude Code instructions (personal; never commit)
+# Local-only working notes (never commit)
 CLAUDE.md
