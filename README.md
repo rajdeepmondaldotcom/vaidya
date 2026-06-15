@@ -29,28 +29,7 @@ Scope is the rule that held the whole way through. Vaidya is a first point of co
 
 A single spoken answer travels through speech recognition, a deterministic router, up to four agents, a safety check, translation if needed, and speech synthesis. The design falls out of that path.
 
-```
-Caller speaks ─▶ Saaras v3 (STT, 23 languages)
-                      │
-                      ▼
-              ORCHESTRATOR  (deterministic state machine, not an LLM)
-                      │
-      ┌───────────────┼────────────────┐
-      ▼               ▼                ▼
-   INTAKE         ELIGIBILITY        REVIEWER
- (5 questions)   (LLM + RAG)     (reads the full
-      │          field matching    transcript)
-      │               └───────┬────────┘
-      │                       ▼
-      │               CONVERGENCE CHECK
-      │            (both must agree to speak)
-      └───────────────────────┬────────────────┐
-                               ▼
-                           GUIDANCE  (schemes + next steps)
-                               │
-                               ▼
-                    Bulbul v3 (TTS, 11 voice languages) ─▶ Caller hears the answer
-```
+![Vaidya architecture: one phone call through the Sarvam speech stack and a multi-agent eligibility pipeline](docs/architecture.png)
 
 **The orchestrator is plain Python.** It's a `match`/`case` state machine over seven conversation phases, and it makes every routing decision in well under ten milliseconds. No model in the routing loop. A language model is non-deterministic by design, and the control flow of a system that tells people what healthcare they qualify for cannot be. The routing has to be the same every time, debuggable, and unit-testable. So the orchestrator owns what happens next, deterministically, and the agents do their thinking inside the lanes it draws. The model is pulled in only where there's real judgment to make.
 
@@ -102,7 +81,7 @@ Python 3.11 and FastAPI. The Sarvam SDK for `sarvam-105b` and `sarvam-30b`, Saar
 
 More than a thousand unit and integration tests run on every push, behind `ruff`, `mypy --strict`, and a coverage floor. On top of those, an 81-scenario evaluation suite scores the things that matter end to end: per-scheme accuracy, exclusion logic, identical results for the same profile across languages, adversarial inputs like prompt injection and Aadhaar probing, and the case where the reviewer catches what eligibility missed. The methodology is in [docs/EVALUATION.md](docs/EVALUATION.md), the design in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), and a guided walkthrough in [docs/DEMO.md](docs/DEMO.md).
 
-On a representative slice across all ten voice languages, precision was 100 percent: the advisor never recommended a scheme the caller was ineligible for, and all four exclusion and prompt-injection cases correctly withheld PM-JAY. State-scheme recall, the scheme the caller actually enrolls in, was about 100 percent. The known gap is the central PM-JAY umbrella label: in states that deliver PM-JAY through their own scheme, the system surfaces the state vehicle the caller signs up for and only inconsistently also names the central label. That is a modeling nuance, not a safety failure, and it is the next thing to fix. The orchestration adds under ten milliseconds per routing decision. End-to-end time is dominated by Sarvam API response under load, which is variable; the raw API latency is not fast, and the speculative pre-compute and spoken fillers engineer around it rather than hide that fact.
+On a representative slice across all ten voice languages, precision was 100 percent: the advisor never recommended a scheme the caller was ineligible for, and all four exclusion and prompt-injection cases correctly withheld PM-JAY. State-scheme recall, the scheme the caller actually enrolls in, was about 100 percent. The known gap is the central PM-JAY umbrella label: in states that deliver PM-JAY through their own scheme, the system surfaces the state vehicle the caller signs up for and only inconsistently also names the central label. That is a modeling nuance, not a safety failure, and it is the next thing to fix. The orchestration adds under ten milliseconds per routing decision. End-to-end time is dominated by Sarvam API response under load, which is variable. The raw API latency is not fast; on the voice path, the speculative pre-compute and the spoken fillers cover it.
 
 ## Run it without a phone
 
@@ -136,3 +115,9 @@ A Sarvam key is free at [dashboard.sarvam.ai](https://dashboard.sarvam.ai), the 
 ## What's next
 
 Now: 61 schemes across every state and UT, 23 languages, text simulation, and real voice calls over Twilio. Next: an automated refresh of the scheme corpus, WhatsApp through Samvaad, and verification against the NHA API. After that, a per-state deployment that runs the whole pipeline locally and air-gapped for health departments that need it. The same shape generalizes past healthcare, to pensions, agriculture subsidies, and scholarships, which all share the same discovery problem.
+
+## Why I built this
+
+This problem is close to me. In 2019, in college, I tried to build something that voice-dubbed English lectures into Indian languages: Andrew Ng, Gilbert Strang, the courses that carried me through my own degree. The idea was to get them to the under-resourced schools and colleges around me, where the lectures existed but the language didn't. The technology wasn't ready then. I spent a lot of Claude credits keeping it alive, and it eventually failed, but the problem never left me: good knowledge exists, and the people who need it most can't reach it because of language.
+
+Vaidya is that same gap from another direction, which is why what Sarvam is building genuinely impresses me. The stack that wasn't there in 2019 exists now. I bought a few thousand rupees of Sarvam credits and put this together over a weekend, mostly to see whether the idea finally works. It does, and I'd love to keep going.
