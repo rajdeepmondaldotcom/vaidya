@@ -6,14 +6,14 @@
 
 *Vaidya* (वैद्य) is the old word for the village healer, the person you went to when you didn't know what was wrong or where to go. Not a specialist. A guide who listened, understood your situation, and told you the next step in words you understood. That is the job here. Not diagnosis, not treatment. Discovery.
 
-## Two real calls, and a number you can dial
+## Two real calls
 
-The two recordings in [`demo/`](demo/) are real calls to a line that is live right now, trimmed for dead air and nothing else.
+The two recordings in [`demo/`](demo/) are real calls to the live line, trimmed for dead air and nothing else.
 
 - [`demo/hindi-vaidya-call.wav`](demo/hindi-vaidya-call.wav), a caller answering in Hindi.
 - [`demo/bengali-vaidya-call.wav`](demo/bengali-vaidya-call.wav), a caller answering in Bengali.
 
-You can also dial it yourself, with one caveat covered below. The line runs on a Twilio trial account, and a trial line only connects calls from numbers verified on the account. So **+1 775 372 2354** won't pick up for a number I haven't verified, and verifying one takes about two minutes. The recordings are the full experience for anyone. To hear it live, send the number you'll call from and I'll open the line to it. Either way it answers in Hindi and switches to your language the moment you speak.
+The phone line is down now. It ran on a Twilio trial account, and a free service costs money to keep running, so the recordings are the way to hear it. It answered in Hindi and switched to the caller's language the moment they spoke.
 
 ## What this solves
 
@@ -61,7 +61,7 @@ This runs as a live phone line, not a notebook.
 
 **Twilio** carries the call. When someone dials, Twilio hits a webhook on the app, gets back TwiML that opens a bidirectional Media Stream, and streams the live audio to a WebSocket. A Pipecat pipeline wires that stream to Saaras for speech in and Bulbul for speech out, with the orchestrator and agents in the middle of the loop. The caller hears a conversation.
 
-**A note on the number, since it's American.** The right way to run this in India is a local number from a provider like Exotel, or Twilio's India route. Both need a registered business and KYC I don't have as an individual, and the India path carries regulatory paperwork I can't clear on my own yet. Plivo was the same story: I tried it and couldn't get it working end to end for this setup, the same class of business-account and India-onboarding friction. So the entire telephony path runs on Twilio's free trial, deployed end to end. The trial leaves three fingerprints, all of them the trial's doing and not the system's: a US number, a short "trial account" message before Vaidya answers, and calls only from numbers verified on the account. Everything after that message, the live audio, the language switch, the reasoning, the spoken answer, is real and running in production. A paid account clears all three at once: an Indian number, no preamble, open to any caller. Nothing else in the system changes.
+**A note on the number, since it was American.** The right way to run this in India is a local number from a provider like Exotel, or Twilio's India route. Both need a registered business and KYC I don't have as an individual, and the India path carries regulatory paperwork I can't clear on my own yet. Plivo was the same story: I tried it and couldn't get it working end to end for this setup, the same class of business-account and India-onboarding friction. So the entire telephony path ran on Twilio's free trial, deployed end to end. The trial left three fingerprints, all of them the trial's doing and not the system's: a US number, a short "trial account" message before Vaidya answered, and calls only from numbers verified on the account. Everything after that message, the live audio, the language switch, the reasoning, the spoken answer, was real and ran in production. A paid account clears all three at once: an Indian number, no preamble, open to any caller. Nothing else in the system changes.
 
 ## The schemes
 
@@ -116,7 +116,7 @@ A Sarvam key is free at [dashboard.sarvam.ai](https://dashboard.sarvam.ai), the 
 
 ## What's next
 
-Now: 61 schemes across every state and UT, 23 languages, text simulation, and real voice calls over Twilio. Next: an automated refresh of the scheme corpus, WhatsApp through Samvaad, and verification against the NHA API. After that, a per-state deployment that runs the whole pipeline locally and air-gapped for health departments that need it. The same shape generalizes past healthcare, to pensions, agriculture subsidies, and scholarships, which all share the same discovery problem.
+Now: 61 schemes across every state and UT, 23 languages, text simulation, and a voice pipeline that took real calls over Twilio until the free line came down. Next: an automated refresh of the scheme corpus, WhatsApp through Samvaad, and verification against the NHA API. After that, a per-state deployment that runs the whole pipeline locally and air-gapped for health departments that need it. The same shape generalizes past healthcare, to pensions, agriculture subsidies, and scholarships, which all share the same discovery problem.
 
 ## Why I built this
 
